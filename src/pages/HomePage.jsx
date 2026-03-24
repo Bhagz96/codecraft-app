@@ -43,7 +43,7 @@ function HomePage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
         <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-2">
-          KidCode Quest
+          CodeCraft
         </h1>
         <p className="text-gray-400 text-sm font-mono mb-10">
           Create your hero to begin
@@ -123,10 +123,10 @@ function HomePage() {
       {/* Header */}
       <header className="text-center mb-8">
         <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-2">
-          KidCode Quest
+          CodeCraft
         </h1>
         <p className="text-gray-400 text-sm font-mono">
-          Learn to code. Level by level.
+          Build games. Learn Python. Level up.
         </p>
       </header>
 

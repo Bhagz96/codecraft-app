@@ -20,7 +20,7 @@ import { useState, useEffect } from "react";
 import PixelHero from "./PixelHero";
 import PixelEnemy from "./PixelEnemy";
 
-function GameScene({ sceneId = "hero-spawn", result, hero }) {
+function GameScene({ sceneId = "hero-spawn", result, hero, gameAction, sceneConfig }) {
   const [phase, setPhase] = useState("idle");
 
   useEffect(() => {
@@ -40,19 +40,24 @@ function GameScene({ sceneId = "hero-spawn", result, hero }) {
   const heroColor = hero?.color || "#00d4ff";
   const heroName = hero?.name || "Hero";
 
-  // Pick the right scene
+  // Shared props passed to every scene
+  const sceneProps = { phase, heroColor, heroName, hero, gameAction, sceneConfig };
+
+  // Pick the right scene — extensible via sceneId in lesson data
   const renderScene = () => {
     switch (sceneId) {
       case "hero-spawn":
-        return <HeroSpawnScene phase={phase} heroColor={heroColor} heroName={heroName} hero={hero} />;
+        return <HeroSpawnScene {...sceneProps} />;
       case "dungeon-room":
-        return <DungeonRoomScene phase={phase} heroColor={heroColor} heroName={heroName} hero={hero} />;
+        return <DungeonRoomScene {...sceneProps} />;
+      case "mountain-trail":
+        return <MountainTrailScene {...sceneProps} />;
       case "combat-arena":
-        return <CombatArenaScene phase={phase} heroColor={heroColor} heroName={heroName} hero={hero} />;
+        return <CombatArenaScene {...sceneProps} />;
       case "the-gate":
-        return <TheGateScene phase={phase} heroColor={heroColor} heroName={heroName} hero={hero} />;
+        return <TheGateScene {...sceneProps} />;
       default:
-        return <HeroSpawnScene phase={phase} heroColor={heroColor} heroName={heroName} hero={hero} />;
+        return <HeroSpawnScene {...sceneProps} />;
     }
   };
 
@@ -88,7 +93,21 @@ function GameScene({ sceneId = "hero-spawn", result, hero }) {
 // SCENE 1: HERO SPAWN
 // =====================
 // Used for Variables L1 — Hero materializes with stats
-function HeroSpawnScene({ phase, heroColor, heroName, hero }) {
+// gameActions: "heroNameSet", "heroStatsInit", "heroDataStore"
+function HeroSpawnScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+  // Pick status message based on gameAction
+  const successMsg = {
+    heroNameSet: `✦ ${heroName} has entered the game! ✦`,
+    heroStatsInit: `✦ ${heroName}'s stats are set! ✦`,
+    heroDataStore: `✦ Data saved to ${heroName}'s profile! ✦`,
+  }[gameAction] || "✦ Variables set successfully! ✦";
+
+  const failMsg = {
+    heroNameSet: `✗ Name not recognized — check your code`,
+    heroStatsInit: `✗ Stats error — values don't match`,
+    heroDataStore: `✗ Data corrupted — try again`,
+  }[gameAction] || "✗ Code error — try again";
+
   return (
     <div className="w-full h-full relative flex items-center justify-center"
          style={{ background: "linear-gradient(180deg, #0d1117 0%, #1a1033 50%, #0d1117 100%)" }}>
@@ -113,6 +132,15 @@ function HeroSpawnScene({ phase, heroColor, heroName, hero }) {
               }}
             />
           ))}
+        </div>
+      )}
+
+      {/* Stat change popup */}
+      {phase === "success" && sceneConfig?.statChange && (
+        <div className="absolute top-4 right-4 animate-bounce">
+          <span className="bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-mono px-2 py-1 rounded">
+            {sceneConfig.statChange}
+          </span>
         </div>
       )}
 
@@ -146,14 +174,10 @@ function HeroSpawnScene({ phase, heroColor, heroName, hero }) {
       {/* Status text */}
       <div className="absolute bottom-2 left-0 right-0 text-center">
         {phase === "success" && (
-          <span className="text-green-400 text-xs font-mono animate-pulse">
-            ✦ Variables set successfully! ✦
-          </span>
+          <span className="text-green-400 text-xs font-mono animate-pulse">{successMsg}</span>
         )}
         {phase === "fail" && (
-          <span className="text-red-400 text-xs font-mono">
-            ✗ Code error — try again
-          </span>
+          <span className="text-red-400 text-xs font-mono">{failMsg}</span>
         )}
       </div>
     </div>
@@ -164,7 +188,18 @@ function HeroSpawnScene({ phase, heroColor, heroName, hero }) {
 // SCENE 2: DUNGEON ROOM
 // =====================
 // Used for Variables L2-L5 — Exploring, opening chests, collecting items
-function DungeonRoomScene({ phase, heroColor, heroName, hero }) {
+// gameActions: "heroCollectItem", "heroStoreData", "heroLearnSkill", "heroBuildInventory"
+function DungeonRoomScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+  const itemEmoji = sceneConfig?.itemEmoji || (phase === "success" ? "📖" : "📦");
+  const successEmoji = sceneConfig?.successEmoji || "📖";
+
+  const successMsg = {
+    heroCollectItem: `✦ ${heroName} found ${sceneConfig?.itemName || "an item"}! ✦`,
+    heroStoreData: `✦ Data stored in ${heroName}'s chest! ✦`,
+    heroLearnSkill: `✦ ${heroName} learned a new skill! ✦`,
+    heroBuildInventory: `✦ Inventory updated! ✦`,
+  }[gameAction] || "✦ Data stored in the chest! ✦";
+
   return (
     <div className="w-full h-full relative flex items-end justify-center pb-6"
          style={{ background: "linear-gradient(180deg, #0a0a1a 0%, #1a1033 40%, #2d1b4e 100%)" }}>
@@ -182,14 +217,19 @@ function DungeonRoomScene({ phase, heroColor, heroName, hero }) {
       {/* Torch right */}
       <div className="absolute right-8 top-8 text-2xl animate-pulse" style={{ animationDelay: "0.5s" }}>🔥</div>
 
-      {/* Treasure chest */}
+      {/* Treasure chest / item */}
       <div className={`absolute right-16 bottom-6 transition-all duration-500 ${
         phase === "success" ? "scale-110" : ""
       }`}>
         <div className="text-3xl">
-          {phase === "success" ? "📖" : "📦"}
+          {phase === "success" ? successEmoji : itemEmoji}
         </div>
-        {phase === "success" && (
+        {phase === "success" && sceneConfig?.statChange && (
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 text-xs font-mono animate-bounce">
+            {sceneConfig.statChange}
+          </div>
+        )}
+        {phase === "success" && !sceneConfig?.statChange && (
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 text-xs font-mono animate-bounce">
             +gold!
           </div>
@@ -210,9 +250,7 @@ function DungeonRoomScene({ phase, heroColor, heroName, hero }) {
       {/* Status */}
       <div className="absolute bottom-1 left-0 right-0 text-center">
         {phase === "success" && (
-          <span className="text-green-400 text-xs font-mono animate-pulse">
-            ✦ Data stored in the chest! ✦
-          </span>
+          <span className="text-green-400 text-xs font-mono animate-pulse">{successMsg}</span>
         )}
         {phase === "fail" && (
           <span className="text-red-400 text-xs font-mono">
@@ -225,10 +263,108 @@ function DungeonRoomScene({ phase, heroColor, heroName, hero }) {
 }
 
 // =====================
+// SCENE 2.5: MOUNTAIN TRAIL
+// =====================
+// Used for Loops — Hero climbs mountain, collects items along the path
+// gameActions: "heroClimbSteps", "heroCollectLoop", "heroTrainLoop"
+function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+  const [stepsClimbed, setStepsClimbed] = useState(0);
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    if (phase === "success") {
+      if (gameAction === "heroClimbSteps") {
+        setStepsClimbed((prev) => prev + 1);
+      } else if (gameAction === "heroCollectLoop") {
+        setItems((prev) => [...prev, sceneConfig?.itemEmoji || "⭐"]);
+      }
+    }
+  }, [phase, gameAction, sceneConfig]);
+
+  // Mountain steps visual
+  const totalSteps = 5;
+  const currentStep = Math.min(stepsClimbed, totalSteps);
+
+  const successMsg = {
+    heroClimbSteps: `✦ ${heroName} climbed a step! (${currentStep}/${totalSteps}) ✦`,
+    heroCollectLoop: `✦ ${heroName} collected ${sceneConfig?.itemEmoji || "an item"}! (${items.length} total) ✦`,
+    heroTrainLoop: `✦ ${heroName} completed a training rep! ✦`,
+  }[gameAction] || `✦ Loop iteration complete! ✦`;
+
+  return (
+    <div className="w-full h-full relative overflow-hidden"
+         style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0d1b3e 40%, #1a3020 70%, #2d4020 100%)" }}>
+
+      {/* Stars */}
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="absolute w-1 h-1 bg-white rounded-full opacity-40"
+             style={{ left: `${10 + i * 16}%`, top: `${5 + (i % 3) * 8}%` }} />
+      ))}
+
+      {/* Mountain silhouette */}
+      <svg className="absolute bottom-0 left-0 right-0" viewBox="0 0 400 100" preserveAspectRatio="none" style={{ height: "70%" }}>
+        <polygon points="0,100 80,30 160,60 200,15 240,55 320,25 400,100" fill="#1a2810" opacity="0.6" />
+        <polygon points="0,100 100,45 180,70 250,35 350,50 400,100" fill="#253518" opacity="0.5" />
+      </svg>
+
+      {/* Mountain steps */}
+      <div className="absolute bottom-8 left-8 flex items-end gap-1">
+        {[...Array(totalSteps)].map((_, i) => (
+          <div
+            key={i}
+            className={`transition-all duration-500 rounded-sm ${
+              i < currentStep
+                ? "bg-green-500/60 border border-green-400/30"
+                : "bg-[#1a2810] border border-[#30363d]/30"
+            }`}
+            style={{ width: 20, height: 12 + i * 8, marginBottom: 0 }}
+          />
+        ))}
+      </div>
+
+      {/* Collected items */}
+      {items.length > 0 && (
+        <div className="absolute top-3 right-3 flex gap-1">
+          {items.map((item, i) => (
+            <span key={i} className="text-sm animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>
+              {item}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Hero on the mountain */}
+      <div className={`absolute transition-all duration-700`}
+           style={{ bottom: `${24 + currentStep * 16}px`, left: `${30 + currentStep * 14}px` }}>
+        <PixelHero
+          color={heroColor}
+          size={64}
+          animation={phase === "success" ? "walk" : phase === "fail" ? "hurt" : "idle"}
+        />
+      </div>
+
+      {/* Trail markers */}
+      <div className="absolute bottom-3 left-0 right-0 text-center">
+        {phase === "success" && (
+          <span className="text-green-400 text-xs font-mono animate-pulse">{successMsg}</span>
+        )}
+        {phase === "fail" && (
+          <span className="text-red-400 text-xs font-mono">✗ Loop error — iteration failed</span>
+        )}
+        {phase === "idle" && stepsClimbed === 0 && (
+          <span className="text-gray-600 text-xs font-mono">Write loops to climb the mountain...</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =====================
 // SCENE 3: COMBAT ARENA
 // =====================
 // Used for Loops — Fighting waves of enemies
-function CombatArenaScene({ phase, heroColor, heroName, hero }) {
+// gameActions: "heroFightWave", "heroRepeatAttack"
+function CombatArenaScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
   const [defeatedCount, setDefeatedCount] = useState(0);
 
   useEffect(() => {
@@ -301,7 +437,7 @@ function CombatArenaScene({ phase, heroColor, heroName, hero }) {
       <div className="absolute bottom-1 left-0 right-0 text-center">
         {phase === "success" && (
           <span className="text-green-400 text-xs font-mono animate-pulse">
-            ✦ Loop iteration complete! Enemy defeated! ✦
+            ✦ {heroName}'s loop hits! Enemy defeated! ✦
           </span>
         )}
         {phase === "fail" && (
@@ -317,8 +453,9 @@ function CombatArenaScene({ phase, heroColor, heroName, hero }) {
 // =====================
 // SCENE 4: THE GATE
 // =====================
-// Used for Conditions — Making decisions at a magical gate
-function TheGateScene({ phase, heroColor, heroName, hero }) {
+// Used for Conditions — Making decisions at obstacles
+// gameActions: "heroCheckWeather", "heroForkPath", "heroObstacle", "heroFinalGate"
+function TheGateScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
   return (
     <div className="w-full h-full relative flex items-end justify-center pb-6"
          style={{ background: "linear-gradient(180deg, #0a0a1a 0%, #0a1a2a 50%, #1a2a3a 100%)" }}>
@@ -388,12 +525,12 @@ function TheGateScene({ phase, heroColor, heroName, hero }) {
       <div className="absolute bottom-1 left-0 right-0 text-center">
         {phase === "success" && (
           <span className="text-green-400 text-xs font-mono animate-pulse">
-            ✦ Condition is True — the gate opens! ✦
+            ✦ {heroName}'s condition is True — path cleared! ✦
           </span>
         )}
         {phase === "fail" && (
           <span className="text-red-400 text-xs font-mono">
-            ✗ Condition is False — the gate stays locked
+            ✗ Condition is False — {heroName} can't pass
           </span>
         )}
       </div>

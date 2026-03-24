@@ -3,9 +3,11 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { completeLevel } from "../data/progress";
 import { getHero, awardXP } from "../data/hero";
+import { injectHeroIntoLevel } from "../data/lessonTemplates";
 import CodeSimulation from "../components/CodeSimulation";
 import DragDropBuilder from "../components/DragDropBuilder";
 import SpeedCoding from "../components/SpeedCoding";
+import ConceptIntro from "../components/ConceptIntro";
 import GameScene from "../components/game/GameScene";
 import {
   createMAB,
@@ -17,10 +19,10 @@ import {
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
 
 /**
- * LESSON PAGE — Version 2 with Game Scenes
- * ==========================================
- * Plays a specific concept at a specific difficulty level.
- * Now includes a persistent hero and visual game scenes.
+ * LESSON PAGE — Version 2 with Concept Intros & Dynamic Hero Data
+ * =================================================================
+ * Shows a concept intro screen first, then plays the lesson.
+ * All code examples are personalized with the hero's real name/stats.
  *
  * Scene mapping:
  *   variables  → L1: hero-spawn, L2+: dungeon-room
@@ -47,10 +49,19 @@ function LessonPage() {
 
   // Find the concept and level data
   const concept = lessons.find((l) => l.id === conceptId);
-  const levelData = concept?.levels?.find((l) => l.level === levelNum);
+  const rawLevelData = concept?.levels?.find((l) => l.level === levelNum);
 
   // Get hero data
   const [hero, setHero] = useState(() => getHero());
+
+  // Inject hero data into lesson content (dynamic templates)
+  const levelData = useMemo(
+    () => injectHeroIntoLevel(rawLevelData, hero),
+    [rawLevelData, hero]
+  );
+
+  // Show concept intro before starting the lesson
+  const [showIntro, setShowIntro] = useState(true);
 
   // MAB picks modality and reward type for this session
   const { modality, rewardType } = useMemo(() => {
@@ -170,8 +181,29 @@ function LessonPage() {
     );
   }
 
-  const step = levelData.steps[currentStep];
-  const sceneId = getSceneId(conceptId, levelNum);
+  // Show concept intro before the lesson starts
+  if (showIntro) {
+    return (
+      <ConceptIntro
+        concept={concept}
+        levelData={levelData}
+        heroName={hero?.name}
+        heroColor={hero?.color}
+        onStart={() => setShowIntro(false)}
+      />
+    );
+  }
+
+  const rawStep = levelData.steps[currentStep];
+
+  // Inject per-modality instruction so each game mode gets its own prompt
+  const step = {
+    ...rawStep,
+    instruction: rawStep.instructions?.[modality] || rawStep.instruction,
+  };
+
+  // Scene ID comes from level data (extensible) or fallback to old mapping
+  const sceneId = levelData.sceneId || getSceneId(conceptId, levelNum);
 
   // Pick the right component based on MAB-selected modality
   const ModeComponent =
@@ -227,6 +259,8 @@ function LessonPage() {
           sceneId={sceneId}
           result={sceneResult}
           hero={hero}
+          gameAction={step.gameAction}
+          sceneConfig={step.sceneConfig}
         />
       </div>
 
