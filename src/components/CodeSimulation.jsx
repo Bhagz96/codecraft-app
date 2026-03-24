@@ -54,7 +54,7 @@ function highlightCode(code) {
 
       // Keywords
       text = text.replace(
-        /\b(let|const|var|function|return|if|else|for|while|do|switch|case|default|break|continue|new|typeof|of|in|class|import|export|from|true|false|null|undefined)\b/g,
+        /\b(def|return|if|elif|else|for|while|break|continue|pass|in|not|and|or|is|class|import|from|try|except|finally|raise|with|as|True|False|None|print|range|len|int|str|float|list|dict|type|input|append|sum|max|min|sorted|enumerate)\b/g,
         '<span class="syntax-keyword">$1</span>'
       );
 
@@ -127,7 +127,7 @@ function CodeSimulation({ step, onAnswer, feedback }) {
           <div className="w-3 h-3 rounded-full bg-red-500/70"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500/70"></div>
           <div className="w-3 h-3 rounded-full bg-green-500/70"></div>
-          <span className="text-xs text-gray-500 ml-2 font-mono">simulation.js</span>
+          <span className="text-xs text-gray-500 ml-2 font-mono">simulation.py</span>
         </div>
 
         {/* Code lines */}
