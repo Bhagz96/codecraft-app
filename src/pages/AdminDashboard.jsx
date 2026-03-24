@@ -9,6 +9,7 @@ import {
 } from "../mab/engine";
 import { getAllSessions, clearSessions } from "../mab/sessionTracker";
 import { resetProgress } from "../data/progress";
+import { resetHero } from "../data/hero";
 
 /**
  * ADMIN DASHBOARD — Version 2 (Dark Dev Theme)
@@ -95,6 +96,7 @@ function AdminDashboard() {
     localStorage.removeItem("kidcode_rewardMAB");
     clearSessions();
     resetProgress();
+    resetHero();
     loadData();
   };
 

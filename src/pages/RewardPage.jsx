@@ -46,6 +46,7 @@ function RewardPage() {
     correctCount,
     totalSteps,
     conceptId,
+    xpEarned,
   } = location.state || {};
 
   const [revealed, setRevealed] = useState(false);
@@ -104,6 +105,9 @@ function RewardPage() {
         </p>
         <p className="text-gray-500 text-sm mt-1">
           {correctCount}/{totalSteps} correct
+          {xpEarned > 0 && (
+            <span className="text-purple-400 ml-2">+{xpEarned} XP</span>
+          )}
         </p>
       </div>
 

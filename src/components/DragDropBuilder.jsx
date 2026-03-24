@@ -18,7 +18,7 @@ import CodeBlock from "./drag-drop/CodeBlock";
 import DropZone from "./drag-drop/DropZone";
 import VisualOutput from "./drag-drop/VisualOutput";
 
-function DragDropBuilder({ step, onAnswer, feedback }) {
+function DragDropBuilder({ step, onAnswer, feedback, hero }) {
   const codeBlocks = step.codeBlocks || step.options || [];
   const correctOrder = step.correctOrder || [];
   const totalSlots = correctOrder.length;
@@ -170,7 +170,8 @@ function DragDropBuilder({ step, onAnswer, feedback }) {
       <div className="mb-4">
         <VisualOutput
           result={visualResult}
-          scene={step.visualScene || "mountain"}
+          scene={step.visualScene || "hero-spawn"}
+          hero={hero}
         />
       </div>
 

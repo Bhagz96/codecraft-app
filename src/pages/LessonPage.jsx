@@ -2,9 +2,11 @@ import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { completeLevel } from "../data/progress";
+import { getHero, awardXP } from "../data/hero";
 import CodeSimulation from "../components/CodeSimulation";
 import DragDropBuilder from "../components/DragDropBuilder";
 import SpeedCoding from "../components/SpeedCoding";
+import GameScene from "../components/game/GameScene";
 import {
   createMAB,
   selectArm,
@@ -15,19 +17,29 @@ import {
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
 
 /**
- * LESSON PAGE — Version 2
- * =======================
+ * LESSON PAGE — Version 2 with Game Scenes
+ * ==========================================
  * Plays a specific concept at a specific difficulty level.
+ * Now includes a persistent hero and visual game scenes.
  *
- * URL: /lesson/:conceptId/:level
- * Example: /lesson/variables/2
- *
- * Flow:
- * 1. MAB picks a teaching modality and reward type
- * 2. Steps are shown one at a time in that modality
- * 3. User answers each step, gets feedback
- * 4. After all steps → navigate to reward page
+ * Scene mapping:
+ *   variables  → L1: hero-spawn, L2+: dungeon-room
+ *   loops      → combat-arena
+ *   conditions → the-gate
  */
+
+// Map concept + level to a scene ID
+function getSceneId(conceptId, level) {
+  if (conceptId === "variables") {
+    return level === 1 ? "hero-spawn" : "dungeon-room";
+  } else if (conceptId === "loops") {
+    return "combat-arena";
+  } else if (conceptId === "conditions") {
+    return "the-gate";
+  }
+  return "hero-spawn";
+}
+
 function LessonPage() {
   const { conceptId, level } = useParams();
   const levelNum = parseInt(level, 10);
@@ -36,6 +48,9 @@ function LessonPage() {
   // Find the concept and level data
   const concept = lessons.find((l) => l.id === conceptId);
   const levelData = concept?.levels?.find((l) => l.level === levelNum);
+
+  // Get hero data
+  const [hero, setHero] = useState(() => getHero());
 
   // MAB picks modality and reward type for this session
   const { modality, rewardType } = useMemo(() => {
@@ -64,6 +79,9 @@ function LessonPage() {
     startSession(conceptId, levelNum, modality, rewardType)
   );
 
+  // Track the game scene result for visual feedback
+  const [sceneResult, setSceneResult] = useState(null);
+
   // Handle when the user picks an answer
   const handleAnswer = (chosenIndex) => {
     if (feedback !== null) return;
@@ -75,7 +93,9 @@ function LessonPage() {
       setCorrectCount((prev) => prev + 1);
     }
 
-    setFeedback(isCorrect ? "correct" : "incorrect");
+    const result = isCorrect ? "correct" : "incorrect";
+    setFeedback(result);
+    setSceneResult(result);
   };
 
   // Handle moving to the next step or finishing
@@ -83,6 +103,7 @@ function LessonPage() {
     if (currentStep < levelData.steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
       setFeedback(null);
+      setSceneResult(null);
     } else {
       // Level complete!
       const completed = true;
@@ -108,8 +129,11 @@ function LessonPage() {
       localStorage.setItem("kidcode_modalityMAB", JSON.stringify(modalityMAB));
       localStorage.setItem("kidcode_rewardMAB", JSON.stringify(rewardMAB));
 
-      // Mark level complete in progress system
+      // Mark level complete + award XP
       completeLevel(conceptId, levelNum);
+      const xpAmount = correctCount * 20 + levelNum * 10;
+      const updatedHero = awardXP(xpAmount);
+      setHero(updatedHero);
 
       // Navigate to reward page
       navigate("/reward", {
@@ -121,12 +145,13 @@ function LessonPage() {
           correctCount,
           totalSteps: levelData.steps.length,
           conceptId,
+          xpEarned: xpAmount,
         },
       });
     }
   };
 
-  // Error state: concept or level not found
+  // Error state
   if (!concept || !levelData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -146,6 +171,7 @@ function LessonPage() {
   }
 
   const step = levelData.steps[currentStep];
+  const sceneId = getSceneId(conceptId, levelNum);
 
   // Pick the right component based on MAB-selected modality
   const ModeComponent =
@@ -155,18 +181,11 @@ function LessonPage() {
         ? DragDropBuilder
         : SpeedCoding;
 
-  // Modality display labels
-  const modalityLabels = {
-    codeSimulation: "Code Simulation",
-    dragDrop: "Drag & Drop",
-    speedCoding: "Speed Coding",
-  };
-
   return (
     <div className="min-h-screen px-4 py-6">
       {/* Top bar */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="max-w-3xl mx-auto mb-4">
+        <div className="flex items-center justify-between mb-3">
           <Link
             to="/"
             className="text-gray-500 hover:text-gray-300 font-mono text-sm transition-colors"
@@ -202,10 +221,24 @@ function LessonPage() {
         </div>
       </div>
 
-      {/* Lesson content — rendered by the selected modality */}
-      <ModeComponent step={step} onAnswer={handleAnswer} feedback={feedback} />
+      {/* Game Scene — visual feedback panel */}
+      <div className="max-w-3xl mx-auto mb-4">
+        <GameScene
+          sceneId={sceneId}
+          result={sceneResult}
+          hero={hero}
+        />
+      </div>
 
-      {/* Next button — only shown after answering */}
+      {/* Lesson content — rendered by the selected modality */}
+      <ModeComponent
+        step={step}
+        onAnswer={handleAnswer}
+        feedback={feedback}
+        hero={hero}
+      />
+
+      {/* Next button */}
       {feedback !== null && (
         <div className="max-w-3xl mx-auto mt-6 text-center">
           <button
