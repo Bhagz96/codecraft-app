@@ -2,120 +2,147 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 
 /**
- * REWARD PAGE
- * ===========
- * Shown after a child completes a lesson.
- * The reward type (badge/coins/mysteryBox) was chosen by the MAB engine.
- *
- * Each reward has its own animation and visual style to make it feel special.
+ * REWARD PAGE — Version 2 (Dev-Themed)
+ * =====================================
+ * Shown after completing a level.
+ * Reward type (badge/coins/mysteryBox) was chosen by the MAB engine.
+ * Rethemed for teens/young adults with developer aesthetics.
  */
 
-// Badge data — different badges for different achievements
+// Dev-themed badges
 const BADGES = [
-  { emoji: "🌟", name: "Super Star", color: "from-yellow-300 to-orange-400" },
-  { emoji: "🧠", name: "Brain Power", color: "from-purple-300 to-indigo-400" },
-  { emoji: "🚀", name: "Rocket Coder", color: "from-blue-300 to-cyan-400" },
-  { emoji: "🦄", name: "Code Unicorn", color: "from-pink-300 to-purple-400" },
+  { icon: "🐛", name: "Bug Squasher", desc: "Debugged like a pro" },
+  { icon: "📦", name: "First Commit", desc: "Shipped your first code" },
+  { icon: "🔥", name: "Stack Overflow Survivor", desc: "Got the hard one right" },
+  { icon: "⚡", name: "10x Developer", desc: "Perfect execution" },
+  { icon: "🛡️", name: "Code Reviewer", desc: "Sharp eye for detail" },
+  { icon: "🧪", name: "Test Passer", desc: "All tests green" },
 ];
 
-// Mystery box possible rewards
+// Mystery box items (developer-themed)
 const MYSTERY_ITEMS = [
-  { emoji: "🎨", name: "Rainbow Paint" },
-  { emoji: "🦖", name: "Dino Friend" },
-  { emoji: "🍕", name: "Pizza Party" },
-  { emoji: "🎸", name: "Rock Star Guitar" },
-  { emoji: "🌈", name: "Rainbow Power" },
-  { emoji: "🎪", name: "Circus Ticket" },
+  { icon: "🌙", name: "Dark Theme Unlock", rarity: "common" },
+  { icon: "💻", name: "Custom Terminal Prompt", rarity: "common" },
+  { icon: "🎨", name: "ASCII Art Pack", rarity: "uncommon" },
+  { icon: "📋", name: "Code Snippet Collection", rarity: "uncommon" },
+  { icon: "🦆", name: "Rubber Duck Debugger", rarity: "rare" },
+  { icon: "☕", name: "Infinite Coffee", rarity: "legendary" },
 ];
+
+const RARITY_COLORS = {
+  common: "text-gray-400 border-gray-500/30",
+  uncommon: "text-green-400 border-green-500/30",
+  rare: "text-purple-400 border-purple-500/30",
+  legendary: "text-orange-400 border-orange-500/30",
+};
 
 function RewardPage() {
   const location = useLocation();
-  const { rewardType, lessonTitle, correctCount, totalSteps } =
-    location.state || {};
+  const {
+    rewardType,
+    conceptTitle,
+    levelTitle,
+    levelNum,
+    correctCount,
+    totalSteps,
+    conceptId,
+  } = location.state || {};
 
   const [revealed, setRevealed] = useState(false);
   const [animating, setAnimating] = useState(true);
 
-  // Random selection for this reward
-  const [badge] = useState(() => BADGES[Math.floor(Math.random() * BADGES.length)]);
-  const [coins] = useState(() => Math.floor(Math.random() * 30) + 20); // 20-50 coins
+  // Random selections
+  const [badge] = useState(
+    () => BADGES[Math.floor(Math.random() * BADGES.length)]
+  );
+  const [xp] = useState(() => Math.floor(Math.random() * 30) + 20);
   const [mysteryItem] = useState(
     () => MYSTERY_ITEMS[Math.floor(Math.random() * MYSTERY_ITEMS.length)]
   );
 
-  // Stop entrance animation after a moment
   useEffect(() => {
-    const timer = setTimeout(() => setAnimating(false), 1000);
+    const timer = setTimeout(() => setAnimating(false), 600);
     return () => clearTimeout(timer);
   }, []);
 
-  // If no state was passed (direct URL access), redirect home
+  // No state — redirect home
   if (!rewardType) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl mb-4">Complete a lesson to earn rewards!</p>
+          <p className="text-gray-400 mb-4 font-mono">
+            // complete a level to earn rewards
+          </p>
           <Link
             to="/"
-            className="bg-purple-500 text-white font-bold px-6 py-3 rounded-full"
+            className="text-cyan-400 hover:text-cyan-300 font-mono transition-colors"
           >
-            Go to Lessons
+            cd /home →
           </Link>
         </div>
       </div>
     );
   }
 
+  // Calculate next level
+  const nextLevel = levelNum + 1;
+  const concept = conceptId;
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
-      {/* Celebration header */}
+      {/* Header */}
       <div
-        className={`text-center mb-8 transition-all duration-700 ${
-          animating ? "scale-50 opacity-0" : "scale-100 opacity-100"
+        className={`text-center mb-8 transition-all duration-500 ${
+          animating ? "scale-90 opacity-0" : "scale-100 opacity-100"
         }`}
       >
-        <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 mb-2">
-          Amazing Job!
+        <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">
+          Level Complete
         </h1>
-        <p className="text-xl text-gray-600">
-          You finished <strong>{lessonTitle}</strong>!
+        <p className="text-gray-400 font-mono text-sm">
+          {conceptTitle} — Level {levelNum}: {levelTitle}
         </p>
-        <p className="text-lg text-gray-500 mt-1">
-          {correctCount} out of {totalSteps} correct
+        <p className="text-gray-500 text-sm mt-1">
+          {correctCount}/{totalSteps} correct
         </p>
       </div>
 
-      {/* Reward display — changes based on rewardType */}
+      {/* Reward display */}
       <div
-        className={`transition-all duration-700 delay-300 ${
-          animating ? "scale-50 opacity-0" : "scale-100 opacity-100"
+        className={`transition-all duration-500 delay-200 ${
+          animating ? "scale-90 opacity-0" : "scale-100 opacity-100"
         }`}
       >
         {/* BADGE REWARD */}
         {rewardType === "badge" && (
           <div className="text-center">
-            <div
-              className={`w-48 h-48 rounded-full bg-gradient-to-br ${badge.color} flex items-center justify-center mx-auto mb-4 shadow-2xl`}
-            >
-              <span className="text-8xl">{badge.emoji}</span>
+            <div className="w-32 h-32 rounded-2xl bg-[#161b22] border border-cyan-500/30 flex items-center justify-center mx-auto mb-4 glow-cyan">
+              <span className="text-6xl">{badge.icon}</span>
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-1">
-              New Badge Earned!
+            <h2 className="text-xl font-bold text-gray-100 mb-1">
+              Badge Earned
             </h2>
-            <p className="text-xl text-gray-600 font-medium">{badge.name}</p>
+            <p className="text-cyan-400 font-mono font-semibold">
+              {badge.name}
+            </p>
+            <p className="text-gray-500 text-sm mt-1">{badge.desc}</p>
           </div>
         )}
 
-        {/* COINS REWARD */}
+        {/* XP/CREDITS REWARD */}
         {rewardType === "coins" && (
           <div className="text-center">
-            <div className="w-48 h-48 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center mx-auto mb-4 shadow-2xl">
-              <span className="text-7xl">🪙</span>
+            <div className="w-32 h-32 rounded-2xl bg-[#161b22] border border-green-500/30 flex items-center justify-center mx-auto mb-4 glow-green">
+              <span className="text-5xl font-mono font-bold text-green-400">
+                +{xp}
+              </span>
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-1">
-              You earned coins!
+            <h2 className="text-xl font-bold text-gray-100 mb-1">
+              XP Earned
             </h2>
-            <p className="text-5xl font-extrabold text-yellow-600">+{coins}</p>
+            <p className="text-green-400 font-mono text-2xl font-bold">
+              {xp} credits
+            </p>
           </div>
         )}
 
@@ -126,43 +153,61 @@ function RewardPage() {
               <>
                 <button
                   onClick={() => setRevealed(true)}
-                  className="w-48 h-48 rounded-3xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-2xl cursor-pointer hover:scale-110 transition-transform duration-200 animate-bounce"
+                  className="w-32 h-32 rounded-2xl bg-[#161b22] border border-purple-500/30 flex items-center justify-center mx-auto mb-4 cursor-pointer hover:scale-110 transition-transform glow-purple animate-pulse-neon"
                 >
-                  <span className="text-8xl">🎁</span>
+                  <span className="font-mono text-purple-400 text-sm">
+                    <span className="text-3xl block mb-1">$</span>
+                    sudo reveal
+                  </span>
                 </button>
-                <h2 className="text-3xl font-bold text-gray-800 mb-1">
-                  Mystery Box!
+                <h2 className="text-xl font-bold text-gray-100 mb-1">
+                  Mystery Drop
                 </h2>
-                <p className="text-lg text-gray-500">Tap to reveal!</p>
+                <p className="text-gray-500 text-sm font-mono">
+                  Click to execute...
+                </p>
               </>
             ) : (
               <>
-                <div className="w-48 h-48 rounded-3xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center mx-auto mb-4 shadow-2xl">
-                  <span className="text-8xl">{mysteryItem.emoji}</span>
+                <div
+                  className={`w-32 h-32 rounded-2xl bg-[#161b22] border ${RARITY_COLORS[mysteryItem.rarity]} flex items-center justify-center mx-auto mb-4`}
+                >
+                  <span className="text-6xl">{mysteryItem.icon}</span>
                 </div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-1">
-                  You got:
+                <h2 className="text-xl font-bold text-gray-100 mb-1">
+                  {mysteryItem.name}
                 </h2>
-                <p className="text-2xl font-bold text-purple-600">
-                  {mysteryItem.name}!
-                </p>
+                <span
+                  className={`inline-block px-2 py-0.5 rounded text-xs font-mono uppercase ${RARITY_COLORS[mysteryItem.rarity]}`}
+                >
+                  {mysteryItem.rarity}
+                </span>
               </>
             )}
           </div>
         )}
       </div>
 
-      {/* Navigation buttons */}
+      {/* Navigation */}
       <div
-        className={`mt-10 flex flex-col sm:flex-row gap-4 transition-all duration-700 delay-500 ${
-          animating ? "opacity-0 translate-y-8" : "opacity-100 translate-y-0"
+        className={`mt-10 flex flex-col sm:flex-row gap-3 transition-all duration-500 delay-300 ${
+          animating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
         }`}
       >
+        {/* Next level button (if exists) */}
+        {nextLevel <= 5 && (
+          <Link
+            to={`/lesson/${concept}/${nextLevel}`}
+            className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-center"
+          >
+            Next Level →
+          </Link>
+        )}
         <Link
           to="/"
-          className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg px-8 py-4 rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-center"
+          className="bg-[#161b22] border border-[#30363d] text-gray-300 font-semibold px-6 py-3 rounded-xl hover:border-[#484f58] transition-all duration-200 text-center"
         >
-          More Lessons! 🚀
+          All Concepts
         </Link>
       </div>
     </div>

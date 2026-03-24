@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
-import StoryMode from "../components/StoryMode";
-import PuzzleMode from "../components/PuzzleMode";
-import ChallengeMode from "../components/ChallengeMode";
+import { completeLevel } from "../data/progress";
+import CodeSimulation from "../components/CodeSimulation";
+import DragDropBuilder from "../components/DragDropBuilder";
+import SpeedCoding from "../components/SpeedCoding";
 import {
   createMAB,
   selectArm,
@@ -14,62 +15,60 @@ import {
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
 
 /**
- * LESSON PAGE
- * ===========
- * The main learning experience. This is where kids actually do the lessons.
+ * LESSON PAGE — Version 2
+ * =======================
+ * Plays a specific concept at a specific difficulty level.
+ *
+ * URL: /lesson/:conceptId/:level
+ * Example: /lesson/variables/2
  *
  * Flow:
- * 1. MAB engine picks a teaching modality and reward type
- * 2. The lesson steps are shown one at a time in that modality
- * 3. Child answers each step, gets feedback
+ * 1. MAB picks a teaching modality and reward type
+ * 2. Steps are shown one at a time in that modality
+ * 3. User answers each step, gets feedback
  * 4. After all steps → navigate to reward page
- *
- * The MAB selection and session tracking happen invisibly — the child
- * just sees a fun lesson in whatever mode was picked for them.
  */
 function LessonPage() {
-  const { lessonId } = useParams();
+  const { conceptId, level } = useParams();
+  const levelNum = parseInt(level, 10);
   const navigate = useNavigate();
 
-  // Find the lesson data
-  const lesson = lessons.find((l) => l.id === lessonId);
+  // Find the concept and level data
+  const concept = lessons.find((l) => l.id === conceptId);
+  const levelData = concept?.levels?.find((l) => l.level === levelNum);
 
   // MAB picks modality and reward type for this session
-  // useMemo ensures these are picked once when the page loads, not on every re-render
   const { modality, rewardType } = useMemo(() => {
-    // Load or create MAB instances from localStorage
     const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
     const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
 
     const modalityMAB = savedModalityMAB
       ? JSON.parse(savedModalityMAB)
-      : createMAB(MODALITIES, 0.3); // 30% exploration rate to start
+      : createMAB(MODALITIES, 0.3);
 
     const rewardMAB = savedRewardMAB
       ? JSON.parse(savedRewardMAB)
       : createMAB(REWARD_TYPES, 0.3);
 
-    // Let the MAB choose
     const chosenModality = selectArm(modalityMAB);
     const chosenReward = selectArm(rewardMAB);
 
     return { modality: chosenModality, rewardType: chosenReward };
-  }, [lessonId]);
+  }, [conceptId, levelNum]);
 
-  // Track which step we're on (0, 1, 2)
+  // Track which step we're on
   const [currentStep, setCurrentStep] = useState(0);
-  // Track feedback state for current step
   const [feedback, setFeedback] = useState(null);
-  // Track how many questions the child got right
   const [correctCount, setCorrectCount] = useState(0);
-  // Session tracking
-  const [session] = useState(() => startSession(lessonId, modality, rewardType));
+  const [session] = useState(() =>
+    startSession(conceptId, levelNum, modality, rewardType)
+  );
 
-  // Handle when the child picks an answer
+  // Handle when the user picks an answer
   const handleAnswer = (chosenIndex) => {
-    if (feedback !== null) return; // Already answered
+    if (feedback !== null) return;
 
-    const step = lesson.steps[currentStep];
+    const step = levelData.steps[currentStep];
     const isCorrect = chosenIndex === step.correctIndex;
 
     if (isCorrect) {
@@ -79,20 +78,19 @@ function LessonPage() {
     setFeedback(isCorrect ? "correct" : "incorrect");
   };
 
-  // Handle moving to the next step (or finishing)
+  // Handle moving to the next step or finishing
   const handleNext = () => {
-    if (currentStep < lesson.steps.length - 1) {
-      // Go to next step
+    if (currentStep < levelData.steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
       setFeedback(null);
     } else {
-      // Lesson complete! Save session and go to rewards
+      // Level complete!
       const completed = true;
       const finalSession = endSession(session, completed);
       saveSession(finalSession);
 
-      // Update MAB with reward (1 for completed, scaled by correctness)
-      const reward = correctCount / lesson.steps.length;
+      // Update MAB
+      const reward = correctCount / levelData.steps.length;
 
       const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
       const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
@@ -110,85 +108,113 @@ function LessonPage() {
       localStorage.setItem("kidcode_modalityMAB", JSON.stringify(modalityMAB));
       localStorage.setItem("kidcode_rewardMAB", JSON.stringify(rewardMAB));
 
-      // Navigate to reward page with the reward type
+      // Mark level complete in progress system
+      completeLevel(conceptId, levelNum);
+
+      // Navigate to reward page
       navigate("/reward", {
         state: {
           rewardType,
-          lessonTitle: lesson.title,
+          conceptTitle: concept.title,
+          levelTitle: levelData.title,
+          levelNum,
           correctCount,
-          totalSteps: lesson.steps.length,
+          totalSteps: levelData.steps.length,
+          conceptId,
         },
       });
     }
   };
 
-  // If lesson not found, show error
-  if (!lesson) {
+  // Error state: concept or level not found
+  if (!concept || !levelData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-2xl mb-4">Oops! Lesson not found 😕</p>
-          <Link to="/" className="text-purple-600 underline text-lg">
-            Go back home
+          <p className="text-xl text-gray-400 mb-4 font-mono">
+            // 404 — level not found
+          </p>
+          <Link
+            to="/"
+            className="text-cyan-400 hover:text-cyan-300 font-mono transition-colors"
+          >
+            cd /home →
           </Link>
         </div>
       </div>
     );
   }
 
-  const step = lesson.steps[currentStep];
+  const step = levelData.steps[currentStep];
 
-  // Pick the right component based on the MAB-selected modality
+  // Pick the right component based on MAB-selected modality
   const ModeComponent =
-    modality === "story"
-      ? StoryMode
-      : modality === "puzzle"
-        ? PuzzleMode
-        : ChallengeMode;
+    modality === "codeSimulation"
+      ? CodeSimulation
+      : modality === "dragDrop"
+        ? DragDropBuilder
+        : SpeedCoding;
+
+  // Modality display labels
+  const modalityLabels = {
+    codeSimulation: "Code Simulation",
+    dragDrop: "Drag & Drop",
+    speedCoding: "Speed Coding",
+  };
 
   return (
     <div className="min-h-screen px-4 py-6">
-      {/* Top bar: back button, lesson title, progress */}
-      <div className="max-w-2xl mx-auto mb-6">
+      {/* Top bar */}
+      <div className="max-w-3xl mx-auto mb-6">
         <div className="flex items-center justify-between mb-4">
           <Link
             to="/"
-            className="text-gray-500 hover:text-gray-700 font-medium text-lg"
+            className="text-gray-500 hover:text-gray-300 font-mono text-sm transition-colors"
           >
-            ← Back
+            ← back
           </Link>
-          <h1 className="text-xl font-bold text-gray-800">
-            {lesson.icon} {lesson.title}
-          </h1>
-          <span className="text-sm text-gray-500">
-            {currentStep + 1} / {lesson.steps.length}
+          <div className="text-center">
+            <h1 className="text-lg font-bold text-gray-200">
+              <span
+                className={`font-mono text-transparent bg-clip-text bg-gradient-to-r ${concept.color}`}
+              >
+                {concept.icon}
+              </span>{" "}
+              {concept.title}
+            </h1>
+            <p className="text-xs text-gray-500 font-mono">
+              Level {levelNum} — {levelData.title}
+            </p>
+          </div>
+          <span className="text-sm text-gray-500 font-mono">
+            {currentStep + 1}/{levelData.steps.length}
           </span>
         </div>
 
         {/* Progress bar */}
-        <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div className="bg-[#161b22] rounded-full h-2 overflow-hidden border border-[#30363d]">
           <div
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+            className={`h-full bg-gradient-to-r ${concept.color} rounded-full transition-all duration-500`}
             style={{
-              width: `${((currentStep + (feedback !== null ? 1 : 0)) / lesson.steps.length) * 100}%`,
+              width: `${((currentStep + (feedback !== null ? 1 : 0)) / levelData.steps.length) * 100}%`,
             }}
           />
         </div>
       </div>
 
-      {/* The lesson content — rendered by the selected modality component */}
+      {/* Lesson content — rendered by the selected modality */}
       <ModeComponent step={step} onAnswer={handleAnswer} feedback={feedback} />
 
       {/* Next button — only shown after answering */}
       {feedback !== null && (
-        <div className="max-w-2xl mx-auto mt-6 text-center">
+        <div className="max-w-3xl mx-auto mt-6 text-center">
           <button
             onClick={handleNext}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-xl px-10 py-4 rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+            className={`bg-gradient-to-r ${concept.color} text-white font-semibold px-8 py-3 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200`}
           >
-            {currentStep < lesson.steps.length - 1
-              ? "Next Question →"
-              : "Get My Reward! 🎁"}
+            {currentStep < levelData.steps.length - 1
+              ? "Next →"
+              : "Claim Reward →"}
           </button>
         </div>
       )}

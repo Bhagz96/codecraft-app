@@ -11,12 +11,12 @@
  * HOW IT WORKS:
  * - epsilon = the chance of exploring (trying a random arm)
  * - (1 - epsilon) = the chance of exploiting (picking the current best arm)
- * - Example: epsilon = 0.2 means 20% of the time we try something random,
- *   80% of the time we go with what's working best.
+ * - Example: epsilon = 0.3 means 30% of the time we try something random,
+ *   70% of the time we go with what's working best.
  *
- * IN THIS APP:
- * - "Arms" are teaching modalities: Story, Puzzle, Challenge
- * - We also have reward type arms: Badge, Coins, MysteryBox
+ * IN THIS APP (Version 2):
+ * - "Arms" are teaching modalities: Code Simulation, Drag & Drop, Speed Coding
+ * - We also have reward type arms: Badge, XP (Credits), Mystery Box
  * - We track engagement metrics to decide which arm is "best"
  *
  * This file is intentionally isolated so it can be demonstrated
@@ -24,7 +24,7 @@
  */
 
 // The three teaching modalities (our MAB arms for lesson delivery)
-export const MODALITIES = ["story", "puzzle", "challenge"];
+export const MODALITIES = ["codeSimulation", "dragDrop", "speedCoding"];
 
 // The three reward types (our MAB arms for rewards)
 export const REWARD_TYPES = ["badge", "coins", "mysteryBox"];
@@ -100,10 +100,9 @@ export function selectArm(mab) {
  * @param {number} reward – the reward value (e.g., 0 or 1, or a score)
  * @returns {object}      – the updated MAB state (same object, mutated)
  *
- * This is called after a child completes (or abandons) a lesson.
+ * This is called after a user completes (or abandons) a lesson.
  * A typical reward scheme:
- *   - Completed the lesson: reward = 1
- *   - Started next lesson:  reward = 0.5 bonus
+ *   - Completed the lesson: reward = correctCount / totalSteps (0 to 1)
  *   - Abandoned early:      reward = 0
  */
 export function updateMAB(mab, arm, reward) {

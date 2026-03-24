@@ -1,6 +1,6 @@
 /**
- * SESSION TRACKER
- * ===============
+ * SESSION TRACKER — Version 2
+ * ============================
  * Manages user sessions and logs interactions for the MAB engine.
  *
  * For the MVP, we use localStorage (no login required).
@@ -8,18 +8,20 @@
  *
  * Each session records:
  *   - sessionId:    unique ID for this visit
- *   - lessonId:     which lesson was played
- *   - modality:     which teaching mode was shown (story/puzzle/challenge)
+ *   - userId:       anonymous user identifier
+ *   - conceptId:    which concept was played (variables/loops/conditions)
+ *   - level:        which difficulty level (1-5)
+ *   - modality:     which teaching mode was shown (codeSimulation/dragDrop/speedCoding)
  *   - rewardType:   which reward was given (badge/coins/mysteryBox)
- *   - completed:    did the child finish the lesson?
+ *   - completed:    did the user finish the lesson?
  *   - timeSpent:    how long they spent (in seconds)
- *   - startedNext:  did they go on to start another lesson?
+ *   - score:        points earned (for speed coding mode)
+ *   - streak:       consecutive correct answers
  *   - timestamp:    when this session happened
  */
 
 /**
  * Generate a simple unique ID for sessions.
- * (No external library needed — just uses random characters.)
  */
 function generateSessionId() {
   return "sess_" + Math.random().toString(36).substring(2, 10) + Date.now();
@@ -27,7 +29,6 @@ function generateSessionId() {
 
 /**
  * Get or create a user ID stored in localStorage.
- * This lets us track the same visitor across page reloads.
  */
 export function getUserId() {
   let userId = localStorage.getItem("kidcode_userId");
@@ -39,48 +40,53 @@ export function getUserId() {
 }
 
 /**
- * Start a new session. Call this when a child begins a lesson.
+ * Start a new session. Call this when a user begins a lesson.
  *
- * @param {string} lessonId  – which lesson they're starting
- * @param {string} modality  – which teaching mode was assigned
+ * @param {string} conceptId  – which concept they're starting (e.g. "variables")
+ * @param {number} level      – difficulty level (1-5)
+ * @param {string} modality   – which teaching mode was assigned
  * @param {string} rewardType – which reward type was assigned
- * @returns {object}         – the session object (keep a reference to update it later)
+ * @returns {object}          – the session object
  */
-export function startSession(lessonId, modality, rewardType) {
+export function startSession(conceptId, level, modality, rewardType) {
   return {
     sessionId: generateSessionId(),
     userId: getUserId(),
-    lessonId,
+    conceptId,
+    level,
     modality,
     rewardType,
     completed: false,
     timeSpent: 0,
-    startedNext: false,
+    score: 0,
+    streak: 0,
     timestamp: new Date().toISOString(),
     startTime: Date.now(),
   };
 }
 
 /**
- * End a session. Call this when the child finishes or leaves a lesson.
+ * End a session. Call this when the user finishes or leaves a lesson.
  *
  * @param {object}  session   – the session object from startSession()
  * @param {boolean} completed – did they finish the lesson?
+ * @param {number}  score     – points earned (optional, for speed coding)
+ * @param {number}  streak    – max streak (optional)
  * @returns {object}          – the finalised session
  */
-export function endSession(session, completed) {
+export function endSession(session, completed, score = 0, streak = 0) {
   session.completed = completed;
   session.timeSpent = Math.round((Date.now() - session.startTime) / 1000);
+  session.score = score;
+  session.streak = streak;
   return session;
 }
 
 /**
  * Save a completed session to localStorage.
- * All sessions are stored in a JSON array under "kidcode_sessions".
  */
 export function saveSession(session) {
   const sessions = getAllSessions();
-  // Remove internal startTime before saving (not needed in storage)
   const { startTime, ...sessionData } = session;
   sessions.push(sessionData);
   localStorage.setItem("kidcode_sessions", JSON.stringify(sessions));
@@ -89,7 +95,7 @@ export function saveSession(session) {
 
 /**
  * Get all saved sessions from localStorage.
- * @returns {object[]} – array of session objects
+ * @returns {object[]}
  */
 export function getAllSessions() {
   try {

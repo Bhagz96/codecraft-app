@@ -1,1 +1,101 @@
 @import "tailwindcss";
+
+/* ===========================
+   DARK DEVELOPER THEME — V2
+   =========================== */
+
+/* Base font families */
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Code blocks and monospace text */
+.font-mono,
+code,
+pre {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #161b22;
+}
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* Neon glow effect for highlighted elements */
+.glow-green {
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), 0 0 40px rgba(0, 255, 136, 0.1);
+}
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
+}
+.glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3), 0 0 40px rgba(168, 85, 247, 0.1);
+}
+.glow-orange {
+  box-shadow: 0 0 20px rgba(255, 107, 53, 0.3), 0 0 40px rgba(255, 107, 53, 0.1);
+}
+
+/* Code syntax highlighting classes */
+.syntax-keyword { color: #ff7b72; }   /* let, const, for, if, function, return */
+.syntax-string  { color: #a5d6ff; }   /* "strings" and 'strings' */
+.syntax-number  { color: #79c0ff; }   /* 123, 0, 3.14 */
+.syntax-comment { color: #8b949e; }   /* // comments */
+.syntax-func    { color: #d2a8ff; }   /* function names */
+.syntax-bracket { color: #8b949e; }   /* { } ( ) [ ] */
+.syntax-operator { color: #ff7b72; }  /* =, +, -, >, <, ! */
+
+/* Typing cursor animation for code blocks */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.cursor-blink {
+  animation: blink 1s infinite;
+}
+
+/* Pulse animation for active elements */
+@keyframes pulse-neon {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-pulse-neon {
+  animation: pulse-neon 2s ease-in-out infinite;
+}
+
+/* Drag and drop styles */
+.dragging {
+  opacity: 0.5;
+  transform: scale(1.05);
+}
+.drag-over {
+  border-color: #00ff88 !important;
+  background-color: rgba(0, 255, 136, 0.05) !important;
+}
+
+/* Timer bar animation */
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Mountain climber animation */
+@keyframes climb-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-100%); }
+}
+@keyframes fall-down {
+  0% { transform: translateY(0); }
+  30% { transform: translateY(-10px); }
+  100% { transform: translateY(50px) rotate(30deg); opacity: 0; }
+}
