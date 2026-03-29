@@ -30,14 +30,14 @@ import { startSession, endSession, saveSession } from "../mab/sessionTracker";
  *   conditions → the-gate
  */
 
-// Map concept + level to a scene ID
+// Map concept + level to a scene ID (fallback if not in lesson data)
 function getSceneId(conceptId, level) {
   if (conceptId === "variables") {
-    return level === 1 ? "hero-spawn" : "dungeon-room";
+    return level === 1 ? "hero-spawn" : "mountain-camp";
   } else if (conceptId === "loops") {
-    return "combat-arena";
+    return "mountain-trail";
   } else if (conceptId === "conditions") {
-    return "the-gate";
+    return "mountain-obstacle";
   }
   return "hero-spawn";
 }
@@ -157,6 +157,7 @@ function LessonPage() {
           totalSteps: levelData.steps.length,
           conceptId,
           xpEarned: xpAmount,
+          completion: levelData.completion || null,
         },
       });
     }

@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 
 /**
- * REWARD PAGE — Version 2 (Dev-Themed)
- * =====================================
+ * REWARD PAGE — Version 2.1 (Per-Level Completion Content)
+ * =========================================================
  * Shown after completing a level.
+ * Now shows UNIQUE facts, tips, and next-level previews per level.
  * Reward type (badge/coins/mysteryBox) was chosen by the MAB engine.
- * Rethemed for teens/young adults with developer aesthetics.
  */
 
 // Dev-themed badges
@@ -47,6 +47,7 @@ function RewardPage() {
     totalSteps,
     conceptId,
     xpEarned,
+    completion,
   } = location.state || {};
 
   const [revealed, setRevealed] = useState(false);
@@ -89,11 +90,15 @@ function RewardPage() {
   const nextLevel = levelNum + 1;
   const concept = conceptId;
 
+  // Score rating
+  const scorePercent = totalSteps > 0 ? Math.round((correctCount / totalSteps) * 100) : 0;
+  const rating = scorePercent === 100 ? "Perfect!" : scorePercent >= 66 ? "Great job!" : "Keep practicing!";
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
       {/* Header */}
       <div
-        className={`text-center mb-8 transition-all duration-500 ${
+        className={`text-center mb-6 transition-all duration-500 ${
           animating ? "scale-90 opacity-0" : "scale-100 opacity-100"
         }`}
       >
@@ -104,12 +109,50 @@ function RewardPage() {
           {conceptTitle} — Level {levelNum}: {levelTitle}
         </p>
         <p className="text-gray-500 text-sm mt-1">
-          {correctCount}/{totalSteps} correct
+          {correctCount}/{totalSteps} correct — {rating}
           {xpEarned > 0 && (
             <span className="text-purple-400 ml-2">+{xpEarned} XP</span>
           )}
         </p>
       </div>
+
+      {/* Per-level completion message */}
+      {completion && (
+        <div
+          className={`max-w-md w-full mb-6 transition-all duration-500 delay-100 ${
+            animating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
+          }`}
+        >
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+            {/* What you learned */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-green-400">✦</span>
+                <span className="text-xs font-mono text-green-400 uppercase tracking-wider">What you built</span>
+              </div>
+              <p className="text-gray-300 text-sm">{completion.message}</p>
+            </div>
+
+            {/* Dev tip */}
+            <div className="border-t border-[#30363d] pt-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-yellow-400">💡</span>
+                <span className="text-xs font-mono text-yellow-400 uppercase tracking-wider">Dev tip</span>
+              </div>
+              <p className="text-gray-400 text-sm">{completion.tip}</p>
+            </div>
+
+            {/* What's next */}
+            <div className="border-t border-[#30363d] pt-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-cyan-400">→</span>
+                <span className="text-xs font-mono text-cyan-400 uppercase tracking-wider">Coming up</span>
+              </div>
+              <p className="text-gray-400 text-sm">{completion.nextPreview}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reward display */}
       <div
@@ -120,10 +163,10 @@ function RewardPage() {
         {/* BADGE REWARD */}
         {rewardType === "badge" && (
           <div className="text-center">
-            <div className="w-32 h-32 rounded-2xl bg-[#161b22] border border-cyan-500/30 flex items-center justify-center mx-auto mb-4 glow-cyan">
-              <span className="text-6xl">{badge.icon}</span>
+            <div className="w-28 h-28 rounded-2xl bg-[#161b22] border border-cyan-500/30 flex items-center justify-center mx-auto mb-3 glow-cyan">
+              <span className="text-5xl">{badge.icon}</span>
             </div>
-            <h2 className="text-xl font-bold text-gray-100 mb-1">
+            <h2 className="text-lg font-bold text-gray-100 mb-1">
               Badge Earned
             </h2>
             <p className="text-cyan-400 font-mono font-semibold">
@@ -136,15 +179,15 @@ function RewardPage() {
         {/* XP/CREDITS REWARD */}
         {rewardType === "coins" && (
           <div className="text-center">
-            <div className="w-32 h-32 rounded-2xl bg-[#161b22] border border-green-500/30 flex items-center justify-center mx-auto mb-4 glow-green">
-              <span className="text-5xl font-mono font-bold text-green-400">
+            <div className="w-28 h-28 rounded-2xl bg-[#161b22] border border-green-500/30 flex items-center justify-center mx-auto mb-3 glow-green">
+              <span className="text-4xl font-mono font-bold text-green-400">
                 +{xp}
               </span>
             </div>
-            <h2 className="text-xl font-bold text-gray-100 mb-1">
+            <h2 className="text-lg font-bold text-gray-100 mb-1">
               XP Earned
             </h2>
-            <p className="text-green-400 font-mono text-2xl font-bold">
+            <p className="text-green-400 font-mono text-xl font-bold">
               {xp} credits
             </p>
           </div>
@@ -157,14 +200,14 @@ function RewardPage() {
               <>
                 <button
                   onClick={() => setRevealed(true)}
-                  className="w-32 h-32 rounded-2xl bg-[#161b22] border border-purple-500/30 flex items-center justify-center mx-auto mb-4 cursor-pointer hover:scale-110 transition-transform glow-purple animate-pulse-neon"
+                  className="w-28 h-28 rounded-2xl bg-[#161b22] border border-purple-500/30 flex items-center justify-center mx-auto mb-3 cursor-pointer hover:scale-110 transition-transform glow-purple animate-pulse-neon"
                 >
                   <span className="font-mono text-purple-400 text-sm">
                     <span className="text-3xl block mb-1">$</span>
                     sudo reveal
                   </span>
                 </button>
-                <h2 className="text-xl font-bold text-gray-100 mb-1">
+                <h2 className="text-lg font-bold text-gray-100 mb-1">
                   Mystery Drop
                 </h2>
                 <p className="text-gray-500 text-sm font-mono">
@@ -174,11 +217,11 @@ function RewardPage() {
             ) : (
               <>
                 <div
-                  className={`w-32 h-32 rounded-2xl bg-[#161b22] border ${RARITY_COLORS[mysteryItem.rarity]} flex items-center justify-center mx-auto mb-4`}
+                  className={`w-28 h-28 rounded-2xl bg-[#161b22] border ${RARITY_COLORS[mysteryItem.rarity]} flex items-center justify-center mx-auto mb-3`}
                 >
-                  <span className="text-6xl">{mysteryItem.icon}</span>
+                  <span className="text-5xl">{mysteryItem.icon}</span>
                 </div>
-                <h2 className="text-xl font-bold text-gray-100 mb-1">
+                <h2 className="text-lg font-bold text-gray-100 mb-1">
                   {mysteryItem.name}
                 </h2>
                 <span
@@ -194,7 +237,7 @@ function RewardPage() {
 
       {/* Navigation */}
       <div
-        className={`mt-10 flex flex-col sm:flex-row gap-3 transition-all duration-500 delay-300 ${
+        className={`mt-8 flex flex-col sm:flex-row gap-3 transition-all duration-500 delay-300 ${
           animating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
         }`}
       >

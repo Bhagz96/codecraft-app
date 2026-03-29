@@ -47,6 +47,11 @@ const lessons = [
         level: 1,
         title: "Create Your Hero",
         sceneId: "hero-spawn",
+        completion: {
+          message: "Your hero is alive! You created variables to store a name, set health points, and built a title screen.",
+          tip: "Variables are like labeled containers — they hold data your game needs to remember.",
+          nextPreview: "Next up: Learn about data types — integers, strings, and more!",
+        },
         steps: [
           {
             instruction: "Your Mountain Quest game needs a hero. Let's create one!",
@@ -126,7 +131,12 @@ const lessons = [
       {
         level: 2,
         title: "Hero Stats & Types",
-        sceneId: "dungeon-room",
+        sceneId: "mountain-camp",
+        completion: {
+          message: "You mastered data types! Your hero now has typed stats — integers for HP, strings for names, and expressions for XP.",
+          tip: "Python has int, float, str, and bool. Using the wrong type is the #1 cause of bugs in games!",
+          nextPreview: "Next: Build dynamic game messages with f-strings and string methods!",
+        },
         steps: [
           {
             instruction: "Your hero needs numerical stats. What type is hero_hp?",
@@ -203,7 +213,12 @@ const lessons = [
       {
         level: 3,
         title: "Building the Game Display",
-        sceneId: "dungeon-room",
+        sceneId: "mountain-camp",
+        completion: {
+          message: "Your game can now talk! F-strings, len(), and .upper() let you build dynamic, personalized game text.",
+          tip: "f-strings are Python's most popular way to build messages — used by 90% of Python developers.",
+          nextPreview: "Next: Build an inventory system with Python lists!",
+        },
         steps: [
           {
             instruction: "Build a dynamic game message using f-strings!",
@@ -280,7 +295,12 @@ const lessons = [
       {
         level: 4,
         title: "Building the Inventory",
-        sceneId: "dungeon-room",
+        sceneId: "mountain-camp",
+        completion: {
+          message: "Inventory system built! You used lists to store items, .append() to add new ones, and slicing to access ranges.",
+          tip: "Lists are zero-indexed — the first item is always at position 0. Even senior devs forget this sometimes!",
+          nextPreview: "Next: Create your full hero profile using dictionaries!",
+        },
         steps: [
           {
             instruction: "Create your hero's starting inventory as a list!",
@@ -357,7 +377,12 @@ const lessons = [
       {
         level: 5,
         title: "The Hero Profile",
-        sceneId: "dungeon-room",
+        sceneId: "mountain-camp",
+        completion: {
+          message: "Hero profile complete! Dictionaries let you store complex game data with named keys — like a real game engine.",
+          tip: "Dictionaries are Python's most versatile data structure. Every JSON API you'll ever use works like a dictionary!",
+          nextPreview: "Variables mastered! Next concept: Loops — make your hero climb the mountain!",
+        },
         steps: [
           {
             instruction: "Build your hero's full profile as a dictionary!",
@@ -454,6 +479,11 @@ const lessons = [
         level: 1,
         title: "Climbing the Mountain",
         sceneId: "mountain-trail",
+        completion: {
+          message: "Your hero is climbing! For loops with range() let you repeat actions — like taking steps up a mountain.",
+          tip: "range(n) always starts at 0 and stops BEFORE n. range(5) gives 0,1,2,3,4 — that's 5 numbers!",
+          nextPreview: "Next: Loop through lists to collect trail items!",
+        },
         steps: [
           {
             instruction: "Write a loop to make your hero climb 3 mountain steps!",
@@ -532,6 +562,11 @@ const lessons = [
         level: 2,
         title: "Trail Item Collection",
         sceneId: "mountain-trail",
+        completion: {
+          message: "Item collection mastered! for...in loops, enumerate(), and list comprehensions are your trail-walking tools.",
+          tip: "List comprehensions are uniquely Pythonic — most languages don't have them. They're a Python superpower!",
+          nextPreview: "Next: Fight enemy waves with nested loops!",
+        },
         steps: [
           {
             instruction: "Loop through items on the trail and pick each one up!",
@@ -609,7 +644,12 @@ const lessons = [
       {
         level: 3,
         title: "Fighting Enemy Waves",
-        sceneId: "combat-arena",
+        sceneId: "mountain-battle",
+        completion: {
+          message: "Enemy waves defeated! Nested loops multiply iterations — perfect for grids, maps, and battle formations.",
+          tip: "Nested loops run inner × outer times. A 10×10 grid = 100 iterations. Game maps use this exact pattern!",
+          nextPreview: "Next: While loops and break/continue for training!",
+        },
         steps: [
           {
             instruction: "Your hero faces a grid of enemies. How many attacks are needed?",
@@ -685,6 +725,11 @@ const lessons = [
         level: 4,
         title: "Training Until Ready",
         sceneId: "mountain-trail",
+        completion: {
+          message: "Training complete! While loops run until a condition is false. Break stops early, continue skips ahead.",
+          tip: "While loops are powerful but dangerous — forget to change the condition and you get an infinite loop!",
+          nextPreview: "Next: Advanced battle system with filtering and built-in functions!",
+        },
         steps: [
           {
             instruction: "Your hero trains until stamina runs out. When does training stop?",
@@ -761,7 +806,12 @@ const lessons = [
       {
         level: 5,
         title: "Advanced Battle System",
-        sceneId: "combat-arena",
+        sceneId: "mountain-battle",
+        completion: {
+          message: "Battle system complete! Filtering, sum(), and conditional comprehensions make your combat engine powerful.",
+          tip: "Python's built-in functions (sum, len, max, min) work on any list. No imports needed!",
+          nextPreview: "Loops mastered! Next concept: Conditions — navigate obstacles with if/else logic!",
+        },
         steps: [
           {
             instruction: "Filter out only the powerful enemies using a list comprehension!",
@@ -854,7 +904,12 @@ const lessons = [
       {
         level: 1,
         title: "Weather Check",
-        sceneId: "the-gate",
+        sceneId: "mountain-obstacle",
+        completion: {
+          message: "Weather system online! if/else lets your game react to conditions — only one branch ever runs.",
+          tip: "The comparison operators (>, <, >=, <=, ==, !=) always return True or False. That's all if needs!",
+          nextPreview: "Next: Handle obstacles on the mountain trail!",
+        },
         steps: [
           {
             instruction: "Check the temperature before your hero continues climbing!",
@@ -930,7 +985,12 @@ const lessons = [
       {
         level: 2,
         title: "Handling Obstacles",
-        sceneId: "the-gate",
+        sceneId: "mountain-obstacle",
+        completion: {
+          message: "Obstacle handling unlocked! == checks equality, != checks difference, and 'and' combines conditions.",
+          tip: "== compares values, = assigns them. Mixing these up is the most common Python mistake!",
+          nextPreview: "Next: Logic gates — and, or, not for complex decisions!",
+        },
         steps: [
           {
             instruction: "Your hero finds a locked chest. Does the key match?",
@@ -1005,7 +1065,12 @@ const lessons = [
       {
         level: 3,
         title: "Logic Gates",
-        sceneId: "the-gate",
+        sceneId: "mountain-obstacle",
+        completion: {
+          message: "Logic gates mastered! 'and' needs both True, 'or' needs at least one, 'not' flips the value.",
+          tip: "Boolean logic powers everything from AI to traffic lights. These three operators are universal!",
+          nextPreview: "Next: Multiple paths with elif chains!",
+        },
         steps: [
           {
             instruction: "The magic gate needs both runes to be active. Check with 'and'.",
@@ -1080,7 +1145,12 @@ const lessons = [
       {
         level: 4,
         title: "Multiple Paths (elif)",
-        sceneId: "the-gate",
+        sceneId: "mountain-obstacle",
+        completion: {
+          message: "Multi-path logic built! elif chains handle many options, and nested conditions go deeper.",
+          tip: "elif is short for 'else if'. Python stops checking as soon as it finds the first True condition.",
+          nextPreview: "Final level: The Summit Gate — ternaries, 'in', and try/except!",
+        },
         steps: [
           {
             instruction: "The mountain has different terrains. Pick the right action for each!",
@@ -1155,7 +1225,12 @@ const lessons = [
       {
         level: 5,
         title: "The Summit Gate",
-        sceneId: "the-gate",
+        sceneId: "mountain-obstacle",
+        completion: {
+          message: "SUMMIT REACHED! You've mastered 'in' for searching, ternary expressions, and try/except for error handling.",
+          tip: "try/except is how professional developers write crash-proof code. Every real app uses it!",
+          nextPreview: "Congratulations — you've completed all Mountain Quest concepts! You're a Python developer now.",
+        },
         steps: [
           {
             instruction: "Check if your hero has the required item to pass the summit gate!",
