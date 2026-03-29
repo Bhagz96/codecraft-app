@@ -192,8 +192,8 @@ function LessonPage() {
 
       {/* === SIDE-BY-SIDE LAYOUT === */}
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6">
-        {/* LEFT: Game Scene */}
-        <div className="lg:w-1/2 flex flex-col">
+        {/* LEFT: Game Scene — takes 55% for prominence */}
+        <div className="lg:w-[55%] flex flex-col">
           <GameScene
             sceneId={sceneId}
             result={sceneResult}
@@ -204,7 +204,7 @@ function LessonPage() {
         </div>
 
         {/* RIGHT: Learning Description + Code Challenge */}
-        <div className="lg:w-1/2 flex flex-col gap-4">
+        <div className="lg:w-[45%] flex flex-col gap-4">
           {/* Learning context card */}
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
             {/* Story context */}
@@ -240,22 +240,6 @@ function LessonPage() {
               hero={hero}
             />
           </div>
-
-          {/* Explanation (after answering) */}
-          {feedback !== null && step.explanation && (
-            <div className={`rounded-xl p-4 border ${
-              feedback === "correct"
-                ? "bg-green-500/5 border-green-500/20"
-                : "bg-red-500/5 border-red-500/20"
-            }`}>
-              <p className="text-sm text-gray-300 leading-relaxed">
-                <span className={`font-bold ${feedback === "correct" ? "text-green-400" : "text-red-400"}`}>
-                  {feedback === "correct" ? "Correct! " : "Not quite. "}
-                </span>
-                {step.explanation}
-              </p>
-            </div>
-          )}
 
           {/* Next button */}
           {feedback !== null && (
