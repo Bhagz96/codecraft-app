@@ -1,16 +1,87 @@
-# React + Vite
+# KidCode Quest
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive educational game that teaches Python programming through a mountain-climbing narrative. Kids create a hero and progress through concept lessons on Variables, Loops, and Conditions — earning XP and rewards along the way.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **Vite** — frontend framework and build tool
+- **React Router v7** — client-side routing (SPA)
+- **Tailwind CSS v4** — styling
+- **Supabase** (optional) — session analytics logging
+- **Vitest** + **React Testing Library** — testing
+- **Vercel** — deployment (SPA rewrites via `vercel.json`)
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev       # Dev server at localhost:5173
+```
 
-## Expanding the ESLint configuration
+## Commands
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev       # Start dev server with HMR
+npm run build     # Production build → dist/
+npm run preview   # Preview production build locally
+npm run lint      # Run ESLint
+npm run test      # Run tests
+npm run test:ui   # Run tests with visual UI
+```
+
+## Architecture
+
+### Routes
+
+| Route | Component | Purpose |
+|-------|-----------|---------|
+| `/` | `HomePage` | Hero creation + concept picker |
+| `/lesson/:conceptId/:level` | `LessonPage` | Main lesson player |
+| `/reward` | `RewardPage` | Post-lesson celebration |
+| `/admin` | `AdminDashboard` | MAB analytics/debugging |
+
+### MAB Engine (`src/mab/`)
+
+An **epsilon-greedy Multi-Armed Bandit** (ε=0.3) selects the lesson modality and reward type for each session, adapting to what works best for each learner. State persists to localStorage.
+
+**Modalities:** CodeSimulation, DragDropBuilder, SpeedCoding
+**Rewards:** badge, XP, mystery box
+
+### Lesson Components (`src/components/`)
+
+Three interchangeable teaching modes, all receiving the same lesson step data:
+
+- **`CodeSimulation`** — read and trace Python code execution
+- **`DragDropBuilder`** — arrange code blocks in correct order
+- **`SpeedCoding`** — fill-in-the-blank coding challenges
+
+### Game Scenes (`src/components/game/`)
+
+`GameScene.jsx` renders one of five SVG scenes (`hero-spawn`, `base-camp`, `mountain-trail`, `mountain-battle`, `the-gate`) based on the current lesson step.
+
+### Data Layer (`src/data/`)
+
+- `lessons.js` — all lesson content (concepts × levels × steps)
+- `lessonTemplates.js` — injects hero name into narrative
+- `hero.js` — hero creation, XP, level management
+- `progress.js` — completion tracking
+
+All state persists to localStorage (`kidcode_hero`, `kidcode_progress`, `kidcode_modalityMAB`, `kidcode_rewardMAB`).
+
+## Environment Variables (optional)
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+The app works fully without these — Supabase integration degrades gracefully.
+
+## Testing
+
+This project follows TDD. Tests live in `src/__tests__/` mirroring the source structure.
+
+```bash
+npm run test       # Run all tests once
+npm run test:ui    # Visual test runner
+```
