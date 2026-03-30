@@ -55,6 +55,13 @@ pre {
 .syntax-bracket { color: #8b949e; }   /* { } ( ) [ ] */
 .syntax-operator { color: #ff7b72; }  /* =, +, -, >, <, ! */
 
+/* Item pickup floating animation */
+@keyframes floatUp {
+  0%   { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+  60%  { transform: translateX(-50%) translateY(-40px) scale(1.4); opacity: 0.9; }
+  100% { transform: translateX(-50%) translateY(-80px) scale(0.7); opacity: 0; }
+}
+
 /* Typing cursor animation for code blocks */
 @keyframes blink {
   0%, 50% { opacity: 1; }

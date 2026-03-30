@@ -16,7 +16,6 @@
 import { useState, useEffect, useMemo } from "react";
 import CodeBlock from "./drag-drop/CodeBlock";
 import DropZone from "./drag-drop/DropZone";
-import VisualOutput from "./drag-drop/VisualOutput";
 
 function DragDropBuilder({ step, onAnswer, feedback, hero }) {
   const codeBlocks = step.codeBlocks || step.options || [];
@@ -164,15 +163,6 @@ function DragDropBuilder({ step, onAnswer, feedback, hero }) {
             isDisabled={feedback !== null}
           />
         </div>
-      </div>
-
-      {/* Visual output */}
-      <div className="mb-4">
-        <VisualOutput
-          result={visualResult}
-          scene={step.visualScene || "hero-spawn"}
-          hero={hero}
-        />
       </div>
 
       {/* Run Code button */}

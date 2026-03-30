@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { getAllProgress, isLevelUnlocked, getProgress } from "../data/progress";
 import { getHero, hasHero, createHero } from "../data/hero";
-import PixelHero from "../components/game/PixelHero";
+import GameHero from "../components/game/GameHero";
 
 /**
  * HOME PAGE — with Story Landing + Hero Creation
@@ -236,10 +236,28 @@ function HomePage() {
         </p>
 
         <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-md w-full">
-          {/* Hero preview */}
-          <div className="flex justify-center mb-6">
-            <div className="bg-[#0d1117] rounded-xl p-6 border border-[#30363d]">
-              <PixelHero color={selectedColor} size={96} animation="idle" />
+          {/* Hero preview — mini game scene */}
+          <div className="relative rounded-xl overflow-hidden border border-[#30363d] mb-6" style={{ height: 160 }}>
+            {/* Sky */}
+            <div className="absolute inset-0"
+              style={{ background: "linear-gradient(180deg, #1a3a5c 0%, #2d5a7b 50%, #3d6a5a 100%)" }} />
+            {/* Mountains */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 160" preserveAspectRatio="none">
+              <polygon points="0,160 60,70 120,100 180,60 240,90 300,50 360,75 400,65 400,160" fill="#1f3f4f" opacity="0.7" />
+              <polygon points="0,160 0,110 80,85 160,105 220,80 300,95 360,75 400,85 400,160" fill="#254535" />
+            </svg>
+            {/* Ground */}
+            <div className="absolute bottom-0 left-0 right-0 h-10"
+              style={{ background: "linear-gradient(180deg, #2d5530 0%, #152a18 100%)" }} />
+            {/* Ground texture dots */}
+            <svg className="absolute bottom-0 left-0 right-0 h-10 w-full" viewBox="0 0 400 40" preserveAspectRatio="none">
+              {[...Array(12)].map((_, i) => (
+                <circle key={i} cx={20 + i * 32} cy={8 + (i * 7) % 20} r={1} fill="white" opacity="0.04" />
+              ))}
+            </svg>
+            {/* Hero centered on ground */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+              <GameHero color={selectedColor} size={88} animation="idle" />
             </div>
           </div>
 
@@ -321,7 +339,7 @@ function HomePage() {
         <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-4 mb-8 max-w-md w-full">
           <div className="flex items-center gap-4">
             <div className="bg-[#0d1117] rounded-lg p-2 border border-[#30363d]">
-              <PixelHero color={hero.color} size={48} animation="idle" />
+              <GameHero color={hero.color} size={48} animation="idle" />
             </div>
             <div className="flex-1">
               <h2 className="font-bold text-gray-100" style={{ color: hero.color }}>

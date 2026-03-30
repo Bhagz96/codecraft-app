@@ -34,14 +34,14 @@ function GameHero({ color = "#00d4ff", size = 80, animation = "idle", flip = fal
     legAngle = frame % 2 === 0 ? 15 : -15;
     armAngle = frame % 2 === 0 ? -20 : 20;
   } else if (animation === "attack") {
-    armAngle = frame < 2 ? -40 : 60;
+    armAngle = frame < 2 ? -70 : 35;
     bodyY = frame < 2 ? 0 : -2;
   } else if (animation === "hurt") {
     bodyY = frame % 2 === 0 ? 0 : 3;
     opacity = frame % 2 === 0 ? 1 : 0.4;
   } else if (animation === "victory") {
     bodyY = frame < 2 ? 0 : -6;
-    armAngle = frame < 2 ? -30 : -150;
+    armAngle = frame < 2 ? -50 : -130;
     scale = frame < 2 ? 1 : 1.05;
   }
 
@@ -87,22 +87,22 @@ function GameHero({ color = "#00d4ff", size = 80, animation = "idle", flip = fal
         <rect x="14" y="46" width="22" height="3" rx="1" fill={darker} />
         <rect x="23" y="45" width="4" height="5" rx="1" fill="#f59e0b" />
 
-        {/* Left arm */}
+        {/* Left arm — hangs naturally at side */}
         <g transform={`rotate(${armAngle}, 14, 36)`}>
-          <rect x="6" y="33" width="9" height="5" rx="2.5" fill={color} />
-          <circle cx="7" cy="36" r="3.5" fill="#f5c6a0" />
+          <rect x="9" y="35" width="6" height="15" rx="3" fill={color} />
+          <circle cx="12" cy="51" r="3.5" fill="#f5c6a0" />
         </g>
 
-        {/* Right arm */}
+        {/* Right arm — hangs naturally at side */}
         <g transform={`rotate(${-armAngle}, 36, 36)`}>
-          <rect x="35" y="33" width="9" height="5" rx="2.5" fill={color} />
-          <circle cx="43" cy="36" r="3.5" fill="#f5c6a0" />
+          <rect x="35" y="35" width="6" height="15" rx="3" fill={color} />
+          <circle cx="38" cy="51" r="3.5" fill="#f5c6a0" />
           {/* Sword during attack */}
           {animation === "attack" && (
             <g>
-              <rect x="42" y="22" width="3" height="16" rx="1" fill="#c0c0c0" />
-              <rect x="42" y="20" width="3" height="4" rx="1" fill="#e0e0e0" />
-              <rect x="39" y="37" width="9" height="3" rx="1" fill="#8B6914" />
+              <rect x="36" y="20" width="3" height="28" rx="1" fill="#c0c0c0" />
+              <rect x="36" y="17" width="3" height="5" rx="1" fill="#e8e8e8" />
+              <rect x="31" y="45" width="14" height="3" rx="1" fill="#8B6914" />
             </g>
           )}
         </g>

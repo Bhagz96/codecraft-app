@@ -145,9 +145,9 @@ function CodeSimulation({ step, onAnswer, feedback }) {
               <span className="text-gray-600 w-8 text-right mr-4 select-none flex-shrink-0">
                 {i + 1}
               </span>
-              {/* Code content */}
+              {/* Code content — whitespace-pre preserves Python indentation */}
               <span
-                className={`${i <= currentLine || feedback !== null ? "opacity-100" : "opacity-30"} transition-opacity duration-300`}
+                className={`${i <= currentLine || feedback !== null ? "opacity-100" : "opacity-30"} transition-opacity duration-300 whitespace-pre`}
                 dangerouslySetInnerHTML={{ __html: highlightCode(line) }}
               />
             </div>

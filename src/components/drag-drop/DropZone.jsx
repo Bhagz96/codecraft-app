@@ -66,7 +66,7 @@ function DropZone({ placedBlocks, totalSlots, codeBlocks, onDrop, onRemove, isDi
             {/* Block content or empty slot */}
             {hasBlock ? (
               <div className="flex items-center justify-between flex-1">
-                <span className="font-mono text-sm text-violet-300">
+                <span className="font-mono text-sm text-violet-300 whitespace-pre overflow-hidden text-ellipsis min-w-0" title={codeBlocks[blockIndex]}>
                   {codeBlocks[blockIndex]}
                 </span>
                 {!isDisabled && (

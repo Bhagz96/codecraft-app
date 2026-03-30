@@ -5,7 +5,7 @@
  * Each scene has detailed backgrounds with depth, lighting, and atmosphere.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import GameHero from "./GameHero";
 
 function GameScene({ sceneId = "hero-spawn", result, hero, gameAction, sceneConfig }) {
@@ -321,10 +321,109 @@ function Sparkles({ heroColor }) {
   );
 }
 
+function Chest({ x = 47, open = false }) {
+  return (
+    <div className="absolute z-[9]" style={{ left: `${x}%`, bottom: "72px", transform: "translateX(-50%)" }}>
+      <svg width="38" height="34" viewBox="0 0 38 34">
+        {/* Shadow */}
+        <ellipse cx="19" cy="33" rx="16" ry="2" fill="black" opacity="0.18" />
+        {/* Body */}
+        <rect x="2" y="15" width="34" height="17" rx="2" fill="#7a4e18" />
+        <rect x="2" y="18" width="34" height="2" fill="#5a3a10" />
+        <rect x="2" y="24" width="34" height="2" fill="#5a3a10" />
+        {/* Lock plate */}
+        <rect x="14" y="14" width="10" height="8" rx="1.5" fill="#c8a820" />
+        <circle cx="19" cy="17.5" r="2.5" fill="#9a8010" />
+        <circle cx="19" cy="17.5" r="1" fill="#7a6010" />
+        {/* Lid */}
+        {open ? (
+          <>
+            {/* Open lid flipped back */}
+            <path d="M 2,15 L 2,5 Q 2,1 19,1 Q 36,1 36,5 L 36,15" fill="#9a6820" />
+            <path d="M 2,5 Q 2,1 19,1 Q 36,1 36,5" fill="#c08030" />
+            {/* Golden glow inside */}
+            <ellipse cx="19" cy="15" rx="14" ry="3.5" fill="#ffd700" opacity="0.55">
+              <animate attributeName="opacity" values="0.3;0.75;0.3" dur="0.7s" repeatCount="indefinite" />
+            </ellipse>
+          </>
+        ) : (
+          <>
+            <rect x="2" y="5" width="34" height="10" rx="2" fill="#9a6820" />
+            <rect x="2" y="5" width="34" height="3" rx="1" fill="#c08030" />
+          </>
+        )}
+      </svg>
+      {open && (
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-14 h-5 rounded-full bg-yellow-400/25 blur-md pointer-events-none" />
+      )}
+    </div>
+  );
+}
+
 // =======================================================
 // SCENE 1: BASE CAMP
 // =======================================================
 function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+  const [heroX, setHeroX] = useState(25);
+  const [heroFlip, setHeroFlip] = useState(false);
+  const [heroAnim, setHeroAnim] = useState("walk");
+  const [heroTransition, setHeroTransition] = useState("none");
+  const [chestOpen, setChestOpen] = useState(false);
+  const [showItem, setShowItem] = useState(false);
+  const goingRight = useRef(true);
+  const intervalRef = useRef(null);
+  const t1Ref = useRef(null);
+  const t2Ref = useRef(null);
+
+  const clearAll = () => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (t1Ref.current) { clearTimeout(t1Ref.current); t1Ref.current = null; }
+    if (t2Ref.current) { clearTimeout(t2Ref.current); t2Ref.current = null; }
+  };
+
+  useEffect(() => {
+    clearAll();
+
+    if (phase === "idle") {
+      setChestOpen(false);
+      setShowItem(false);
+      setHeroTransition("none");
+      setHeroAnim("walk");
+      goingRight.current = true;
+      setHeroFlip(false);
+
+      intervalRef.current = setInterval(() => {
+        setHeroX(prev => {
+          const next = prev + (goingRight.current ? 0.25 : -0.25);
+          if (next >= 37) { goingRight.current = false; setHeroFlip(true); }
+          else if (next <= 18) { goingRight.current = true; setHeroFlip(false); }
+          return next;
+        });
+      }, 60);
+
+    } else if (phase === "success") {
+      // Walk hero to chest then open it
+      setHeroTransition("left 0.9s ease-in-out");
+      setHeroFlip(false);
+      setHeroAnim("walk");
+      setHeroX(43);
+
+      t1Ref.current = setTimeout(() => {
+        setHeroAnim("attack");
+        t2Ref.current = setTimeout(() => {
+          setChestOpen(true);
+          setShowItem(true);
+          setHeroAnim("victory");
+        }, 500);
+      }, 950);
+
+    } else if (phase === "fail") {
+      setHeroAnim("hurt");
+    }
+
+    return clearAll;
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const successMsg = {
     heroNameSet: `${heroName} has arrived at base camp!`,
     heroStatsInit: `${heroName}'s stats are set!`,
@@ -359,6 +458,20 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
       {/* Signpost */}
       <Signpost x={3} text="SUMMIT" />
 
+      {/* Treasure chest — between campfire and crates */}
+      <Chest x={47} open={chestOpen} />
+
+      {/* Floating item reward */}
+      {showItem && (
+        <div className="absolute z-20 pointer-events-none animate-bounce"
+          style={{ left: "45%", bottom: "130px" }}>
+          <div className="text-center">
+            <div className="text-xl">✨</div>
+            <div className="text-yellow-300 text-xs font-mono font-bold" style={{ color: heroColor }}>+XP</div>
+          </div>
+        </div>
+      )}
+
       {/* Supply crates near tent */}
       <div className="absolute z-[7]" style={{ left: "53%", bottom: "72px" }}>
         <svg width="28" height="24" viewBox="0 0 28 24">
@@ -369,7 +482,7 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
         </svg>
       </div>
 
-      {/* Backpack near hero */}
+      {/* Backpack near hero start */}
       <div className="absolute z-[7]" style={{ left: "22%", bottom: "74px" }}>
         <svg width="18" height="22" viewBox="0 0 18 22">
           <rect x="2" y="4" width="14" height="18" rx="3" fill="#5a4a3a" />
@@ -392,7 +505,6 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
 
       {phase === "success" && <Sparkles heroColor={heroColor} />}
 
-      {/* Stat popup */}
       {phase === "success" && sceneConfig?.statChange && (
         <div className="absolute top-4 right-4 animate-bounce z-20">
           <span className="bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-mono px-2 py-1 rounded">
@@ -401,12 +513,10 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
         </div>
       )}
 
-      {/* Hero — smaller relative to tent for realistic proportion */}
-      <div className={`absolute z-10 transition-all duration-500 ${
-        phase === "success" ? "scale-110" : phase === "fail" ? "opacity-70" : ""
-      }`} style={{ left: "28%", bottom: "62px" }}>
-        <GameHero color={heroColor} size={80}
-          animation={phase === "success" ? "victory" : phase === "fail" ? "hurt" : "idle"} />
+      {/* Hero — walks around the camp */}
+      <div className="absolute z-10"
+        style={{ left: `${heroX}%`, bottom: "62px", transition: heroTransition }}>
+        <GameHero color={heroColor} size={80} animation={heroAnim} flip={heroFlip} />
       </div>
 
       <StatusMessage phase={phase} successMsg={successMsg}
@@ -416,24 +526,214 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
 }
 
 // =======================================================
-// SCENE 2: MOUNTAIN TRAIL
+// SCENE 2: MOUNTAIN TRAIL — Cliff Face Climb
 // =======================================================
+
+// Perspective trail — vanishing point is high up so it feels like a steep uphill climb
+const TRAIL_POSITIONS = [
+  { bottom: "18px",  size: 85 },
+  { bottom: "65px",  size: 70 },
+  { bottom: "108px", size: 57 },
+  { bottom: "147px", size: 45 },
+  { bottom: "180px", size: 34 },
+  { bottom: "207px", size: 24 },
+];
+
+function MountainPathPerspective({ scrolling = false }) {
+  // Vanishing point high up — creates steep uphill perspective
+  const vx = 200, vy = 68;
+  const pathL = 55, pathR = 345; // path width at bottom
+
+  return (
+    <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="lWall" x1="100%" y1="0%" x2="0%" y2="0%">
+          <stop offset="0%" stopColor="#304255" />
+          <stop offset="55%" stopColor="#1c2d40" />
+          <stop offset="100%" stopColor="#0c1520" />
+        </linearGradient>
+        <linearGradient id="rWall" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#304255" />
+          <stop offset="55%" stopColor="#1c2d40" />
+          <stop offset="100%" stopColor="#0c1520" />
+        </linearGradient>
+        <linearGradient id="trailSurf" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#3a2a14" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#6a5030" stopOpacity="0.95" />
+        </linearGradient>
+        <radialGradient id="vpMist" cx="50%" cy="0%" r="60%">
+          <stop offset="0%" stopColor="#1e3a5a" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="#1e3a5a" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="vpGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#5a8ab0" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#5a8ab0" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id="trailClip">
+          <polygon points={`${pathL},300 ${pathR},300 ${vx},${vy}`} />
+        </clipPath>
+      </defs>
+
+      {/* LEFT wall — tall, imposing */}
+      <polygon points={`0,300 ${pathL},300 ${vx},${vy} 0,${vy}`} fill="url(#lWall)" />
+      {/* Inner shadow on left wall face */}
+      <polygon points={`0,300 25,285 ${vx},${vy} 0,140`} fill="#080f18" opacity="0.4" />
+      <polygon points={`25,285 ${pathL},300 ${vx},${vy}`} fill="#253545" opacity="0.18" />
+
+      {/* Left wall horizontal rock strata — very prominent due to tall walls */}
+      {[0.08,0.18,0.30,0.42,0.55,0.68,0.80,0.91].map((t, i) => {
+        const y = vy + t * (300 - vy);
+        const x = t * pathL;
+        return <line key={i} x1={0} y1={y + (1-t)*5} x2={x} y2={y}
+          stroke="#1c2d3e" strokeWidth={0.6 + t} opacity="0.5" />;
+      })}
+      {/* Left wall highlight edge */}
+      <line x1={0} y1={vy} x2={pathL} y2={300} stroke="#3a5060" strokeWidth="1" opacity="0.2" />
+
+      {/* RIGHT wall */}
+      <polygon points={`${pathR},300 400,300 400,${vy} ${vx},${vy}`} fill="url(#rWall)" />
+      <polygon points={`375,285 400,300 400,140 ${vx},${vy}`} fill="#080f18" opacity="0.35" />
+      <polygon points={`${pathR},300 375,285 ${vx},${vy}`} fill="#253545" opacity="0.18" />
+
+      {/* Right wall strata */}
+      {[0.08,0.18,0.30,0.42,0.55,0.68,0.80,0.91].map((t, i) => {
+        const y = vy + t * (300 - vy);
+        const x = pathR + t * (400 - pathR);
+        return <line key={i} x1={x} y1={y} x2={400} y2={y + (1-t)*5}
+          stroke="#1c2d3e" strokeWidth={0.6 + t} opacity="0.5" />;
+      })}
+      <line x1={pathR} y1={300} x2={vx} y2={vy} stroke="#3a5060" strokeWidth="1" opacity="0.2" />
+
+      {/* TRAIL SURFACE */}
+      <polygon points={`${pathL},300 ${pathR},300 ${vx},${vy}`} fill="url(#trailSurf)" />
+
+      {/* Trail depth lines — tightly packed near vanishing point (steep illusion) */}
+      {[0.05,0.13,0.23,0.35,0.48,0.62,0.75,0.86,0.94].map((t, i) => {
+        const y = vy + t * (300 - vy);
+        const hw = t * (pathR - vx); // half-width at this depth
+        return <line key={i} x1={vx - hw} y1={y} x2={vx + hw} y2={y}
+          stroke="#9a7848" strokeWidth={t * 1.8} opacity={0.08 + t * 0.14} />;
+      })}
+
+      {/* Trail edges — sharp converging lines */}
+      <line x1={vx} y1={vy} x2={pathL} y2={300} stroke="#b09060" strokeWidth="1.5" opacity="0.28" />
+      <line x1={vx} y1={vy} x2={pathR} y2={300} stroke="#b09060" strokeWidth="1.5" opacity="0.28" />
+
+      {/* BOULDERS left — scaled by perspective distance */}
+      <ellipse cx="18"  cy="290" rx="30" ry="15" fill="#182030" />
+      <ellipse cx="10"  cy="284" rx="18" ry="9"  fill="#243040" />
+      <ellipse cx="80"  cy="252" rx="18" ry="9"  fill="#182030" />
+      <ellipse cx="74"  cy="247" rx="10" ry="5"  fill="#243040" />
+      <ellipse cx="118" cy="220" rx="11" ry="5.5" fill="#182030" />
+      <ellipse cx="140" cy="196" rx="7"  ry="3.5" fill="#182030" />
+      <ellipse cx="158" cy="172" rx="4"  ry="2"   fill="#182030" />
+
+      {/* BOULDERS right */}
+      <ellipse cx="382" cy="290" rx="28" ry="14" fill="#182030" />
+      <ellipse cx="390" cy="284" rx="16" ry="8"  fill="#243040" />
+      <ellipse cx="320" cy="252" rx="17" ry="8"  fill="#182030" />
+      <ellipse cx="326" cy="247" rx="9"  ry="4.5" fill="#243040" />
+      <ellipse cx="282" cy="220" rx="10" ry="5"  fill="#182030" />
+      <ellipse cx="260" cy="196" rx="6"  ry="3"  fill="#182030" />
+      <ellipse cx="242" cy="172" rx="4"  ry="2"  fill="#182030" />
+
+      {/* VEGETATION left */}
+      <line x1="50"  y1="278" x2="50"  y2="265" stroke="#264820" strokeWidth="2.2" />
+      <ellipse cx="50"  cy="263" rx="9"  ry="7"  fill="#1a3a16" opacity="0.9" />
+      <line x1="100" y1="242" x2="100" y2="232" stroke="#264820" strokeWidth="1.8" />
+      <ellipse cx="100" cy="230" rx="7"  ry="5.5" fill="#1a3a16" opacity="0.8" />
+      <line x1="132" y1="213" x2="132" y2="205" stroke="#264820" strokeWidth="1.4" />
+      <ellipse cx="132" cy="204" rx="5"  ry="4"  fill="#1a3a16" opacity="0.7" />
+      <line x1="152" y1="187" x2="152" y2="181" stroke="#264820" strokeWidth="1" />
+      <ellipse cx="152" cy="180" rx="3.5" ry="3" fill="#1a3a16" opacity="0.6" />
+
+      {/* VEGETATION right */}
+      <line x1="350" y1="278" x2="350" y2="265" stroke="#264820" strokeWidth="2.2" />
+      <ellipse cx="350" cy="263" rx="8"  ry="6.5" fill="#1a3a16" opacity="0.85" />
+      <line x1="300" y1="242" x2="300" y2="232" stroke="#264820" strokeWidth="1.8" />
+      <ellipse cx="300" cy="230" rx="6"  ry="5"  fill="#1a3a16" opacity="0.75" />
+      <line x1="268" y1="213" x2="268" y2="205" stroke="#264820" strokeWidth="1.4" />
+      <ellipse cx="268" cy="204" rx="4.5" ry="3.5" fill="#1a3a16" opacity="0.65" />
+
+      {/* TREADMILL scrolling lines — animate when hero is walking */}
+      {scrolling && (
+        <g clipPath="url(#trailClip)">
+          {[0,1,2,3,4,5,6,7].map(i => {
+            const dur = 2.5;
+            const delay = -(i * dur / 8);
+            return (
+              <line key={`t${i}`} x1={vx} y1={vy} x2={vx} y2={vy} stroke="#c4a870">
+                <animate attributeName="x1" values={`${vx};${pathL}`} dur={`${dur}s`} begin={`${delay}s`} repeatCount="indefinite" />
+                <animate attributeName="x2" values={`${vx};${pathR}`} dur={`${dur}s`} begin={`${delay}s`} repeatCount="indefinite" />
+                <animate attributeName="y1" values={`${vy};300`} dur={`${dur}s`} begin={`${delay}s`} repeatCount="indefinite" />
+                <animate attributeName="y2" values={`${vy};300`} dur={`${dur}s`} begin={`${delay}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0;0.45;0.35;0" dur={`${dur}s`} begin={`${delay}s`} repeatCount="indefinite" />
+                <animate attributeName="stroke-width" values="0.3;3" dur={`${dur}s`} begin={`${delay}s`} repeatCount="indefinite" />
+              </line>
+            );
+          })}
+        </g>
+      )}
+
+      {/* Atmospheric mist near vanishing point */}
+      <ellipse cx={vx} cy={vy + 18} rx="180" ry="28" fill="url(#vpMist)" />
+
+      {/* Summit glow */}
+      <ellipse cx={vx} cy={vy} rx="22" ry="10" fill="url(#vpGlow)">
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite" />
+      </ellipse>
+
+      {/* SUMMIT FLAG — embedded in SVG at vanishing point, tiny and far away */}
+      <g transform={`translate(${vx - 3}, ${vy - 18})`}>
+        <rect x="0" y="0" width="1.8" height="18" fill="#8a7a60" />
+        <polygon points="1.8,0 11,3 1.8,6" fill="#ef4444" opacity="0.95">
+          <animateTransform attributeName="transform" type="rotate" values="0,1.8,3;2,1.8,3;0,1.8,3" dur="2.5s" repeatCount="indefinite" />
+        </polygon>
+      </g>
+
+      {/* Snow on wall tops near vanishing point */}
+      <path d={`M 0,${vy} Q 28,${vy-6} ${pathL},${vy+8}`} fill="none" stroke="white" strokeWidth="2" opacity="0.14" />
+      <path d={`M 400,${vy} Q 372,${vy-6} ${pathR},${vy+8}`} fill="none" stroke="white" strokeWidth="2" opacity="0.14" />
+    </svg>
+  );
+}
+
 function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
   const [stepsClimbed, setStepsClimbed] = useState(0);
   const [items, setItems] = useState([]);
+  const [heroAnim, setHeroAnim] = useState("idle");
+  const [showPickup, setShowPickup] = useState(false);
+  const [pickupEmoji, setPickupEmoji] = useState("💎");
 
   useEffect(() => {
     if (phase === "success") {
+      setHeroAnim("walk");
+      const t = setTimeout(() => setHeroAnim("idle"), 900);
       if (gameAction === "heroCollectLoop") {
-        setItems(prev => [...prev, sceneConfig?.itemEmoji || "gem"]);
+        const emoji = sceneConfig?.itemEmoji || "💎";
+        setItems(prev => [...prev, emoji]);
+        setPickupEmoji(emoji);
+        setShowPickup(true);
+        setTimeout(() => setShowPickup(false), 1300);
       } else {
         setStepsClimbed(prev => prev + 1);
       }
+      return () => clearTimeout(t);
+    } else if (phase === "fail") {
+      setHeroAnim("hurt");
+    } else {
+      setHeroAnim("idle");
     }
   }, [phase, gameAction, sceneConfig]);
 
-  const totalSteps = 5;
+  const totalSteps = TRAIL_POSITIONS.length - 1;
   const step = Math.min(stepsClimbed, totalSteps);
+
+  // Hero stays fixed at base — path scrolls beneath (treadmill)
+  const heroPos = TRAIL_POSITIONS[0];
+
+  // Sky darkens gradually as altitude increases
+  const altitudeFog = Math.min(stepsClimbed * 0.07, 0.38);
 
   const successMsg = {
     heroClimbSteps: `${heroName} climbed higher! (${step}/${totalSteps})`,
@@ -445,72 +745,48 @@ function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, scen
   return (
     <div className="w-full h-full relative overflow-hidden">
       <SkyBackground night />
-      <Ground variant="rocky" />
 
-      {/* Winding trail path */}
-      <svg className="absolute bottom-0 left-0 right-0 z-[6]" viewBox="0 0 400 160" preserveAspectRatio="none" style={{ height: "65%" }}>
-        <defs>
-          <linearGradient id="trailGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6b5a40" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#8a7a60" stopOpacity="0.2" />
-          </linearGradient>
-        </defs>
-        {/* Wide trail */}
-        <path d="M 10,150 Q 60,130 100,110 T 180,80 T 260,55 T 340,30 T 390,15"
-          stroke="url(#trailGrad)" strokeWidth="18" fill="none" strokeLinecap="round" />
-        {/* Trail edge */}
-        <path d="M 10,150 Q 60,130 100,110 T 180,80 T 260,55 T 340,30 T 390,15"
-          stroke="#8a7a60" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="6 4" opacity="0.3" />
-      </svg>
+      {/* Altitude atmosphere — sky darkens as hero climbs higher */}
+      <div className="absolute inset-0 z-[3] pointer-events-none"
+        style={{ backgroundColor: `rgba(5, 12, 35, ${altitudeFog})`, transition: "background-color 1.5s ease" }} />
 
-      {/* Trail rocks */}
-      <Rock x={20} scale={0.5} />
-      <Rock x={45} scale={0.4} />
-      <Rock x={70} scale={0.5} />
-
-      {/* Sparse trees */}
-      <Tree x={5} scale={0.6} />
-      <Tree x={88} scale={0.5} />
+      {/* Trail — scrolling when walking */}
+      <MountainPathPerspective scrolling={heroAnim === "walk"} />
 
       {/* Step progress bar */}
-      <div className="absolute bottom-20 left-3 z-20 flex items-end gap-1">
+      <div className="absolute bottom-3 left-3 z-20 flex items-end gap-1">
         {[...Array(totalSteps)].map((_, i) => (
           <div key={i} className={`rounded transition-all duration-500 ${
-            i < step
-              ? "bg-green-500/70 border border-green-400/40 shadow-[0_0_6px_rgba(0,255,100,0.3)]"
-              : "bg-gray-700/40 border border-gray-600/20"
-          }`} style={{ width: 14, height: 8 + i * 5 }} />
+            i < step ? "bg-green-500/70 border border-green-400/40" : "bg-gray-700/40 border border-gray-600/20"
+          }`} style={{ width: 14, height: 7 + i * 4 }} />
         ))}
         <span className="text-[10px] text-gray-400 font-mono ml-1">{step}/{totalSteps}</span>
       </div>
 
-      {/* Collected items */}
+      {/* Collected items tray */}
       {items.length > 0 && (
-        <div className="absolute top-3 right-3 z-20 flex gap-1 bg-[#161b22]/70 rounded px-2 py-1 border border-[#30363d]/50">
-          <span className="text-[10px] text-gray-500 font-mono mr-1">x{items.length}</span>
-          {items.slice(-5).map((_, i) => (
-            <div key={i} className="w-3 h-3 rounded-sm bg-purple-400/60" />
+        <div className="absolute top-3 left-3 z-20 flex gap-1 bg-[#161b22]/70 rounded px-2 py-1 border border-[#30363d]/50">
+          <span className="text-[10px] text-gray-400 font-mono mr-1">x{items.length}</span>
+          {items.slice(-6).map((emoji, i) => (
+            <span key={i} style={{ fontSize: "0.75rem" }}>{emoji}</span>
           ))}
         </div>
       )}
 
-      {/* Summit flag */}
-      <div className="absolute top-6 right-8 z-10">
-        <svg width="20" height="25" viewBox="0 0 20 25">
-          <rect x="3" y="0" width="2" height="25" fill="#8a7a5a" />
-          <polygon points="5,1 18,5 5,9" fill="#ef4444" opacity="0.8">
-            <animateTransform attributeName="transform" type="rotate" values="0,5,5;3,5,5;0,5,5" dur="2s" repeatCount="indefinite" />
-          </polygon>
-        </svg>
-      </div>
-
       {phase === "success" && <Sparkles heroColor={heroColor} />}
 
-      {/* Hero climbing */}
-      <div className="absolute z-10 transition-all duration-700"
-        style={{ bottom: `${55 + step * 20}px`, left: `${10 + step * 14}%` }}>
-        <GameHero color={heroColor} size={75}
-          animation={phase === "success" ? "walk" : phase === "fail" ? "hurt" : "idle"} />
+      {/* Floating item pickup animation */}
+      {showPickup && (
+        <div className="absolute z-20 pointer-events-none"
+          style={{ left: "50%", bottom: "130px", animation: "floatUp 1.3s ease-out forwards" }}>
+          <span style={{ fontSize: "2rem" }}>{pickupEmoji}</span>
+        </div>
+      )}
+
+      {/* Hero — stays at base, treadmill gives movement illusion */}
+      <div className="absolute z-10"
+        style={{ left: "50%", bottom: heroPos.bottom, transform: "translateX(-50%)" }}>
+        <GameHero color={heroColor} size={heroPos.size} animation={heroAnim} />
       </div>
 
       <StatusMessage phase={phase} successMsg={successMsg}
@@ -525,9 +801,25 @@ function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, scen
 // =======================================================
 function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
   const [defeated, setDefeated] = useState(0);
+  const [showSlash, setShowSlash] = useState(false);
+  const [heroAnim, setHeroAnim] = useState("idle");
+  const slashRef = useRef(null);
 
   useEffect(() => {
-    if (phase === "success") setDefeated(prev => prev + 1);
+    if (slashRef.current) clearTimeout(slashRef.current);
+    if (phase === "success") {
+      setDefeated(prev => prev + 1);
+      setHeroAnim("attack");
+      setShowSlash(true);
+      slashRef.current = setTimeout(() => setShowSlash(false), 600);
+    } else if (phase === "fail") {
+      setHeroAnim("hurt");
+      setShowSlash(false);
+    } else {
+      setHeroAnim("idle");
+      setShowSlash(false);
+    }
+    return () => { if (slashRef.current) clearTimeout(slashRef.current); };
   }, [phase]);
 
   return (
@@ -537,21 +829,39 @@ function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig
       <div className="absolute bottom-0 left-0 right-0 h-20 z-[5]"
         style={{ background: "linear-gradient(180deg, #3a2525 0%, #2a1818 40%, #1a0f0f 100%)" }} />
 
-      {/* Rocky outcrops */}
       <Rock x={5} scale={0.8} />
       <Rock x={85} scale={0.9} />
       <Rock x={45} scale={0.6} />
-
-      {/* Danger atmosphere */}
       <div className="absolute bottom-16 left-0 right-0 h-12 bg-red-900/5 z-[6]" />
 
-      {/* Hero on left */}
-      <div className={`absolute z-10 transition-all duration-300 ${
-        phase === "success" ? "translate-x-6" : phase === "fail" ? "-translate-x-3" : ""
+      {/* Hero — lunges forward on attack */}
+      <div className={`absolute z-10 transition-all duration-250 ${
+        phase === "success" ? "translate-x-14" : phase === "fail" ? "-translate-x-5" : ""
       }`} style={{ left: "10%", bottom: "60px" }}>
-        <GameHero color={heroColor} size={85}
-          animation={phase === "success" ? "attack" : phase === "fail" ? "hurt" : "idle"} />
+        <GameHero color={heroColor} size={85} animation={heroAnim} />
       </div>
+
+      {/* Sword slash impact lines */}
+      {showSlash && (
+        <div className="absolute z-[15]" style={{ left: "36%", bottom: "65px" }}>
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <line x1="8" y1="62" x2="62" y2="8" stroke="white" strokeWidth="3.5" strokeLinecap="round">
+              <animate attributeName="opacity" values="1;0" dur="0.45s" fill="freeze" />
+            </line>
+            <line x1="4" y1="50" x2="54" y2="4" stroke={heroColor} strokeWidth="2.5" strokeLinecap="round">
+              <animate attributeName="opacity" values="0.8;0" dur="0.45s" fill="freeze" />
+            </line>
+            <line x1="14" y1="66" x2="66" y2="18" stroke={heroColor} strokeWidth="1.5" strokeLinecap="round">
+              <animate attributeName="opacity" values="0.5;0" dur="0.45s" fill="freeze" />
+            </line>
+            {/* Impact starburst */}
+            <circle cx="35" cy="35" r="10" fill="white" opacity="0.4">
+              <animate attributeName="r" values="8;18;8" dur="0.3s" fill="freeze" />
+              <animate attributeName="opacity" values="0.4;0" dur="0.4s" fill="freeze" />
+            </circle>
+          </svg>
+        </div>
+      )}
 
       {/* VS / Hit indicator */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-24 z-10">
@@ -564,29 +874,51 @@ function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig
         )}
       </div>
 
-      {/* Enemy (SVG creature) */}
-      <div className={`absolute z-10 transition-all duration-300 ${
-        phase === "success" ? "opacity-40 scale-90 translate-x-4" : phase === "fail" ? "scale-110" : ""
+      {/* Enemy creature — glowing eyes idle, flashes white on hit */}
+      <div className={`absolute z-10 transition-all duration-250 ${
+        phase === "success" ? "opacity-35 scale-90 translate-x-6" : phase === "fail" ? "scale-110" : ""
       }`} style={{ right: "12%", bottom: "62px" }}>
-        <svg width="70" height="70" viewBox="0 0 70 70">
-          {/* Shadow */}
-          <ellipse cx="35" cy="65" rx="20" ry="5" fill="black" opacity="0.2" />
+        <svg width="70" height="80" viewBox="0 0 70 80">
+          <ellipse cx="35" cy="75" rx="20" ry="5" fill="black" opacity="0.2" />
           {/* Body */}
-          <ellipse cx="35" cy="40" rx="22" ry="25" fill="#6b3a6b" />
-          <ellipse cx="30" cy="35" rx="10" ry="15" fill="#7a4a7a" opacity="0.3" />
-          {/* Eyes */}
-          <ellipse cx="27" cy="35" rx="6" ry="7" fill="white" />
-          <ellipse cx="43" cy="35" rx="6" ry="7" fill="white" />
-          <circle cx="28" cy="36" r="3" fill="#ff3333" />
-          <circle cx="44" cy="36" r="3" fill="#ff3333" />
-          <circle cx="27" cy="35" r="1" fill="white" />
-          <circle cx="43" cy="35" r="1" fill="white" />
-          {/* Mouth */}
-          <path d="M 25,50 Q 35,55 45,50" stroke="#4a2a4a" strokeWidth="2" fill="none" />
+          <ellipse cx="35" cy="42" rx="22" ry="26" fill="#6b3a6b" />
+          <ellipse cx="28" cy="36" rx="10" ry="16" fill="#7a4a7a" opacity="0.25" />
+          {/* Arms */}
+          <ellipse cx="13" cy="45" rx="7" ry="5" fill="#5a2a5a" transform="rotate(-20,13,45)" />
+          <ellipse cx="57" cy="45" rx="7" ry="5" fill="#5a2a5a" transform="rotate(20,57,45)" />
+          {/* Eyes white */}
+          <ellipse cx="27" cy="37" rx="7" ry="8" fill="white" opacity={phase === "success" ? "0.2" : "1"} />
+          <ellipse cx="43" cy="37" rx="7" ry="8" fill="white" opacity={phase === "success" ? "0.2" : "1"} />
+          {/* Red pupils with glow */}
+          <circle cx="28" cy="38" r="4" fill="#ff2222" opacity={phase === "success" ? "0.15" : "0.9"} />
+          <circle cx="44" cy="38" r="4" fill="#ff2222" opacity={phase === "success" ? "0.15" : "0.9"} />
+          {/* Glow animate */}
+          {phase === "idle" && (
+            <>
+              <circle cx="28" cy="38" r="4" fill="#ff4444">
+                <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.8s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="44" cy="38" r="4" fill="#ff4444">
+                <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2.1s" repeatCount="indefinite" />
+              </circle>
+            </>
+          )}
+          <circle cx="26" cy="36" r="1.5" fill="white" opacity="0.6" />
+          <circle cx="42" cy="36" r="1.5" fill="white" opacity="0.6" />
+          {/* Mouth with teeth */}
+          <path d="M 23,54 Q 35,62 47,54" stroke="#3a1a3a" strokeWidth="2" fill="#3a1a3a" fillOpacity="0.5" />
+          <line x1="28" y1="54" x2="28" y2="59" stroke="#2a0a2a" strokeWidth="1.8" />
+          <line x1="35" y1="55" x2="35" y2="61" stroke="#2a0a2a" strokeWidth="1.8" />
+          <line x1="42" y1="54" x2="42" y2="59" stroke="#2a0a2a" strokeWidth="1.8" />
+          {/* Hit flash */}
+          {phase === "success" && (
+            <ellipse cx="35" cy="42" rx="24" ry="28" fill="white" opacity="0">
+              <animate attributeName="opacity" values="0.5;0;0.3;0" dur="0.4s" fill="freeze" />
+            </ellipse>
+          )}
         </svg>
       </div>
 
-      {/* Combo counter */}
       {defeated > 0 && (
         <div className="absolute top-3 right-3 z-20">
           <span className="text-orange-400 text-xs font-mono font-bold bg-[#161b22]/80 px-2 py-1 rounded border border-orange-500/20">
@@ -606,129 +938,613 @@ function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig
 }
 
 // =======================================================
-// SCENE 4: OBSTACLE
+// SCENE 4: OBSTACLE — context-aware if/else visuals
 // =======================================================
 function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
   const [cleared, setCleared] = useState(0);
+  const [heroX, setHeroX] = useState(12);
+  const [heroAnim, setHeroAnim] = useState("walk");
+  const [heroTransition, setHeroTransition] = useState("none");
+  const intervalRef = useRef(null);
+
+  const isSuccess = phase === "success";
+  const isFail = phase === "fail";
 
   useEffect(() => {
-    if (phase === "success") setCleared(prev => prev + 1);
-  }, [phase]);
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
 
-  const obstacleType = {
-    heroCheckWeather: { label: "weather", emoji: "cloud" },
-    heroForkPath: { label: "fork", emoji: "sign" },
-    heroObstacle: { label: "boulder", emoji: "rock" },
-    heroFinalGate: { label: "gate", emoji: "gate" },
-  }[gameAction] || { label: "obstacle", emoji: "rock" };
+    if (phase === "idle") {
+      setHeroAnim("walk");
+      setHeroTransition("none");
+      setHeroX(10);
+      const maxX = gameAction === "heroForkPath" ? 45 : 33;
+      intervalRef.current = setInterval(() => {
+        setHeroX(prev => prev >= maxX ? maxX : prev + 0.12);
+      }, 60);
+    } else if (phase === "success") {
+      setCleared(prev => prev + 1);
+      setHeroAnim("walk");
+      setHeroTransition("left 0.8s ease-in-out");
+      setHeroX(gameAction === "heroForkPath" ? 72 : 70);
+    } else if (phase === "fail") {
+      setHeroAnim("hurt");
+      setHeroTransition("left 0.35s ease-out");
+      setHeroX(prev => Math.max(prev - 12, 6));
+    }
+
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const successMsg = {
-    heroCheckWeather: `${heroName} read the weather — safe to proceed!`,
-    heroForkPath: `${heroName} chose the right path!`,
-    heroObstacle: `${heroName} cleared the obstacle!`,
-    heroFinalGate: `${heroName} opened the gate!`,
+    heroCheckWeather: `${heroName} reads conditions — right call!`,
+    heroForkPath: `${heroName} picks the safer route!`,
+    heroObstacle: `${heroName} clears the obstacle!`,
+    heroFinalGate: `${heroName} unlocks the gate!`,
   }[gameAction] || `${heroName}'s condition passed!`;
 
   const failMsg = {
-    heroCheckWeather: "Weather check failed — wrong condition",
-    heroForkPath: "Wrong path — check your logic",
-    heroObstacle: "Blocked — code error",
-    heroFinalGate: "Gate locked — condition is False",
-  }[gameAction] || "Condition failed — try again";
+    heroCheckWeather: "Condition is False — check your logic",
+    heroForkPath: "Condition is False — wrong path",
+    heroObstacle: "Condition is False — can't pass",
+    heroFinalGate: "Condition is False — gate stays locked",
+  }[gameAction] || "Condition is False — try again";
 
+  const idleMsg = {
+    heroCheckWeather: "Check the weather conditions...",
+    heroForkPath: "Evaluate which path is safer...",
+    heroObstacle: "Can the hero pass?",
+    heroFinalGate: "Does the hero have what it takes?",
+  }[gameAction] || "Write conditions to navigate...";
+
+  const heroEl = (
+    <div className="absolute z-10" style={{ left: `${heroX}%`, bottom: "60px", transition: heroTransition }}>
+      <GameHero color={heroColor} size={82} animation={heroAnim} />
+    </div>
+  );
+
+  const clearedBadge = cleared > 0 && (
+    <div className="absolute top-3 left-3 z-20">
+      <span className="text-emerald-400 text-xs font-mono bg-[#161b22]/70 px-2 py-1 rounded border border-emerald-500/20">
+        {cleared} cleared
+      </span>
+    </div>
+  );
+
+  // ── WEATHER CHECK: thermometer + dynamic sky + two outcome zones ──────
+  if (gameAction === "heroCheckWeather") {
+    // Sky: always warm (temp=35 in code), blazing on success, dim red on fail
+    const skyBg = isFail
+      ? "linear-gradient(180deg, #3b1a1a 0%, #5a2020 40%, #2a1010 100%)"
+      : isSuccess
+        ? "linear-gradient(180deg, #92400e 0%, #b45309 40%, #78350f 100%)"
+        : "linear-gradient(180deg, #4a2a0a 0%, #7c3d0d 50%, #5a2d0a 100%)";
+
+    return (
+      <div className="w-full h-full relative overflow-hidden">
+        <div className="absolute inset-0 transition-all duration-700" style={{ background: skyBg }} />
+
+        {/* Sun — always visible since temp=35 */}
+        <svg className="absolute top-3 right-10 z-10" width="60" height="60" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r={isSuccess ? 14 : 11} fill="#fbbf24" opacity={isSuccess ? "0.95" : "0.55"}>
+            {isSuccess && <animate attributeName="r" values="13;17;13" dur="2s" repeatCount="indefinite" />}
+          </circle>
+          {[0,45,90,135,180,225,270,315].map((a, i) => (
+            <line key={i}
+              x1={30 + Math.cos(a * Math.PI/180) * 17} y1={30 + Math.sin(a * Math.PI/180) * 17}
+              x2={30 + Math.cos(a * Math.PI/180) * 24} y2={30 + Math.sin(a * Math.PI/180) * 24}
+              stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" opacity={isSuccess ? "0.85" : "0.4"} />
+          ))}
+        </svg>
+
+        <Ground variant="rocky" />
+
+        {/* Thermometer — always shows 35° */}
+        <div className="absolute z-20" style={{ right: "30%", bottom: "85px" }}>
+          <svg width="38" height="115" viewBox="0 0 38 115">
+            <circle cx="19" cy="98" r="12" fill="#ef4444" opacity="0.9" />
+            <circle cx="19" cy="98" r="7" fill="#fca5a5" opacity="0.65" />
+            <rect x="15" y="8" width="8" height="90" rx="4" fill="#374151" opacity="0.5" />
+            <rect x="16" y="8" width="6" height="90" rx="3" fill="#1f2937" />
+            <rect x="17" y="35" width="4" height="63" rx="2" fill="#ef4444">
+              <animate attributeName="y" values="35;30;35" dur="2s" repeatCount="indefinite" />
+            </rect>
+            {[18, 32, 46, 60, 74, 88].map((y, i) => (
+              <line key={i} x1="24" y1={y} x2="30" y2={y} stroke="#6b7280" strokeWidth="1" />
+            ))}
+            <text x="19" y="5" textAnchor="middle" fill="#fca5a5" fontSize="8" fontFamily="monospace" fontWeight="bold">
+              35°
+            </text>
+          </svg>
+        </div>
+
+        {/* Outcome zones — shade tree (if True: too hot → rest) vs mountain path (else → climb) */}
+        <div className="absolute z-[8]" style={{ left: "50%", bottom: "60px" }}>
+          <svg width="76" height="88" viewBox="0 0 76 88">
+            <rect x="34" y="52" width="7" height="30" rx="2" fill="#5c3d1e" />
+            <ellipse cx="37" cy="44" rx="24" ry="18" fill="#166534" opacity="0.85" />
+            <ellipse cx="37" cy="36" rx="18" ry="14" fill="#15803d" opacity="0.8" />
+            {isSuccess && (
+              <ellipse cx="37" cy="84" rx="28" ry="5" fill="#22c55e" opacity="0.3">
+                <animate attributeName="opacity" values="0.15;0.4;0.15" dur="1.2s" repeatCount="indefinite" />
+              </ellipse>
+            )}
+          </svg>
+          <div className={`text-center text-xs font-mono px-2 py-0.5 rounded border transition-all duration-400 ${
+            isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10" : "text-gray-600 border-[#30363d]/40"
+          }`}>
+            {isSuccess ? "✓ rest in shade" : "rest in shade"}
+          </div>
+        </div>
+
+        <div className="absolute z-[8]" style={{ right: "5%", bottom: "60px" }}>
+          <svg width="64" height="78" viewBox="0 0 64 78">
+            <polygon points="32,4 4,74 60,74" fill="#374151" opacity="0.65" />
+            <polygon points="32,4 18,38 46,38" fill="#4b5563" opacity="0.5" />
+            <line x1="32" y1="74" x2="32" y2="28" stroke="#c4a870" strokeWidth="2" strokeDasharray="4,4" opacity="0.4" />
+          </svg>
+          <div className="text-center text-xs font-mono px-2 py-0.5 rounded border text-gray-600 border-[#30363d]/40">
+            keep climbing
+          </div>
+        </div>
+
+        {/* Code condition panel */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-orange-400 border-orange-500/30 bg-orange-500/10">
+            {sceneConfig?.varDisplay || "temp = 35"}
+          </div>
+          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
+            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
+            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
+            : "text-gray-400 border-[#484f58]/60"
+          }`}>
+            {sceneConfig?.conditionLabel || "if temp > 30:"} {isSuccess ? "✓ True" : isFail ? "✗ False" : "?"}
+          </div>
+          {isSuccess && (
+            <div className="px-2.5 py-1 rounded text-xs font-mono text-orange-300 border border-orange-500/20 bg-orange-500/5">
+              {sceneConfig?.successAction || "→ Too hot! Rest."}
+            </div>
+          )}
+        </div>
+
+        {clearedBadge}
+        {isSuccess && <Sparkles heroColor={heroColor} />}
+        {heroEl}
+        <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
+      </div>
+    );
+  }
+
+  // ── FORK PATH: ground-level Y-fork with mountains behind ────────────
+  if (gameAction === "heroForkPath") {
+    // Layout: sky + mountains in top 45%, ground + roads in bottom 55%
+    const hz = 130;    // horizon line y — mountains sit above, ground below
+    const fy = 195;    // fork y — where the road splits (on the ground)
+    const topY = 138;  // where fork roads vanish (just below horizon)
+
+    // Approach road (single lane, narrows toward fork — perspective)
+    const apL = 148, apR = 252;    // bottom edges at y=300
+    const fkL = 175, fkR = 225;    // road edges at fork (y=fy)
+
+    // Divider tip — the V-point where road splits
+    const tipL = 193, tipR = 207;
+
+    // Left fork road (Path A) at horizon y=topY
+    const aOut = 82, aIn = 148;    // outer / inner edges
+    // Right fork road (Path B) at horizon y=topY
+    const bIn = 252, bOut = 318;
+
+    // Center lines for each road segment
+    const aCx0 = (fkL + tipL) / 2, aCx1 = (aOut + aIn) / 2;
+    const bCx0 = (tipR + fkR) / 2, bCx1 = (bIn + bOut) / 2;
+
+    return (
+      <div className="w-full h-full relative overflow-hidden">
+        <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="yfSky" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#050a18" />
+              <stop offset="60%" stopColor="#0e1a2e" />
+              <stop offset="100%" stopColor="#182840" />
+            </linearGradient>
+            <linearGradient id="yfRoad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#2a2418" />
+              <stop offset="100%" stopColor="#4e3c28" />
+            </linearGradient>
+            <linearGradient id="yfForkL" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={isSuccess ? "#38120a" : "#2a2418"} />
+              <stop offset="100%" stopColor={isSuccess ? "#58261a" : "#4e3c28"} />
+            </linearGradient>
+            <linearGradient id="yfForkR" x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={isSuccess ? "#0a2c12" : "#2a2418"} />
+              <stop offset="100%" stopColor={isSuccess ? "#144820" : "#4e3c28"} />
+            </linearGradient>
+            <linearGradient id="yfGnd" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#121a26" />
+              <stop offset="100%" stopColor="#0c1520" />
+            </linearGradient>
+            <linearGradient id="yfMtn" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#2c3848" />
+              <stop offset="100%" stopColor="#141e2c" />
+            </linearGradient>
+          </defs>
+
+          {/* ── SKY (upper portion) ── */}
+          <rect x="0" y="0" width="400" height={hz + 10} fill="url(#yfSky)" />
+
+          {/* ── STARS ── */}
+          {[[30,18],[70,8],[120,28],[160,12],[240,16],[290,10],[340,22],[380,14],[60,42],[310,38],[200,6],[150,50]].map(([x,y],i) => (
+            <circle key={i} cx={x} cy={y} r="1" fill="#8a9ab8" opacity={0.4 + (i % 3) * 0.2} />
+          ))}
+
+          {/* ── MOUNTAINS (left range) ── */}
+          <polygon points={`0,${hz} 0,55 50,18 95,62 125,38 175,${hz}`} fill="url(#yfMtn)" />
+          <polygon points="50,18 36,48 64,48" fill="#3a4a5c" opacity="0.85" />
+          <polygon points="125,38 113,62 137,62" fill="#3a4a5c" opacity="0.7" />
+          <polygon points={`0,${hz} 0,55 50,18 62,50 30,${hz}`} fill="#080d18" opacity="0.4" />
+
+          {/* ── MOUNTAINS (right range) ── */}
+          <polygon points={`225,${hz} 275,38 310,62 350,18 400,55 400,${hz}`} fill="url(#yfMtn)" />
+          <polygon points="350,18 338,48 362,48" fill="#3a4a5c" opacity="0.85" />
+          <polygon points="275,38 263,62 287,62" fill="#3a4a5c" opacity="0.7" />
+          <polygon points={`400,${hz} 400,55 350,18 338,50 370,${hz}`} fill="#080d18" opacity="0.4" />
+
+          {/* ── DISTANT MOUNTAIN (center, behind fork) ── */}
+          <polygon points={`165,${hz} 200,75 235,${hz}`} fill="#1a2535" opacity="0.7" />
+          <polygon points="200,75 192,95 208,95" fill="#2a3a50" opacity="0.5" />
+
+          {/* ── GROUND PLANE (below horizon) ── */}
+          <rect x="0" y={hz} width="400" height={300 - hz} fill="url(#yfGnd)" />
+
+          {/* Horizon glow line */}
+          <line x1="0" y1={hz} x2="400" y2={hz} stroke="#2a4a6a" strokeWidth="1.5" opacity="0.3" />
+
+          {/* ── GROUND WEDGE between fork roads (V-shaped terrain) ── */}
+          <polygon points={`${aIn},${topY} ${bIn},${topY} ${tipR},${fy} ${tipL},${fy}`} fill="#101a26" />
+          {/* Wedge terrain texture */}
+          {[0.15, 0.35, 0.55, 0.75, 0.92].map((t, i) => {
+            const y = topY + t * (fy - topY);
+            const lx = aIn + t * (tipL - aIn);
+            const rx = bIn - t * (bIn - tipR);
+            return <line key={i} x1={lx} y1={y} x2={rx} y2={y}
+              stroke="#1c2c3c" strokeWidth={0.4 + t * 0.6} opacity="0.6" />;
+          })}
+          {/* Grass tufts in wedge */}
+          {[[185,172],[200,160],[215,172],[200,150],[192,165],[208,165]].map(([cx, cy], i) => (
+            <g key={i} opacity="0.55">
+              <line x1={cx-3} y1={cy} x2={cx-5} y2={cy-6} stroke="#1c3416" strokeWidth="1" />
+              <line x1={cx}   y1={cy} x2={cx}   y2={cy-7} stroke="#1c3416" strokeWidth="1" />
+              <line x1={cx+3} y1={cy} x2={cx+4} y2={cy-6} stroke="#1c3416" strokeWidth="1" />
+            </g>
+          ))}
+
+          {/* ── OUTER TERRAIN (left side of left fork → ground) ── */}
+          <polygon points={`0,${topY} ${aOut},${topY} ${fkL},${fy} ${apL},300 0,300`} fill="url(#yfGnd)" />
+          {/* OUTER TERRAIN (right side of right fork → ground) */}
+          <polygon points={`${bOut},${topY} 400,${topY} 400,300 ${apR},300 ${fkR},${fy}`} fill="url(#yfGnd)" />
+
+          {/* ── APPROACH ROAD (single lane, below fork) ── */}
+          <polygon points={`${apL},300 ${apR},300 ${fkR},${fy} ${tipR},${fy} ${tipL},${fy} ${fkL},${fy}`}
+            fill="url(#yfRoad)" />
+          {/* Road outer edge lines */}
+          <line x1={apL} y1={300} x2={fkL} y2={fy} stroke="#7a6040" strokeWidth="2.4" opacity="0.9" />
+          <line x1={apR} y1={300} x2={fkR} y2={fy} stroke="#7a6040" strokeWidth="2.4" opacity="0.9" />
+          {/* Center dashed line on approach */}
+          <line x1="200" y1="300" x2="200" y2={fy + 2}
+            stroke="#c8b060" strokeWidth="3" strokeDasharray="20 14" opacity="0.8" />
+          {/* Approach perspective shading bands */}
+          {[0.15, 0.32, 0.50, 0.68, 0.84].map((t, i) => {
+            const y = fy + t * (300 - fy);
+            const lx = fkL + t * (apL - fkL);
+            const rx = fkR + t * (apR - fkR);
+            return <line key={i} x1={lx} y1={y} x2={rx} y2={y}
+              stroke="#c4a870" strokeWidth={t * 1.5} opacity={0.04 + t * 0.09} />;
+          })}
+
+          {/* ── LEFT FORK ROAD (Path A) ── */}
+          <polygon points={`${aOut},${topY} ${aIn},${topY} ${tipL},${fy} ${fkL},${fy}`}
+            fill="url(#yfForkL)" />
+          <line x1={fkL} y1={fy} x2={aOut} y2={topY} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
+          <line x1={tipL} y1={fy} x2={aIn}  y2={topY} stroke="#7a6040" strokeWidth="1.8" opacity="0.7" />
+          {/* Left fork center dashes */}
+          <line x1={aCx0} y1={fy} x2={aCx1} y2={topY}
+            stroke="#c8b060" strokeWidth="2" strokeDasharray="10 8" opacity="0.6" />
+
+          {/* ── RIGHT FORK ROAD (Path B) ── */}
+          <polygon points={`${bIn},${topY} ${bOut},${topY} ${fkR},${fy} ${tipR},${fy}`}
+            fill="url(#yfForkR)" />
+          <line x1={tipR} y1={fy} x2={bIn}  y2={topY} stroke="#7a6040" strokeWidth="1.8" opacity="0.7" />
+          <line x1={fkR}  y1={fy} x2={bOut} y2={topY} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
+          {/* Right fork center dashes */}
+          <line x1={bCx0} y1={fy} x2={bCx1} y2={topY}
+            stroke="#c8b060" strokeWidth="2" strokeDasharray="10 8" opacity="0.6" />
+
+          {/* ── VEGETATION on left terrain ── */}
+          <ellipse cx="50"  cy="250" rx="20" ry="10" fill="#0c1520" opacity="0.8" />
+          <line x1="75" y1="225" x2="73" y2="213" stroke="#1c3416" strokeWidth="2.2" />
+          <ellipse cx="73" cy="211" rx="10" ry="7" fill="#182e14" opacity="0.8" />
+          <line x1="30" y1="210" x2="28" y2="200" stroke="#1c3416" strokeWidth="1.6" />
+          <ellipse cx="28" cy="198" rx="7" ry="5" fill="#182e14" opacity="0.7" />
+          <ellipse cx="100" cy="260" rx="14" ry="7" fill="#0c1520" opacity="0.7" />
+
+          {/* ── VEGETATION on right terrain ── */}
+          <ellipse cx="350" cy="250" rx="20" ry="10" fill="#0c1520" opacity="0.8" />
+          <line x1="325" y1="225" x2="327" y2="213" stroke="#1c3416" strokeWidth="2.2" />
+          <ellipse cx="327" cy="211" rx="10" ry="7" fill="#182e14" opacity="0.8" />
+          <line x1="370" y1="210" x2="372" y2="200" stroke="#1c3416" strokeWidth="1.6" />
+          <ellipse cx="372" cy="198" rx="7" ry="5" fill="#182e14" opacity="0.7" />
+          <ellipse cx="300" cy="260" rx="14" ry="7" fill="#0c1520" opacity="0.7" />
+
+          {/* ── PATH A SUCCESS GLOW (red — wrong path) ── */}
+          {isSuccess && (
+            <polygon points={`${aOut},${topY} ${aIn},${topY} ${tipL},${fy} ${fkL},${fy}`} fill="#ef4444" opacity="0.07">
+              <animate attributeName="opacity" values="0.03;0.13;0.03" dur="1.2s" repeatCount="indefinite" />
+            </polygon>
+          )}
+
+          {/* ── PATH B SUCCESS GLOW + SPARKLES (green — correct path) ── */}
+          {isSuccess && (
+            <>
+              <polygon points={`${bIn},${topY} ${bOut},${topY} ${fkR},${fy} ${tipR},${fy}`} fill="#22c55e" opacity="0.1">
+                <animate attributeName="opacity" values="0.05;0.18;0.05" dur="1.1s" repeatCount="indefinite" />
+              </polygon>
+              {[0, 1, 2].map(i => (
+                <circle key={i} r="3" fill="#22c55e">
+                  <animate attributeName="cx"
+                    values={`${bCx0};${bCx0 + (bCx1 - bCx0) * 0.55};${bCx1}`}
+                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.35}s`} repeatCount="indefinite" />
+                  <animate attributeName="cy"
+                    values={`${fy - 3};${topY + (fy - topY) * 0.5};${topY + 4}`}
+                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.35}s`} repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0;1;0"
+                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.35}s`} repeatCount="indefinite" />
+                </circle>
+              ))}
+            </>
+          )}
+
+          {/* ── DANGER WARNING on Path A ── */}
+          <polygon points={`${aCx1},${topY+6} ${aCx1+7},${topY+18} ${aCx1-7},${topY+18}`}
+            fill="#f59e0b" opacity={isSuccess ? "0.2" : "0.9"} />
+          <text x={aCx1} y={topY + 16} fill="#1a1200" fontSize="6" textAnchor="middle" fontWeight="bold">!</text>
+
+          {/* ── PATH LABELS ── */}
+          <text x={aCx1} y={topY + 2} textAnchor="middle"
+            fill={isSuccess ? "#fca5a5" : "#94a3b8"} fontSize="8" fontFamily="monospace" fontWeight="bold">
+            PATH A
+          </text>
+          <text x={bCx1} y={topY + 2} textAnchor="middle"
+            fill={isSuccess ? "#86efac" : "#94a3b8"} fontSize="8" fontFamily="monospace" fontWeight="bold">
+            PATH B
+          </text>
+
+          {/* ── SIGNPOST at fork ── */}
+          <rect x="198" y={fy - 48} width="4" height="50" rx="2" fill="#7a5c35" />
+          {/* Sign A — angled left */}
+          <g transform={`translate(200,${fy - 42}) rotate(-28)`}>
+            <rect x="-48" y="-9" width="48" height="18" rx="3"
+              fill={isSuccess ? "#4b0808" : "#2d3748"} opacity="0.95" />
+            <rect x="-48" y="-9" width="48" height="18" rx="3" fill="none"
+              stroke={isSuccess ? "#ef4444" : "#4a5568"} strokeWidth="1.5" opacity="0.9" />
+            <text x="-24" y="4" textAnchor="middle" fill={isSuccess ? "#fca5a5" : "#e2e8f0"}
+              fontSize="8" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathALabel || "⚠ A: 7"}</text>
+          </g>
+          {/* Sign B — angled right */}
+          <g transform={`translate(202,${fy - 20}) rotate(23)`}>
+            <rect x="0" y="-9" width="48" height="18" rx="3"
+              fill={isSuccess ? "#14532d" : "#2d3748"} opacity="0.95" />
+            <rect x="0" y="-9" width="48" height="18" rx="3" fill="none"
+              stroke={isSuccess ? "#22c55e" : "#4a5568"} strokeWidth="1.5" opacity="0.9" />
+            <text x="24" y="4" textAnchor="middle" fill={isSuccess ? "#86efac" : "#e2e8f0"}
+              fontSize="8" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathBLabel || "✓ B: 3"}</text>
+          </g>
+        </svg>
+
+        {/* Condition panel */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
+            {sceneConfig?.varDisplay || "a=7 · b=3"}
+          </div>
+          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
+            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
+            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
+            : "text-gray-400 border-[#484f58]/60"
+          }`}>
+            {sceneConfig?.conditionLabel || "if a > b:"} {isSuccess ? "✓ True" : isFail ? "✗ False" : "?"}
+          </div>
+          {isSuccess && (
+            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/5">
+              {sceneConfig?.successAction || "→ take path B"}
+            </div>
+          )}
+        </div>
+
+        {clearedBadge}
+        {isSuccess && <Sparkles heroColor={heroColor} />}
+        {heroEl}
+        <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
+      </div>
+    );
+  }
+
+  // ── FINAL GATE: mystical gate with key/rune lock ──────────────────────
+  if (gameAction === "heroFinalGate") {
+    const gateOpen = isSuccess;
+    const gateDenied = isFail;
+    const barrierColor = gateOpen ? "#22c55e" : gateDenied ? "#ef4444" : "#a855f7";
+
+    return (
+      <div className="w-full h-full relative overflow-hidden">
+        <SkyBackground />
+        <Ground variant="rocky" />
+        <Tree x={2} scale={0.75} />
+        <Tree x={88} scale={0.65} />
+        <Rock x={75} scale={0.5} />
+
+        <svg className="absolute bottom-0 left-0 w-full z-[5]" viewBox="0 0 400 80" preserveAspectRatio="none" style={{ height: "38%" }}>
+          <path d="M 0,65 Q 150,58 400,52" stroke="#7a6a50" strokeWidth="22" fill="none" opacity="0.22" strokeLinecap="round" />
+          {gateOpen && (
+            <path d="M 0,65 Q 150,58 400,52" stroke="#22c55e" strokeWidth="6" fill="none" opacity="0.3">
+              <animate attributeName="opacity" values="0.1;0.4;0.1" dur="0.8s" repeatCount="indefinite" />
+            </path>
+          )}
+        </svg>
+
+        {/* Gate structure */}
+        <div className="absolute z-[9]" style={{ left: "50%", bottom: "68px", transform: "translateX(-50%)" }}>
+          <svg width="104" height="120" viewBox="0 0 104 120">
+            <ellipse cx="52" cy="104" rx="48" ry="8" fill={barrierColor} opacity="0.1">
+              <animate attributeName="opacity" values="0.05;0.18;0.05" dur={gateDenied ? "0.3s" : "2.5s"} repeatCount="indefinite" />
+            </ellipse>
+            {/* Left pillar */}
+            <rect x="3" y="14" width="18" height="100" rx="3" fill="#5a4a38" />
+            <rect x="3" y="14" width="7" height="100" rx="3" fill="#7a6a58" opacity="0.35" />
+            <rect x="0" y="6" width="24" height="10" rx="2" fill="#8a7a62" />
+            {/* Right pillar */}
+            <rect x="83" y="14" width="18" height="100" rx="3" fill="#5a4a38" />
+            <rect x="83" y="14" width="7" height="100" rx="3" fill="#7a6a58" opacity="0.35" />
+            <rect x="80" y="6" width="24" height="10" rx="2" fill="#8a7a62" />
+            {/* Arch header */}
+            <rect x="3" y="6" width="98" height="12" rx="4" fill="#6a5a45" />
+            {/* Lock / energy barrier */}
+            {!gateOpen && (
+              <>
+                <rect x="22" y="18" width="60" height="98" fill={barrierColor} opacity={gateDenied ? "0" : "0.07"}>
+                  {!gateDenied && <animate attributeName="opacity" values="0.04;0.13;0.04" dur="2s" repeatCount="indefinite" />}
+                </rect>
+                {[0,1,2,3,4].map(i => (
+                  <rect key={i} x={25 + i * 11} y="18" width="4" height="98" rx="2"
+                    fill={barrierColor} opacity={gateDenied ? "0" : "0.45"}>
+                    {!gateDenied && <animate attributeName="opacity" values="0.25;0.55;0.25" dur={`${1.4+i*0.2}s`} repeatCount="indefinite" />}
+                    {gateDenied && <animate attributeName="opacity" values="0.6;0;0" dur="0.35s" repeatCount="1" fill="freeze" />}
+                  </rect>
+                ))}
+                {/* Padlock */}
+                <rect x="43" y="60" width="18" height="14" rx="3" fill={gateDenied ? "#7f1d1d" : "#581c87"} opacity="0.85" />
+                <path d="M 47 60 Q 47 50 52 50 Q 57 50 57 60" stroke={barrierColor} strokeWidth="3.5" fill="none" opacity="0.8" strokeLinecap="round" />
+                <circle cx="52" cy="67" r="3" fill={barrierColor} opacity="0.6" />
+              </>
+            )}
+            {gateOpen && (
+              <>
+                <circle cx="52" cy="60" r="20" fill="#22c55e" opacity="0.1">
+                  <animate attributeName="r" values="10;24;10" dur="0.7s" repeatCount="indefinite" />
+                </circle>
+                {[0,1,2,3].map(i => (
+                  <circle key={i} cx={34 + i * 13} cy={32 + i * 10} r="2.5" fill="#22c55e" opacity="0.8">
+                    <animate attributeName="cy" values={`${32+i*10};${12+i*7};${32+i*10}`} dur={`${0.65+i*0.12}s`} repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.8;0;0.8" dur={`${0.65+i*0.12}s`} repeatCount="indefinite" />
+                  </circle>
+                ))}
+              </>
+            )}
+          </svg>
+
+          <div className={`absolute -top-9 left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg text-xs font-mono border whitespace-nowrap transition-all duration-400 ${
+            gateOpen ? "text-green-400 border-green-500/40 bg-green-500/10"
+            : gateDenied ? "text-red-400 border-red-500/40 bg-red-500/10"
+            : "text-violet-400 border-violet-500/40 bg-violet-500/10"
+          }`}>
+            {gateOpen ? "✓ unlocked!" : gateDenied ? "✗ access denied" : (sceneConfig?.conditionLabel || "if condition is True?")}
+          </div>
+        </div>
+
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
+          {sceneConfig?.varDisplay && (
+            <div className="px-2 py-1 rounded text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
+              {sceneConfig.varDisplay}
+            </div>
+          )}
+          <div className={`px-2 py-1 rounded text-xs font-mono border transition-all duration-300 ${
+            gateOpen ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-gray-600 border-[#30363d]/40"
+          }`}>if True: → gate opens ✓</div>
+          <div className={`px-2 py-1 rounded text-xs font-mono border transition-all duration-300 ${
+            gateDenied ? "text-red-400 border-red-500/30 bg-red-500/10" : "text-gray-600 border-[#30363d]/40"
+          }`}>else: → gate locked ✗</div>
+        </div>
+
+        {clearedBadge}
+        {isSuccess && <Sparkles heroColor={heroColor} />}
+        {heroEl}
+        <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
+      </div>
+    );
+  }
+
+  // ── OBSTACLE BLOCKER (default — energy / stat check with boulder) ─────
   return (
     <div className="w-full h-full relative overflow-hidden">
       <SkyBackground />
-      <Ground variant="grass" />
+      <Ground variant="rocky" />
+      <Tree x={4} scale={0.7} />
+      <Tree x={84} scale={0.62} />
+      <Rock x={68} scale={0.5} />
 
-      {/* Forking path SVG */}
-      <svg className="absolute bottom-0 left-0 right-0 z-[6]" viewBox="0 0 400 120" preserveAspectRatio="none" style={{ height: "45%" }}>
-        {/* Main path */}
-        <path d="M 0,100 Q 80,90 160,75 T 250,60" stroke="#6b5a40" strokeWidth="14" fill="none" opacity="0.3" strokeLinecap="round" />
-        {/* True path (up) */}
-        <path d="M 250,60 Q 310,40 400,25" stroke={phase === "success" ? "#22c55e" : "#6b5a40"}
-          strokeWidth="10" fill="none" opacity={phase === "success" ? "0.4" : "0.15"} strokeLinecap="round" />
-        {/* False path (down) */}
-        <path d="M 250,60 Q 310,80 400,95" stroke={phase === "fail" ? "#ef4444" : "#6b5a40"}
-          strokeWidth="10" fill="none" opacity={phase === "fail" ? "0.4" : "0.15"} strokeLinecap="round" />
+      <svg className="absolute bottom-0 left-0 w-full z-[5]" viewBox="0 0 400 80" preserveAspectRatio="none" style={{ height: "38%" }}>
+        <path d="M 0,65 Q 150,58 400,52" stroke="#7a6a50" strokeWidth="22" fill="none" opacity="0.22" strokeLinecap="round" />
+        {isSuccess && (
+          <path d="M 0,65 Q 150,58 400,52" stroke="#22c55e" strokeWidth="5" fill="none" opacity="0.35">
+            <animate attributeName="opacity" values="0.1;0.5;0.1" dur="0.7s" repeatCount="indefinite" />
+          </path>
+        )}
       </svg>
 
-      {/* True/False labels */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5">
-        <span className={`px-2 py-0.5 rounded text-xs font-mono border transition-all ${
-          phase === "success" ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-gray-600 border-gray-700/30"
-        }`}>if True →</span>
-        <span className={`px-2 py-0.5 rounded text-xs font-mono border transition-all ${
-          phase === "fail" ? "text-red-400 border-red-500/30 bg-red-500/10" : "text-gray-600 border-gray-700/30"
-        }`}>else →</span>
-      </div>
-
-      {/* Obstacle in the middle */}
-      <div className={`absolute z-10 transition-all duration-500 ${
-        phase === "success" ? "scale-75 opacity-40" : phase === "fail" ? "scale-110" : ""
-      }`} style={{ left: "55%", bottom: "75px" }}>
-        <svg width="50" height="50" viewBox="0 0 50 50">
-          {obstacleType.emoji === "rock" ? (
+      {/* Boulder obstacle */}
+      <div className="absolute z-[9]" style={{ left: "48%", bottom: "64px", transform: "translateX(-50%)" }}>
+        <svg width="96" height="84" viewBox="0 0 96 84">
+          <ellipse cx="48" cy="78" rx="40" ry="7" fill="#000" opacity="0.22" />
+          <ellipse cx="48" cy="48" rx="40" ry="34"
+            fill={isSuccess ? "#374151" : isFail ? "#7f1d1d" : "#4b5563"} />
+          <ellipse cx="48" cy="48" rx="40" ry="34" fill="none"
+            stroke={isSuccess ? "#6b7280" : isFail ? "#991b1b" : "#6b7280"} strokeWidth="2" opacity="0.4" />
+          <ellipse cx="40" cy="38" rx="13" ry="9" fill="#374151" opacity="0.5" />
+          <ellipse cx="58" cy="54" rx="10" ry="7" fill="#374151" opacity="0.4" />
+          {/* X when blocking */}
+          {!isSuccess && !isFail && (
             <>
-              <polygon points="5,48 10,15 25,5 40,12 48,48" fill="#5a5a5a" />
-              <polygon points="10,15 25,5 25,25 10,30" fill="#6a6a6a" />
-            </>
-          ) : obstacleType.emoji === "gate" ? (
-            <>
-              <rect x="5" y="5" width="8" height="43" fill="#6a5a4a" rx="1" />
-              <rect x="37" y="5" width="8" height="43" fill="#6a5a4a" rx="1" />
-              <rect x="5" y="5" width="40" height="6" rx="2" fill="#7a6a5a" />
-              <rect x="13" y="11" width="24" height="37" fill="#4a3a2a" opacity="0.5" />
-            </>
-          ) : obstacleType.emoji === "sign" ? (
-            <>
-              <rect x="23" y="20" width="4" height="28" fill="#5a4530" rx="1" />
-              <polygon points="15,5 35,10 35,22 15,18" fill="#6b5030" />
-              <polygon points="15,22 35,18 35,30 15,34" fill="#5a4520" />
-            </>
-          ) : (
-            <>
-              <ellipse cx="25" cy="20" rx="20" ry="15" fill="#8a8a9a" opacity="0.6" />
-              <ellipse cx="25" cy="25" rx="18" ry="12" fill="#9a9aaa" opacity="0.3" />
+              <line x1="34" y1="34" x2="62" y2="62" stroke="#ef4444" strokeWidth="3.5" opacity="0.55" strokeLinecap="round" />
+              <line x1="62" y1="34" x2="34" y2="62" stroke="#ef4444" strokeWidth="3.5" opacity="0.55" strokeLinecap="round" />
             </>
           )}
+          {/* Crack on success */}
+          {isSuccess && (
+            <path d="M 44 18 L 39 42 L 46 53 L 42 74" stroke="#9ca3af" strokeWidth="1.5" fill="none" opacity="0.7">
+              <animate attributeName="opacity" values="0;0.8;0.7" dur="0.4s" repeatCount="1" fill="freeze" />
+            </path>
+          )}
         </svg>
-        <div className="text-center mt-1">
-          <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-            phase === "success" ? "text-green-400 bg-green-500/10 border border-green-500/20"
-            : phase === "fail" ? "text-red-400 bg-red-500/10 border border-red-500/20"
-            : "text-gray-500 bg-gray-800/40 border border-gray-700/20"
-          }`}>
-            {phase === "success" ? "CLEARED" : phase === "fail" ? "BLOCKED" : "if ???"}
-          </span>
+
+        <div className={`absolute -top-9 left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg text-xs font-mono border whitespace-nowrap transition-all duration-400 ${
+          isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10"
+          : isFail ? "text-red-400 border-red-500/40 bg-red-500/10"
+          : "text-violet-400 border-violet-500/40 bg-violet-500/10"
+        }`}>
+          {isSuccess ? "✓ True — path cleared!" : isFail ? "✗ False — blocked!" : "if condition?"}
         </div>
       </div>
 
-      <Tree x={3} scale={0.7} />
-      <Tree x={90} scale={0.6} />
-      <Rock x={20} scale={0.5} />
-
-      {/* Cleared counter */}
-      {cleared > 0 && (
-        <div className="absolute top-3 left-3 z-20">
-          <span className="text-emerald-400 text-xs font-mono bg-[#161b22]/60 px-2 py-1 rounded border border-emerald-500/20">
-            {cleared} cleared
-          </span>
+      {/* Condition panel */}
+      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+        <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
+          {sceneConfig?.varDisplay || "energy = 15"}
         </div>
-      )}
-
-      {phase === "success" && <Sparkles heroColor={heroColor} />}
-
-      {/* Hero approaching */}
-      <div className={`absolute z-10 transition-all duration-700 ${
-        phase === "success" ? "translate-x-16" : phase === "fail" ? "-translate-x-3 opacity-80" : ""
-      }`} style={{ left: "12%", bottom: "58px" }}>
-        <GameHero color={heroColor} size={80}
-          animation={phase === "success" ? "walk" : phase === "fail" ? "hurt" : "idle"} />
+        <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
+          isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
+          : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
+          : "text-gray-500 border-[#30363d]/40"
+        }`}>
+          {sceneConfig?.conditionLabel || "if energy >= 20:"} {isSuccess ? "✓" : isFail ? "✗" : "?"}
+        </div>
+        {isSuccess && (
+          <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/5">
+            {sceneConfig?.successAction || "→ charges ahead!"}
+          </div>
+        )}
       </div>
 
-      <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg}
-        idleMsg="Write conditions to navigate the obstacle..." />
+      {clearedBadge}
+      {isSuccess && <Sparkles heroColor={heroColor} />}
+      {heroEl}
+      <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
     </div>
   );
 }
