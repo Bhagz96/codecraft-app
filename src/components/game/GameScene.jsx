@@ -979,6 +979,7 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     heroCheckWeather: `${heroName} reads conditions — right call!`,
     heroForkPath: `${heroName} picks the safer route!`,
     heroObstacle: `${heroName} clears the obstacle!`,
+    heroEnergyGate: `${heroName} powers up and charges through!`,
     heroFinalGate: `${heroName} unlocks the gate!`,
   }[gameAction] || `${heroName}'s condition passed!`;
 
@@ -986,6 +987,7 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     heroCheckWeather: "Condition is False — check your logic",
     heroForkPath: "Condition is False — wrong path",
     heroObstacle: "Condition is False — can't pass",
+    heroEnergyGate: "Not enough energy — hero must rest",
     heroFinalGate: "Condition is False — gate stays locked",
   }[gameAction] || "Condition is False — try again";
 
@@ -993,6 +995,7 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     heroCheckWeather: "Check the weather conditions...",
     heroForkPath: "Evaluate which path is safer...",
     heroObstacle: "Can the hero pass?",
+    heroEnergyGate: "Does the hero have enough energy?",
     heroFinalGate: "Does the hero have what it takes?",
   }[gameAction] || "Write conditions to navigate...";
 
@@ -1465,6 +1468,129 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
         {clearedBadge}
         {isSuccess && <Sparkles heroColor={heroColor} />}
         {heroEl}
+        <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
+      </div>
+    );
+  }
+
+  // ── ENERGY GATE: stamina check with visible energy bar on hero ───────
+  if (gameAction === "heroEnergyGate") {
+    const heroEnergy = 15;
+    const requiredEnergy = 20;
+    const gateColor = isSuccess ? "#22c55e" : isFail ? "#ef4444" : "#a855f7";
+
+    // Hero with floating energy meter above
+    const heroWithMeter = (
+      <div className="absolute z-10" style={{ left: `${heroX}%`, bottom: "58px", transition: heroTransition }}>
+        <div className="flex justify-center mb-1">
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border transition-all duration-700 ${
+            isSuccess ? "border-green-500/50 bg-green-500/10" : "border-amber-500/40 bg-[#0d1117]/80"
+          }`}>
+            <span className={`text-xs ${isSuccess ? "text-green-400" : "text-amber-400"}`}>⚡</span>
+            <div className="h-1.5 rounded-full bg-[#30363d] overflow-hidden" style={{ width: "38px" }}>
+              <div className={`h-full rounded-full transition-all duration-700 ${isSuccess ? "bg-green-500" : "bg-amber-500"}`}
+                style={{ width: isSuccess ? "100%" : `${(heroEnergy / requiredEnergy) * 100}%` }} />
+            </div>
+            <span className={`text-xs font-mono font-bold ${isSuccess ? "text-green-400" : "text-amber-400"}`}>
+              {isSuccess ? `${requiredEnergy}` : `${heroEnergy}`}
+            </span>
+          </div>
+        </div>
+        <GameHero color={heroColor} size={82} animation={heroAnim} />
+      </div>
+    );
+
+    return (
+      <div className="w-full h-full relative overflow-hidden">
+        <SkyBackground />
+        <Ground variant="rocky" />
+        <Tree x={3} scale={0.7} />
+        <Tree x={86} scale={0.65} />
+
+        <svg className="absolute bottom-0 left-0 w-full z-[5]" viewBox="0 0 400 80" preserveAspectRatio="none" style={{ height: "38%" }}>
+          <path d="M 0,65 Q 150,58 400,52" stroke="#7a6a50" strokeWidth="22" fill="none" opacity="0.22" strokeLinecap="round" />
+          {isSuccess && (
+            <path d="M 0,65 Q 150,58 400,52" stroke="#22c55e" strokeWidth="5" fill="none" opacity="0.35">
+              <animate attributeName="opacity" values="0.1;0.5;0.1" dur="0.7s" repeatCount="indefinite" />
+            </path>
+          )}
+        </svg>
+
+        {/* Energy gate */}
+        <div className="absolute z-[9]" style={{ left: "50%", bottom: "62px", transform: "translateX(-50%)" }}>
+          <svg width="112" height="108" viewBox="0 0 112 108">
+            <ellipse cx="56" cy="104" rx="46" ry="5" fill="#000" opacity="0.18" />
+            {/* Left pillar */}
+            <rect x="4" y="8" width="20" height="96" rx="3" fill="#4a3a28" />
+            <rect x="4" y="2" width="22" height="10" rx="2" fill="#6a5a42" />
+            <rect x="4" y="8" width="8" height="96" fill="#5a4a32" opacity="0.35" />
+            {/* Right pillar */}
+            <rect x="88" y="8" width="20" height="96" rx="3" fill="#4a3a28" />
+            <rect x="86" y="2" width="22" height="10" rx="2" fill="#6a5a42" />
+            <rect x="88" y="8" width="8" height="96" fill="#5a4a32" opacity="0.35" />
+            {/* Energy bars (hidden on success) */}
+            {!isSuccess && [0,1,2,3,4,5].map(i => (
+              <rect key={i} x="24" y={12 + i * 15} width="64" height="8" rx="4"
+                fill={gateColor} opacity={isFail ? "0" : "0.55"}>
+                {!isFail && <animate attributeName="opacity" values="0.3;0.7;0.3" dur={`${0.8 + i * 0.13}s`} repeatCount="indefinite" />}
+                {isFail && <animate attributeName="opacity" values="0.7;0;0" dur="0.25s" repeatCount="1" fill="freeze" />}
+              </rect>
+            ))}
+            {/* "Need: 20" badge on gate */}
+            {!isSuccess && (
+              <>
+                <rect x="22" y="44" width="68" height="22" rx="5" fill="#0d1117" opacity="0.88" />
+                <text x="56" y="58" textAnchor="middle" fill={gateColor} fontSize="11" fontFamily="monospace" fontWeight="bold">⚡ Need: {requiredEnergy}</text>
+              </>
+            )}
+            {/* Success open-gate glow */}
+            {isSuccess && (
+              <>
+                <ellipse cx="56" cy="54" rx="22" ry="30" fill="#22c55e" opacity="0.08">
+                  <animate attributeName="ry" values="20;34;20" dur="0.65s" repeatCount="indefinite" />
+                </ellipse>
+                {[0,1,2,3].map(i => (
+                  <circle key={i} cx={32 + i * 16} cy={24 + i * 14} r="2.5" fill="#22c55e" opacity="0.75">
+                    <animate attributeName="cy" values={`${24+i*14};${8+i*10};${24+i*14}`} dur={`${0.55+i*0.1}s`} repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.75;0;0.75" dur={`${0.55+i*0.1}s`} repeatCount="indefinite" />
+                  </circle>
+                ))}
+              </>
+            )}
+          </svg>
+
+          {/* Gate status label */}
+          <div className={`absolute -top-9 left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg text-xs font-mono border whitespace-nowrap transition-all duration-400 ${
+            isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10"
+            : isFail ? "text-red-400 border-red-500/40 bg-red-500/10"
+            : "text-violet-400 border-violet-500/40 bg-violet-500/10"
+          }`}>
+            {isSuccess ? `✓ ${heroEnergy} → ${requiredEnergy} — gate open!` : isFail ? `✗ ${heroEnergy} < ${requiredEnergy}` : `energy gate · need ${requiredEnergy}`}
+          </div>
+        </div>
+
+        {/* Right panel */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
+            {sceneConfig?.varDisplay || "energy = 15"}
+          </div>
+          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
+            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
+            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
+            : "text-gray-500 border-[#30363d]/40"
+          }`}>
+            {sceneConfig?.conditionLabel || "if energy >= 20:"} {isSuccess ? "✓" : isFail ? "✗" : "?"}
+          </div>
+          {isSuccess && (
+            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/5">
+              {sceneConfig?.successAction || "→ charges ahead!"}
+            </div>
+          )}
+        </div>
+
+        {clearedBadge}
+        {isSuccess && <Sparkles heroColor={heroColor} />}
+        {heroWithMeter}
         <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
       </div>
     );

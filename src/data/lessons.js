@@ -942,7 +942,7 @@ const lessons = [
               dragDrop: "Arrange the energy check code.",
               speedCoding: "Complete the condition to check minimum energy.",
             },
-            gameAction: "heroObstacle",
+            gameAction: "heroEnergyGate",
             sceneConfig: { varDisplay: "energy = 15", conditionLabel: "if energy >= 20:", successAction: "→ charges ahead!" },
             codeSnippet: 'energy = 15\nif energy >= 20:\n    print("{heroName} charges ahead!")\nelse:\n    print("{heroName} needs to rest first.")',
             traceQuestion: "What happens?",
