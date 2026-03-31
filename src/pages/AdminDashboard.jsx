@@ -9,20 +9,20 @@ import {
   SUPPORT_STRATEGIES,
   SUPPORT_DESCRIPTIONS,
 } from "../mab/engine";
+// MODALITIES and REWARD_TYPES are used for session distribution counts only
 import { getAllSessions, clearSessions } from "../mab/sessionTracker";
 import { resetProgress } from "../data/progress";
 import { resetHero } from "../data/hero";
 
 /**
- * ADMIN DASHBOARD — Version 3 (Instructional Support MAB)
- * =========================================================
- * Primary panel: Support Strategy MAB (learning-focused reward signal)
- * Secondary panels: Teaching Modality + Reward Type (kept for compatibility)
+ * ADMIN DASHBOARD — Version 4 (Single-MAB: Support Strategy only)
+ * =================================================================
+ * Primary panel: Support Strategy MAB performance (learning signal)
+ * Context panel: Modality + Reward Type distribution (randomly assigned,
+ *                shown as counts only — not optimised)
  */
 function AdminDashboard() {
   const [supportStats, setSupportStats] = useState([]);
-  const [modalityStats, setModalityStats] = useState([]);
-  const [rewardStats, setRewardStats] = useState([]);
   const [sessions, setSessions] = useState([]);
 
   const loadData = () => {
@@ -32,18 +32,6 @@ function AdminDashboard() {
       : createMAB(SUPPORT_STRATEGIES, 0.3);
     setSupportStats(getArmStats(supportMAB));
 
-    const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
-    const modalityMAB = savedModalityMAB
-      ? JSON.parse(savedModalityMAB)
-      : createMAB(MODALITIES, 0.3);
-    setModalityStats(getArmStats(modalityMAB));
-
-    const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
-    const rewardMAB = savedRewardMAB
-      ? JSON.parse(savedRewardMAB)
-      : createMAB(REWARD_TYPES, 0.3);
-    setRewardStats(getArmStats(rewardMAB));
-
     setSessions(getAllSessions());
   };
 
@@ -51,11 +39,10 @@ function AdminDashboard() {
     loadData();
   }, []);
 
-  // Simulate 50 sessions with biased support strategy outcomes
+  // Simulate 50 sessions with biased support strategy outcomes.
+  // Modality and reward type are randomly distributed (not optimised).
   const simulateData = () => {
     const supportMAB = createMAB(SUPPORT_STRATEGIES, 0.3);
-    const modalityMAB = createMAB(MODALITIES, 0.3);
-    const rewardMAB = createMAB(REWARD_TYPES, 0.3);
 
     // try_first_then_hint wins — students learn best when they attempt first then get a hint
     const supportRates = {
@@ -65,18 +52,13 @@ function AdminDashboard() {
       hint_first:            0.60,
       step_by_step_scaffold: 0.55,
     };
-    const modalityRates = {
-      codeSimulation: 0.8,
-      dragDrop: 0.65,
-      speedCoding: 0.5,
-    };
-    const rewardRates = { badge: 0.7, coins: 0.75, mysteryBox: 0.65 };
 
     const concepts = ["variables", "loops", "conditions"];
     const fakeSessions = [];
 
     for (let i = 0; i < 50; i++) {
       const support = SUPPORT_STRATEGIES[Math.floor(Math.random() * SUPPORT_STRATEGIES.length)];
+      // Modality and reward randomly assigned — no MAB, no bias
       const mod = MODALITIES[Math.floor(Math.random() * MODALITIES.length)];
       const rew = REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)];
 
@@ -89,8 +71,6 @@ function AdminDashboard() {
       const firstTryCount = Math.round(correctCount * (0.5 + Math.random() * 0.5));
 
       updateMAB(supportMAB, support, rewardScore);
-      updateMAB(modalityMAB, mod, Math.random() < modalityRates[mod] ? 1 : 0);
-      updateMAB(rewardMAB, rew, Math.random() < rewardRates[rew] ? 1 : 0);
 
       fakeSessions.push({
         sessionId: "sim_" + i,
@@ -113,8 +93,6 @@ function AdminDashboard() {
     }
 
     localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
-    localStorage.setItem("kidcode_modalityMAB", JSON.stringify(modalityMAB));
-    localStorage.setItem("kidcode_rewardMAB", JSON.stringify(rewardMAB));
     localStorage.setItem("kidcode_sessions", JSON.stringify(fakeSessions));
 
     loadData();
@@ -122,6 +100,7 @@ function AdminDashboard() {
 
   const resetData = () => {
     localStorage.removeItem("kidcode_supportMAB");
+    // Clear legacy MAB keys if present
     localStorage.removeItem("kidcode_modalityMAB");
     localStorage.removeItem("kidcode_rewardMAB");
     clearSessions();
@@ -138,19 +117,18 @@ function AdminDashboard() {
   };
 
   const bestSupport = getBestArm(supportStats);
-  const bestModality = getBestArm(modalityStats);
-  const bestReward = getBestArm(rewardStats);
 
-  const modalityLabels = {
-    codeSimulation: ">_ Code Simulation",
-    dragDrop: "{ } Drag & Drop",
-    speedCoding: "⚡ Speed Coding",
-  };
-  const rewardLabels = {
-    badge: "🛡️ Badge",
-    coins: "⚡ XP Credits",
-    mysteryBox: "$ Mystery Drop",
-  };
+  // Compute modality and reward distribution from session data (counts only)
+  const modalityDistribution = MODALITIES.map((m) => ({
+    key: m,
+    label: { codeSimulation: ">_ Code Simulation", dragDrop: "{ } Drag & Drop", speedCoding: "⚡ Speed Coding" }[m],
+    count: sessions.filter((s) => s.modality === m).length,
+  }));
+  const rewardDistribution = REWARD_TYPES.map((r) => ({
+    key: r,
+    label: { badge: "🛡️ Badge", coins: "⚡ XP Credits", mysteryBox: "$ Mystery Drop" }[r],
+    count: sessions.filter((s) => s.rewardType === r).length,
+  }));
   const strategyShortLabels = {
     worked_example_first:  "📖 Example First",
     hint_first:            "💡 Hint First",
@@ -172,12 +150,6 @@ function AdminDashboard() {
     step_by_step_scaffold: "from-violet-500 to-purple-500",
     explain_after_error:   "from-emerald-500 to-green-500",
   };
-  const modalityColors = {
-    codeSimulation: "from-cyan-500 to-blue-500",
-    dragDrop: "from-violet-500 to-purple-500",
-    speedCoding: "from-orange-500 to-red-500",
-  };
-
   return (
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-5xl mx-auto">
@@ -274,100 +246,56 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* SECONDARY CARDS: Modality + Reward Type */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-          {/* Teaching Modality */}
-          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-gray-100 mb-1">
-              Teaching Modality
-              <span className="ml-2 text-[10px] font-mono text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">
-                secondary
-              </span>
-            </h2>
-            <p className="text-xs text-gray-500 mb-4">
-              Which game mode keeps users most engaged?
-            </p>
-
-            {bestModality && bestModality.count > 0 && (
-              <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 mb-4">
-                <p className="text-green-400 font-medium text-sm">
-                  Leader: <strong>{modalityLabels[bestModality.arm]}</strong>{" "}
-                  ({(bestModality.averageReward * 100).toFixed(0)}% avg)
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {modalityStats.map((stat) => {
-                const maxCount = Math.max(...modalityStats.map((s) => s.count), 1);
-                const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
-                return (
-                  <div key={stat.arm}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-300 font-mono text-xs">
-                        {modalityLabels[stat.arm]}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="bg-[#0d1117] rounded-full h-4 overflow-hidden border border-[#30363d]">
-                      <div
-                        className={`h-full bg-gradient-to-r ${modalityColors[stat.arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
-                        style={{ width: `${barWidth}%` }}
-                      />
-                    </div>
+        {/* SESSION CONTEXT: Modality + Reward distribution (random, not optimised) */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6 mb-8">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">
+            Session Distribution
+            <span className="ml-2 text-[10px] font-mono text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">
+              context only
+            </span>
+          </h2>
+          <p className="text-xs text-gray-500 mb-5">
+            Modality and reward type are randomly assigned each session to avoid confounding the learning signal.
+            Even distribution confirms randomisation is working as expected.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Modality counts */}
+            <div>
+              <p className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Teaching Modality</p>
+              <div className="space-y-2">
+                {modalityDistribution.map(({ key, label, count }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-gray-300 font-mono text-xs">{label}</span>
+                    <span className="text-gray-500 text-xs">
+                      {count} session{count !== 1 ? "s" : ""}
+                      {sessions.length > 0 && (
+                        <span className="text-gray-600 ml-1">
+                          ({Math.round((count / sessions.length) * 100)}%)
+                        </span>
+                      )}
+                    </span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Reward Type */}
-          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-gray-100 mb-1">
-              Reward Type
-              <span className="ml-2 text-[10px] font-mono text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">
-                secondary
-              </span>
-            </h2>
-            <p className="text-xs text-gray-500 mb-4">
-              Which reward motivates users to continue?
-            </p>
-
-            {bestReward && bestReward.count > 0 && (
-              <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 mb-4">
-                <p className="text-green-400 font-medium text-sm">
-                  Leader: <strong>{rewardLabels[bestReward.arm]}</strong>{" "}
-                  ({(bestReward.averageReward * 100).toFixed(0)}% avg)
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {rewardStats.map((stat) => {
-                const maxCount = Math.max(...rewardStats.map((s) => s.count), 1);
-                const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
-                return (
-                  <div key={stat.arm}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-300 text-xs">
-                        {rewardLabels[stat.arm]}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="bg-[#0d1117] rounded-full h-4 overflow-hidden border border-[#30363d]">
-                      <div
-                        className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full transition-all duration-500"
-                        style={{ width: `${barWidth}%` }}
-                      />
-                    </div>
+            {/* Reward type counts */}
+            <div>
+              <p className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Reward Type</p>
+              <div className="space-y-2">
+                {rewardDistribution.map(({ key, label, count }) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-gray-300 text-xs">{label}</span>
+                    <span className="text-gray-500 text-xs">
+                      {count} session{count !== 1 ? "s" : ""}
+                      {sessions.length > 0 && (
+                        <span className="text-gray-600 ml-1">
+                          ({Math.round((count / sessions.length) * 100)}%)
+                        </span>
+                      )}
+                    </span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
         </div>

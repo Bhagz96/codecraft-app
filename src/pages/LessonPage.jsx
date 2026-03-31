@@ -17,18 +17,18 @@ import {
   MODALITIES,
   REWARD_TYPES,
   SUPPORT_STRATEGIES,
-  SUPPORT_LABELS,
 } from "../mab/engine";
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
 
 /**
- * LESSON PAGE — v4 with Instructional Support Strategy MAB
- * =========================================================
+ * LESSON PAGE — v5 Single-MAB (Support Strategy only)
+ * =====================================================
  * Desktop: Game scene on LEFT, code/questions on RIGHT
  * Mobile: Stacked vertically (game on top, code below)
  *
- * The primary MAB now selects a SUPPORT STRATEGY that determines
- * how the learner is scaffolded through each question.
+ * Only the support strategy is MAB-optimised (learning signal).
+ * Modality and reward type are randomly assigned each session
+ * to avoid confounding the learning signal.
  */
 
 function getSceneId(conceptId, level) {
@@ -55,19 +55,16 @@ function LessonPage() {
 
   const [showIntro, setShowIntro] = useState(true);
 
-  // ── MAB arm selection (all three layers) ────────────────────────
+  // ── MAB arm selection ────────────────────────────────────────────
+  // Support strategy: MAB-optimised (learning signal)
+  // Modality + reward type: randomly assigned to avoid confounding
   const { modality, rewardType, supportStrategy } = useMemo(() => {
-    const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
-    const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
     const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
-
-    const modalityMAB = savedModalityMAB ? JSON.parse(savedModalityMAB) : createMAB(MODALITIES, 0.3);
-    const rewardMAB = savedRewardMAB ? JSON.parse(savedRewardMAB) : createMAB(REWARD_TYPES, 0.3);
     const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
 
     return {
-      modality: selectArm(modalityMAB),
-      rewardType: selectArm(rewardMAB),
+      modality: MODALITIES[Math.floor(Math.random() * MODALITIES.length)],
+      rewardType: REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)],
       supportStrategy: selectArm(supportMAB),
     };
   }, [conceptId, levelNum]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -230,17 +227,6 @@ function LessonPage() {
 
       const finalSession = endSession(session, true);
       saveSession(finalSession);
-
-      // Update modality & reward MABs (legacy, kept for compatibility)
-      const reward = correctCount / levelData.steps.length;
-      const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
-      const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
-      const modalityMAB = savedModalityMAB ? JSON.parse(savedModalityMAB) : createMAB(MODALITIES, 0.3);
-      const rewardMAB = savedRewardMAB ? JSON.parse(savedRewardMAB) : createMAB(REWARD_TYPES, 0.3);
-      updateMAB(modalityMAB, modality, reward);
-      updateMAB(rewardMAB, rewardType, reward);
-      localStorage.setItem("kidcode_modalityMAB", JSON.stringify(modalityMAB));
-      localStorage.setItem("kidcode_rewardMAB", JSON.stringify(rewardMAB));
 
       completeLevel(conceptId, levelNum);
       const xpAmount = correctCount * 20 + levelNum * 10;
