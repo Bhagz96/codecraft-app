@@ -1263,324 +1263,335 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     const pathALabel = sceneConfig?.pathALabel || "A: 7";
     const pathBLabel = sceneConfig?.pathBLabel || "B: 3";
 
-    // Arch geometry
-    // floorY=440, arcY=340, iR=72(inner), oR=108(outer)
-    // aCX=262(Path A center), bCX=498(Path B center)
-    const aCX = 262, bCX = 498, arcY = 340, iR = 72, oR = 108, floorY = 440;
-    // voussoir joints: 8 lines at angles 195°–345° spaced 21.4° apart
-    const vAngles = [195,216.4,237.9,259.3,280.7,302.1,323.6,345].map(d => d * Math.PI / 180);
+    // Cave geometry — spread wide so hero (CSS 45% ≈ SVG x=366) sits in gap
+    // aCX=195 (cave A center), bCX=570 (cave B center)
+    // gap from x=313 to x=452 — hero idles at x≈366, enters B at x≈549 on success
+    const aCX = 195, bCX = 570, arcY = 335, iR = 78, oR = 118, floorY = 440;
 
     return (
       <div className="w-full h-full relative overflow-hidden">
         <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 800 500" preserveAspectRatio="xMidYMax slice">
           <defs>
-            {/* Cave wall stone gradient */}
+            {/* Mountain cliff face — dark rocky grey-brown */}
             <linearGradient id="dungWall" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#1a1410" />
-              <stop offset="50%" stopColor="#2a2018" />
+              <stop offset="0%" stopColor="#1c1a16" />
+              <stop offset="45%" stopColor="#252018" />
               <stop offset="100%" stopColor="#0e0c08" />
             </linearGradient>
-            {/* Floor gradient */}
+            {/* Dirt/gravel path floor */}
             <linearGradient id="dungFloor" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#1e1a14" />
-              <stop offset="100%" stopColor="#0a0806" />
+              <stop offset="0%" stopColor="#2a2010" />
+              <stop offset="100%" stopColor="#1a1408" />
             </linearGradient>
-            {/* Tunnel A interior — red/orange fire glow */}
-            <radialGradient id="dungTunnelA" cx="50%" cy="60%" r="50%">
-              <stop offset="0%" stopColor="#7f1d1d" stopOpacity="0.9" />
-              <stop offset="55%" stopColor="#450a0a" stopOpacity="0.8" />
+            {/* Cave A interior — deep red/orange danger glow */}
+            <radialGradient id="dungTunnelA" cx="50%" cy="55%" r="55%">
+              <stop offset="0%" stopColor="#7f1d1d" stopOpacity="0.95" />
+              <stop offset="50%" stopColor="#450a0a" stopOpacity="0.9" />
               <stop offset="100%" stopColor="#1a0000" stopOpacity="1" />
             </radialGradient>
-            {/* Tunnel B interior — blue-white safe glow, brightens on success */}
-            <radialGradient id="dungTunnelB" cx="50%" cy="60%" r="50%">
+            {/* Cave B interior — blue-white safe exit glow */}
+            <radialGradient id="dungTunnelB" cx="50%" cy="55%" r="55%">
               <stop offset="0%" stopColor={isSuccess ? "#bfdbfe" : "#1e3a5f"} stopOpacity="0.9" />
-              <stop offset="55%" stopColor={isSuccess ? "#1d4ed8" : "#0f2040"} stopOpacity="0.8" />
+              <stop offset="50%" stopColor={isSuccess ? "#1d4ed8" : "#0f2040"} stopOpacity="0.85" />
               <stop offset="100%" stopColor="#050814" stopOpacity="1" />
             </radialGradient>
             {/* Torch glow — orange */}
             <radialGradient id="torchGlowOrange" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f97316" stopOpacity="0.7" />
+              <stop offset="0%" stopColor="#f97316" stopOpacity="0.65" />
               <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
             </radialGradient>
-            {/* Torch glow — blue (right torch) */}
+            {/* Torch glow — blue */}
             <radialGradient id="torchGlowBlue" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#93c5fd" stopOpacity={isSuccess ? "0.8" : "0.4"} />
+              <stop offset="0%" stopColor="#93c5fd" stopOpacity={isSuccess ? "0.75" : "0.35"} />
               <stop offset="100%" stopColor="#93c5fd" stopOpacity="0" />
             </radialGradient>
-            {/* Vignette overlay */}
+            {/* Vignette */}
             <radialGradient id="dungVignette" cx="50%" cy="50%" r="70%">
               <stop offset="0%" stopColor="black" stopOpacity="0" />
-              <stop offset="100%" stopColor="black" stopOpacity="0.75" />
+              <stop offset="100%" stopColor="black" stopOpacity="0.8" />
             </radialGradient>
-            {/* Mist gradient */}
+            {/* Mist */}
             <linearGradient id="dungMist" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#8ab4d4" stopOpacity="0" />
-              <stop offset="100%" stopColor="#8ab4d4" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#8ab4d4" stopOpacity="0.1" />
             </linearGradient>
-            {/* Stone block clip for arch faces */}
-            <clipPath id="clipArchA">
-              <path d={`M ${aCX-oR},${floorY} L ${aCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${aCX+oR},${arcY} L ${aCX+oR},${floorY} Z`} />
-            </clipPath>
-            <clipPath id="clipArchB">
-              <path d={`M ${bCX-oR},${floorY} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX+oR},${arcY} L ${bCX+oR},${floorY} Z`} />
-            </clipPath>
           </defs>
 
-          {/* ══ CAVE BACKGROUND — dark rocky cavern ══ */}
+          {/* ══ ROCKY CLIFF FACE — mountain rock texture ══ */}
           <rect x="0" y="0" width="800" height="500" fill="url(#dungWall)" />
-
-          {/* ══ STONE BLOCK WALL TEXTURE ══ */}
-          {/* Horizontal mortar lines */}
-          {[60,120,180,240,300,360,420,480].map((y,i) => (
-            <line key={i} x1="0" y1={y} x2="800" y2={y} stroke="#0a0806" strokeWidth="2.5" opacity="0.7" />
+          {/* Large irregular rock face shapes — give depth to cliff */}
+          {[[0,0,200,180],[180,0,160,140],[320,0,220,160],[500,0,180,150],[650,0,170,180],
+            [0,150,180,200],[150,170,200,180],[600,140,200,210],[0,340,160,160],[640,330,160,170]].map(([x,y,w,h],i) => (
+            <ellipse key={i} cx={x+w/2} cy={y+h/2} rx={w/2} ry={h/2}
+              fill={["#201c14","#1a1810","#282218","#1e1a12","#242018"][i%5]} opacity="0.5" />
           ))}
-          {/* Vertical mortar — alternating offset per row */}
-          {[0,1,2,3,4,5,6,7].map(row => {
-            const y = row * 60;
-            const offset = row % 2 === 0 ? 0 : 60;
-            return [0,1,2,3,4,5,6,7,8,9,10,11].map(col => {
-              const x = col * 120 + offset;
-              return <line key={`${row}-${col}`} x1={x} y1={y} x2={x} y2={y+60} stroke="#0a0806" strokeWidth="2" opacity="0.55" />;
-            });
-          })}
-          {/* Stone block color variation */}
-          {[0,1,2,3,4,5,6,7].map(row => {
-            const y = row * 60;
-            const offset = row % 2 === 0 ? 0 : 60;
-            return [0,1,2,3,4,5,6,7,8,9,10,11].map(col => {
-              const x = col * 120 + offset;
-              const shade = ["#1e1a14","#221e16","#1a1610","#262018","#1c1812"][((row*7+col*3)%5)];
-              return <rect key={`b${row}-${col}`} x={x+1} y={y+1} width="118" height="58" fill={shade} opacity="0.45" />;
-            });
-          })}
+          {/* Rock crack lines — natural cliff fissures */}
+          {[
+            `M 80,0 L 95,60 L 88,120 L 102,200 L 90,280`,
+            `M 350,0 L 362,80 L 355,150 L 370,230`,
+            `M 620,0 L 608,70 L 618,160 L 605,240 L 615,320`,
+            `M 160,0 L 170,45 L 158,90`,
+            `M 480,0 L 492,55 L 484,110 L 496,180`,
+            `M 730,0 L 718,65 L 728,130`,
+          ].map((d,i) => (
+            <path key={i} d={d} stroke="#0a0806" strokeWidth={i<3?2.5:1.8} fill="none" opacity="0.6" />
+          ))}
+          {/* Moss patches — dark green, natural mountain feel */}
+          {[[40,80,22,10],[290,55,18,8],[520,40,24,10],[680,90,20,9],[120,200,16,7],[740,180,18,8]].map(([x,y,rx,ry],i) => (
+            <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry} fill="#2d4a1a" opacity="0.45" />
+          ))}
+          {/* Water seep stains on cliff face */}
+          {[[55,0,8,200],[342,0,6,180],[615,0,7,220]].map(([x,y,w,h],i) => (
+            <rect key={i} x={x} y={y} width={w} height={h} rx="4"
+              fill="#1a2a35" opacity="0.2" />
+          ))}
 
-          {/* ══ STALACTITES hanging from ceiling ══ */}
-          {[[60,0,18,55],[140,0,12,42],[220,0,20,62],[310,0,14,48],[395,0,10,35],
-            [450,0,16,52],[540,0,22,68],[620,0,13,44],[700,0,18,58],[770,0,11,38]].map(([x,y,w,h],i) => (
+          {/* ══ STALACTITES from cliff ceiling ══ */}
+          {[[55,0,16,50],[130,0,10,38],[210,0,18,58],[310,0,12,44],[390,0,9,32],
+            [445,0,14,48],[540,0,20,65],[625,0,11,40],[708,0,16,54],[772,0,9,34]].map(([x,y,w,h],i) => (
             <g key={i}>
-              <polygon points={`${x},${y} ${x+w},${y} ${x+w/2},${y+h}`}
-                fill={["#1e1a14","#2a2018","#161210"][i%3]} />
-              <polygon points={`${x},${y} ${x+w*0.35},${y} ${x+w/2},${y+h}`}
-                fill="#2e2820" opacity="0.5" />
+              {/* Main stalactite body */}
+              <polygon points={`${x},${y} ${x+w},${y} ${x+w*0.5},${y+h}`}
+                fill={["#1e1a12","#2a2016","#161210"][i%3]} />
+              {/* Highlight edge */}
+              <line x1={x} y1={y} x2={x+w*0.5} y2={y+h}
+                stroke="#3a3020" strokeWidth="1" opacity="0.4" />
               {/* Water drip */}
-              <circle cx={x+w/2} cy={y+h+2} r="2" fill="#4a8ab4" opacity="0.55">
-                <animate attributeName="cy" values={`${y+h+2};${y+h+18};${y+h+2}`}
-                  dur={`${2.8+i*0.4}s`} repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.55;0;0.55"
-                  dur={`${2.8+i*0.4}s`} repeatCount="indefinite" />
+              <circle cx={x+w/2} cy={y+h+2} r="1.8" fill="#5a9ab8" opacity="0.5">
+                <animate attributeName="cy" values={`${y+h+2};${y+h+20};${y+h+2}`}
+                  dur={`${2.6+i*0.45}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.5;0;0.5"
+                  dur={`${2.6+i*0.45}s`} repeatCount="indefinite" />
               </circle>
             </g>
           ))}
-          {/* ══ FLOOR STONE TILES ══ */}
-          <rect x="0" y={440} width="800" height="60" fill="url(#dungFloor)" />
-          {[0,1,2,3,4,5,6,7,8,9,10,11].map(col => (
-            <g key={col}>
-              <rect x={col*68} y={441} width="67" height="29" fill="none" stroke="#0a0806" strokeWidth="1.5" opacity="0.6" />
-              <rect x={col*68+34} y={471} width="67" height="28" fill="none" stroke="#0a0806" strokeWidth="1.5" opacity="0.6" />
-            </g>
+
+          {/* ══ DIRT / GRAVEL PATH — mountain trail leading to caves ══ */}
+          <rect x="0" y={floorY} width="800" height="60" fill="url(#dungFloor)" />
+          {/* Gravel stones scattered on path */}
+          {[[30,455,8,4],[80,462,6,3],[140,448,9,4],[200,458,7,3],[280,451,8,4],
+            [340,463,6,3],[420,456,9,4],[490,450,7,3],[560,460,8,4],[630,453,6,3],
+            [700,459,8,4],[755,447,7,3]].map(([x,y,rx,ry],i) => (
+            <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry}
+              fill={["#3a3020","#2a2418","#4a3a28"][i%3]} opacity="0.6" />
           ))}
+          {/* Worn trail center track */}
+          <path d={`M 0,${floorY+15} Q 400,${floorY+10} 800,${floorY+15}`}
+            stroke="#3a2e18" strokeWidth="14" fill="none" opacity="0.4" />
 
-          {/* ══ APPROACH PATH — worn stone ground leading to tunnels ══ */}
-          <path d="M 0,440 L 154,440 L 154,500 L 0,500 Z" fill="#1a1610" opacity="0.4" />
-          {/* Worn center track */}
-          <path d="M 0,455 Q 80,450 154,453" stroke="#2e2820" strokeWidth="8" fill="none" opacity="0.5" />
-
-          {/* ══ TUNNEL A INTERIOR — red glowing darkness ══ */}
-          <path d={`M ${aCX-iR},${440} L ${aCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${aCX+iR},${arcY} L ${aCX+iR},${440} Z`}
+          {/* ══ CAVE A INTERIOR — red danger glow ══ */}
+          <path d={`M ${aCX-iR},${floorY} L ${aCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${aCX+iR},${arcY} L ${aCX+iR},${floorY} Z`}
             fill="url(#dungTunnelA)" />
-          {/* Red ambient pulse on tunnel A */}
-          <path d={`M ${aCX-iR},${440} L ${aCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${aCX+iR},${arcY} L ${aCX+iR},${440} Z`}
-            fill="#ef4444" opacity="0.08">
-            <animate attributeName="opacity" values="0.04;0.15;0.04" dur="1.8s" repeatCount="indefinite" />
+          {/* Red ambient pulse */}
+          <path d={`M ${aCX-iR},${floorY} L ${aCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${aCX+iR},${arcY} L ${aCX+iR},${floorY} Z`}
+            fill="#ef4444" opacity="0.07">
+            <animate attributeName="opacity" values="0.03;0.14;0.03" dur="2s" repeatCount="indefinite" />
           </path>
-          {/* Glowing eyes in tunnel A darkness */}
-          <g opacity={isSuccess ? "0.2" : "0.85"} style={{ transition: "opacity 0.8s" }}>
-            <ellipse cx={aCX-18} cy={arcY+55} rx="5" ry="3" fill="#dc2626" opacity="0.9">
-              <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.2s" repeatCount="indefinite" />
+          {/* Glowing eyes in cave A darkness */}
+          <g opacity={isSuccess ? "0.15" : "0.9"} style={{ transition: "opacity 0.9s" }}>
+            <ellipse cx={aCX-14} cy={arcY+50} rx="5" ry="3.5" fill="#dc2626" opacity="0.9">
+              <animate attributeName="opacity" values="0.9;0.15;0.9" dur="2.3s" repeatCount="indefinite" />
             </ellipse>
-            <ellipse cx={aCX-6} cy={arcY+55} rx="5" ry="3" fill="#dc2626" opacity="0.9">
-              <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.2s" repeatCount="indefinite" />
+            <ellipse cx={aCX-2} cy={arcY+50} rx="5" ry="3.5" fill="#dc2626" opacity="0.9">
+              <animate attributeName="opacity" values="0.9;0.15;0.9" dur="2.3s" repeatCount="indefinite" />
             </ellipse>
-            <ellipse cx={aCX+14} cy={arcY+72} rx="4.5" ry="2.5" fill="#dc2626" opacity="0.7">
-              <animate attributeName="opacity" values="0.7;0.1;0.7" dur="3.1s" begin="0.5s" repeatCount="indefinite" />
+            <ellipse cx={aCX+18} cy={arcY+70} rx="4" ry="2.5" fill="#dc2626" opacity="0.65">
+              <animate attributeName="opacity" values="0.65;0.08;0.65" dur="3.2s" begin="0.6s" repeatCount="indefinite" />
             </ellipse>
-            <ellipse cx={aCX+25} cy={arcY+72} rx="4.5" ry="2.5" fill="#dc2626" opacity="0.7">
-              <animate attributeName="opacity" values="0.7;0.1;0.7" dur="3.1s" begin="0.5s" repeatCount="indefinite" />
+            <ellipse cx={aCX+28} cy={arcY+70} rx="4" ry="2.5" fill="#dc2626" opacity="0.65">
+              <animate attributeName="opacity" values="0.65;0.08;0.65" dur="3.2s" begin="0.6s" repeatCount="indefinite" />
             </ellipse>
           </g>
-          {/* Danger fire lick at mouth of tunnel A */}
+          {/* Fire licking out of cave A mouth */}
           {!isSuccess && (
-            <g opacity="0.7">
-              <path d={`M ${aCX-30},${440} Q ${aCX-20},${410} ${aCX-8},${425} Q ${aCX},${405} ${aCX+10},${420} Q ${aCX+22},${408} ${aCX+30},${440}`}
+            <g>
+              <path d={`M ${aCX-28},${floorY} Q ${aCX-16},${floorY-28} ${aCX-5},${floorY-14} Q ${aCX+6},${floorY-32} ${aCX+18},${floorY-12} Q ${aCX+26},${floorY-26} ${aCX+30},${floorY}`}
                 fill="#ef4444" opacity="0.5">
-                <animate attributeName="opacity" values="0.3;0.65;0.3" dur="0.6s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.3;0.6;0.3" dur="0.65s" repeatCount="indefinite" />
               </path>
-              <path d={`M ${aCX-20},${440} Q ${aCX-8},${415} ${aCX+5},${430} Q ${aCX+15},${412} ${aCX+22},${440}`}
+              <path d={`M ${aCX-18},${floorY} Q ${aCX-6},${floorY-22} ${aCX+4},${floorY-10} Q ${aCX+14},${floorY-28} ${aCX+22},${floorY}`}
                 fill="#f97316" opacity="0.4">
-                <animate attributeName="opacity" values="0.25;0.55;0.25" dur="0.8s" begin="0.1s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.25;0.55;0.25" dur="0.82s" begin="0.1s" repeatCount="indefinite" />
               </path>
             </g>
           )}
 
-          {/* ══ TUNNEL B INTERIOR — blue-white safe glow ══ */}
-          <path d={`M ${bCX-iR},${440} L ${bCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${bCX+iR},${arcY} L ${bCX+iR},${440} Z`}
-            fill="url(#dungTunnelB)" />
-          {/* Safe exit light at end of tunnel B */}
-          <ellipse cx={bCX} cy={arcY+20} rx={iR*0.55} ry="22"
-            fill={isSuccess ? "#bfdbfe" : "#1e40af"} opacity={isSuccess ? "0.45" : "0.18"}
-            style={{ transition: "all 0.8s" }}>
-            {isSuccess && <animate attributeName="opacity" values="0.35;0.6;0.35" dur="1.4s" repeatCount="indefinite" />}
-          </ellipse>
-          {/* Tunnel B success bright flash */}
-          {isSuccess && (
-            <path d={`M ${bCX-iR},${440} L ${bCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${bCX+iR},${arcY} L ${bCX+iR},${440} Z`}
-              fill="#93c5fd" opacity="0.18">
-              <animate attributeName="opacity" values="0.1;0.32;0.1" dur="1s" repeatCount="indefinite" />
-            </path>
-          )}
-
-          {/* ══ ARCH A — outer stone surround with voussoir joints ══ */}
-          {/* Outer stone donut */}
-          <path d={`M ${aCX-oR},${440} L ${aCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${aCX+oR},${arcY} L ${aCX+oR},${440} L ${aCX+iR},${440} L ${aCX+iR},${arcY} A ${iR},${iR} 0 0 0 ${aCX-iR},${arcY} L ${aCX-iR},${440} Z`}
-            fill="#2a2018" stroke="#0e0c08" strokeWidth="1.5" />
-          {/* Voussoir joints on arch A */}
-          {vAngles.map((theta, i) => (
-            <line key={i}
-              x1={aCX + iR * Math.cos(theta)} y1={arcY + iR * Math.sin(theta)}
-              x2={aCX + oR * Math.cos(theta)} y2={arcY + oR * Math.sin(theta)}
-              stroke="#0e0c08" strokeWidth="2" opacity="0.75" />
+          {/* ══ CAVE A MOUTH — natural rocky opening ══ */}
+          {/* Outer rock face forming the cave mouth (natural jagged shape) */}
+          <path d={`
+            M ${aCX-oR-10},${floorY}
+            L ${aCX-oR-14},${arcY+55}
+            L ${aCX-oR-6},${arcY+28}
+            L ${aCX-oR+4},${arcY+10}
+            L ${aCX-oR+2},${arcY}
+            Q ${aCX-iR*0.5},${arcY-oR+iR-10} ${aCX},${arcY-oR-8}
+            Q ${aCX+iR*0.5},${arcY-oR+iR-10} ${aCX+oR-2},${arcY}
+            L ${aCX+oR-4},${arcY+10}
+            L ${aCX+oR+6},${arcY+28}
+            L ${aCX+oR+14},${arcY+55}
+            L ${aCX+oR+10},${floorY}
+            L ${aCX+iR+6},${floorY}
+            L ${aCX+iR},${arcY}
+            A ${iR},${iR} 0 0 0 ${aCX-iR},${arcY}
+            L ${aCX-iR-6},${floorY}
+            Z
+          `} fill="#2a2016" />
+          {/* Rock texture on cave A surround */}
+          {[
+            [aCX-oR-8, arcY+20, 18, 35],
+            [aCX-oR+5, arcY-15, 22, 28],
+            [aCX+oR-10, arcY-15, 20, 28],
+            [aCX+oR-4, arcY+25, 16, 32],
+          ].map(([rx,ry,rw,rh],i) => (
+            <ellipse key={i} cx={rx+rw/2} cy={ry+rh/2} rx={rw/2} ry={rh/2}
+              fill={["#322a1c","#3a3020","#282010"][i%3]} opacity="0.6" />
           ))}
-          {/* Keystone highlight at top of arch A */}
-          <path d={`M ${aCX-14},${arcY-oR+8} A ${oR},${oR} 0 0 1 ${aCX+14},${arcY-oR+8} L ${aCX+iR*0.18},${arcY-iR+8} A ${iR},${iR} 0 0 0 ${aCX-iR*0.18},${arcY-iR+8} Z`}
-            fill="#3a3025" />
-          {/* Stone highlight edge on arch A left */}
-          <path d={`M ${aCX-oR},${440} L ${aCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${aCX},${arcY-oR}`}
-            stroke="#4a3e30" strokeWidth="2.5" fill="none" opacity="0.5" />
-
-          {/* ══ SKULL carved above arch A ══ */}
-          <g transform={`translate(${aCX},${arcY-oR-22})`} opacity={isSuccess ? "0.25" : "0.9"}
-            style={{ transition: "opacity 0.8s" }}>
-            <ellipse cx="0" cy="0" rx="16" ry="14" fill="#2a1a10" stroke="#5a2a10" strokeWidth="1.5" />
-            <ellipse cx="0" cy="0" rx="11" ry="9" fill="#1e1208" opacity="0.7" />
-            {/* Eye sockets */}
-            <ellipse cx="-5" cy="-1" rx="4" ry="4.5" fill="#0a0604" />
-            <ellipse cx="5" cy="-1" rx="4" ry="4.5" fill="#0a0604" />
-            {/* Nose */}
-            <path d="M -2,5 L 0,8 L 2,5" stroke="#4a2a14" strokeWidth="1.2" fill="none" />
-            {/* Teeth */}
-            <rect x="-7" y="8" width="3" height="5" rx="1" fill="#2a1a0a" />
-            <rect x="-2.5" y="8" width="3" height="6" rx="1" fill="#2a1a0a" />
-            <rect x="2" y="8" width="3" height="5" rx="1" fill="#2a1a0a" />
-            {/* Red glow in eye sockets */}
-            <ellipse cx="-5" cy="-1" rx="2.5" ry="3" fill="#dc2626" opacity="0.6">
-              <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite" />
-            </ellipse>
-            <ellipse cx="5" cy="-1" rx="2.5" ry="3" fill="#dc2626" opacity="0.6">
-              <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" begin="0.3s" repeatCount="indefinite" />
-            </ellipse>
+          {/* Crack on cave A left wall */}
+          <path d={`M ${aCX-oR+8},${arcY+5} L ${aCX-oR+16},${arcY+35} L ${aCX-oR+10},${arcY+70}`}
+            stroke="#0a0806" strokeWidth="2" fill="none" opacity="0.65" />
+          {/* Small stalactites inside cave A mouth */}
+          {[[aCX-50,arcY,10,22],[aCX-20,arcY-8,8,18],[aCX+15,arcY-5,9,20],[aCX+42,arcY,10,18]].map(([x,y,w,h],i) => (
+            <polygon key={i} points={`${x},${y} ${x+w},${y} ${x+w/2},${y+h}`}
+              fill="#1a1610" opacity="0.8" />
+          ))}
+          {/* Warning symbol scratched into rock above cave A */}
+          <g transform={`translate(${aCX},${arcY-oR-24})`}
+            opacity={isSuccess ? "0.2" : "0.85"} style={{ transition: "opacity 0.8s" }}>
+            <ellipse cx="0" cy="2" rx="17" ry="15" fill="#1e1208" stroke="#5a2a10" strokeWidth="1.5" />
+            <text x="0" y="8" textAnchor="middle" fill="#dc2626" fontSize="16"
+              fontFamily="monospace" fontWeight="bold">☠</text>
           </g>
 
-          {/* ══ ARCH B — outer stone surround with voussoir joints ══ */}
-          <path d={`M ${bCX-oR},${440} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX+oR},${arcY} L ${bCX+oR},${440} L ${bCX+iR},${440} L ${bCX+iR},${arcY} A ${iR},${iR} 0 0 0 ${bCX-iR},${arcY} L ${bCX-iR},${440} Z`}
-            fill="#2a2018" stroke="#0e0c08" strokeWidth="1.5" />
-          {vAngles.map((theta, i) => (
-            <line key={i}
-              x1={bCX + iR * Math.cos(theta)} y1={arcY + iR * Math.sin(theta)}
-              x2={bCX + oR * Math.cos(theta)} y2={arcY + oR * Math.sin(theta)}
-              stroke="#0e0c08" strokeWidth="2" opacity="0.75" />
-          ))}
-          {/* Keystone arch B */}
-          <path d={`M ${bCX-14},${arcY-oR+8} A ${oR},${oR} 0 0 1 ${bCX+14},${arcY-oR+8} L ${bCX+iR*0.18},${arcY-iR+8} A ${iR},${iR} 0 0 0 ${bCX-iR*0.18},${arcY-iR+8} Z`}
-            fill="#3a3025" />
-          {/* Safe glow outline on arch B when success */}
+          {/* ══ CAVE B INTERIOR — blue-white safe glow ══ */}
+          <path d={`M ${bCX-iR},${floorY} L ${bCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${bCX+iR},${arcY} L ${bCX+iR},${floorY} Z`}
+            fill="url(#dungTunnelB)" />
+          {/* Safe light at back of cave B */}
+          <ellipse cx={bCX} cy={arcY+18} rx={iR*0.5} ry="20"
+            fill={isSuccess ? "#bfdbfe" : "#1e40af"} opacity={isSuccess ? "0.5" : "0.15"}
+            style={{ transition: "all 0.9s" }}>
+            {isSuccess && <animate attributeName="opacity" values="0.38;0.65;0.38" dur="1.5s" repeatCount="indefinite" />}
+          </ellipse>
+          {/* Success flash in B */}
           {isSuccess && (
-            <path d={`M ${bCX-oR},${440} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX+oR},${arcY} L ${bCX+oR},${440} L ${bCX+iR},${440} L ${bCX+iR},${arcY} A ${iR},${iR} 0 0 0 ${bCX-iR},${arcY} L ${bCX-iR},${440} Z`}
-              fill="none" stroke="#60a5fa" strokeWidth="3" opacity="0.55">
-              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.2s" repeatCount="indefinite" />
+            <path d={`M ${bCX-iR},${floorY} L ${bCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${bCX+iR},${arcY} L ${bCX+iR},${floorY} Z`}
+              fill="#93c5fd" opacity="0.2">
+              <animate attributeName="opacity" values="0.1;0.35;0.1" dur="1.1s" repeatCount="indefinite" />
             </path>
           )}
-          {/* Stone highlight on arch B */}
-          <path d={`M ${bCX-oR},${440} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX},${arcY-oR}`}
-            stroke="#4a3e30" strokeWidth="2.5" fill="none" opacity="0.5" />
 
-          {/* ══ STONE SLABS with engraved danger values ══ */}
-          {/* Slab A — left of Arch A */}
-          <rect x={aCX-oR-72} y={arcY+20} width="66" height="90" rx="4" fill="#1e1a12" stroke="#2e2818" strokeWidth="2" />
-          <rect x={aCX-oR-70} y={arcY+22} width="62" height="86" rx="3" fill="none" stroke="#3a3020" strokeWidth="1" opacity="0.5" />
-          <text x={aCX-oR-39} y={arcY+55} textAnchor="middle" fill="#dc2626" fontSize="13"
-            fontFamily="monospace" fontWeight="bold" opacity="0.9">⚠</text>
-          <text x={aCX-oR-39} y={arcY+73} textAnchor="middle" fill="#fca5a5" fontSize="10"
-            fontFamily="monospace" fontWeight="bold">{pathALabel}</text>
-          <text x={aCX-oR-39} y={arcY+91} textAnchor="middle" fill="#9ca3af" fontSize="8"
-            fontFamily="monospace" opacity="0.7">DANGER</text>
-          {/* Stone crack on slab A */}
-          <path d={`M ${aCX-oR-55},${arcY+30} L ${aCX-oR-48},${arcY+45} L ${aCX-oR-52},${arcY+60}`}
-            stroke="#0a0806" strokeWidth="1.5" fill="none" opacity="0.6" />
+          {/* ══ CAVE B MOUTH — natural rocky opening ══ */}
+          <path d={`
+            M ${bCX-oR-10},${floorY}
+            L ${bCX-oR-14},${arcY+55}
+            L ${bCX-oR-6},${arcY+28}
+            L ${bCX-oR+4},${arcY+10}
+            L ${bCX-oR+2},${arcY}
+            Q ${bCX-iR*0.5},${arcY-oR+iR-10} ${bCX},${arcY-oR-8}
+            Q ${bCX+iR*0.5},${arcY-oR+iR-10} ${bCX+oR-2},${arcY}
+            L ${bCX+oR-4},${arcY+10}
+            L ${bCX+oR+6},${arcY+28}
+            L ${bCX+oR+14},${arcY+55}
+            L ${bCX+oR+10},${floorY}
+            L ${bCX+iR+6},${floorY}
+            L ${bCX+iR},${arcY}
+            A ${iR},${iR} 0 0 0 ${bCX-iR},${arcY}
+            L ${bCX-iR-6},${floorY}
+            Z
+          `} fill="#2a2016" />
+          {/* Rock texture on cave B surround */}
+          {[
+            [bCX-oR-8, arcY+20, 18, 35],
+            [bCX-oR+5, arcY-15, 22, 28],
+            [bCX+oR-10, arcY-15, 20, 28],
+            [bCX+oR-4, arcY+25, 16, 32],
+          ].map(([rx,ry,rw,rh],i) => (
+            <ellipse key={i} cx={rx+rw/2} cy={ry+rh/2} rx={rw/2} ry={rh/2}
+              fill={["#322a1c","#3a3020","#282010"][i%3]} opacity="0.6" />
+          ))}
+          {/* Success glow rim on cave B opening */}
+          {isSuccess && (
+            <path d={`
+              M ${bCX-oR-10},${floorY} L ${bCX-oR-14},${arcY+55} L ${bCX-oR-6},${arcY+28}
+              L ${bCX-oR+4},${arcY+10} L ${bCX-oR+2},${arcY}
+              Q ${bCX},${arcY-oR-8} ${bCX+oR-2},${arcY}
+              L ${bCX+oR+6},${arcY+28} L ${bCX+oR+14},${arcY+55} L ${bCX+oR+10},${floorY}
+            `} fill="none" stroke="#60a5fa" strokeWidth="2.5" opacity="0.6">
+              <animate attributeName="opacity" values="0.35;0.75;0.35" dur="1.3s" repeatCount="indefinite" />
+            </path>
+          )}
+          {/* Crack on cave B right wall */}
+          <path d={`M ${bCX+oR-8},${arcY+8} L ${bCX+oR-16},${arcY+40} L ${bCX+oR-8},${arcY+75}`}
+            stroke="#0a0806" strokeWidth="1.8" fill="none" opacity="0.6" />
+          {/* Small stalactites inside cave B mouth */}
+          {[[bCX-50,arcY,10,18],[bCX-22,arcY-6,8,16],[bCX+12,arcY-4,9,20],[bCX+40,arcY,10,16]].map(([x,y,w,h],i) => (
+            <polygon key={i} points={`${x},${y} ${x+w},${y} ${x+w/2},${y+h}`}
+              fill="#1a1610" opacity="0.8" />
+          ))}
 
-          {/* Slab B — right of Arch B */}
-          <rect x={bCX+oR+6} y={arcY+20} width="66" height="90" rx="4"
-            fill={isSuccess ? "#0f1e30" : "#1e1a12"} stroke={isSuccess ? "#1e3a5f" : "#2e2818"} strokeWidth="2"
-            style={{ transition: "all 0.6s" }} />
-          <rect x={bCX+oR+8} y={arcY+22} width="62" height="86" rx="3" fill="none"
-            stroke={isSuccess ? "#3b82f6" : "#3a3020"} strokeWidth="1" opacity="0.5" />
-          <text x={bCX+oR+39} y={arcY+55} textAnchor="middle"
-            fill={isSuccess ? "#60a5fa" : "#9ca3af"} fontSize="13"
-            fontFamily="monospace" fontWeight="bold" opacity="0.9">✓</text>
-          <text x={bCX+oR+39} y={arcY+73} textAnchor="middle"
-            fill={isSuccess ? "#93c5fd" : "#d1d5db"} fontSize="10"
-            fontFamily="monospace" fontWeight="bold">{pathBLabel}</text>
-          <text x={bCX+oR+39} y={arcY+91} textAnchor="middle"
-            fill={isSuccess ? "#60a5fa" : "#9ca3af"} fontSize="8"
-            fontFamily="monospace" opacity="0.7">SAFE</text>
+          {/* ══ ROCK SIGNS — chiseled markers on boulders beside each cave ══ */}
+          {/* Boulder A — danger */}
+          <ellipse cx={aCX-oR-36} cy={floorY+22} rx="34" ry="24" fill="#1e1a12" stroke="#2e2818" strokeWidth="1.5" />
+          <ellipse cx={aCX-oR-36} cy={floorY+22} rx="28" ry="18" fill="#1a1610" opacity="0.6" />
+          <text x={aCX-oR-36} y={floorY+16} textAnchor="middle" fill="#dc2626"
+            fontSize="10" fontFamily="monospace" fontWeight="bold">⚠ {pathALabel}</text>
+          <text x={aCX-oR-36} y={floorY+30} textAnchor="middle" fill="#9ca3af"
+            fontSize="7" fontFamily="monospace" opacity="0.8">DANGER</text>
 
-          {/* ══ THREE TORCHES — left of A, between A&B, right of B ══ */}
-          {/* Torch left of A */}
-          {[[aCX-oR-16, arcY+90, "orange"], [(aCX+oR+bCX-iR)/2, arcY+90, "orange"], [bCX+oR+16, arcY+90, "blue"]].map(([tx,ty,color],i) => (
+          {/* Boulder B — safe */}
+          <ellipse cx={bCX+oR+36} cy={floorY+22} rx="34" ry="24"
+            fill={isSuccess ? "#0f1e30" : "#1e1a12"} stroke={isSuccess ? "#1e3a5f" : "#2e2818"} strokeWidth="1.5"
+            style={{ transition: "all 0.7s" }} />
+          <ellipse cx={bCX+oR+36} cy={floorY+22} rx="28" ry="18" fill="#1a1610" opacity="0.6" />
+          <text x={bCX+oR+36} y={floorY+16} textAnchor="middle"
+            fill={isSuccess ? "#60a5fa" : "#d1d5db"}
+            fontSize="10" fontFamily="monospace" fontWeight="bold">✓ {pathBLabel}</text>
+          <text x={bCX+oR+36} y={floorY+30} textAnchor="middle"
+            fill={isSuccess ? "#60a5fa" : "#9ca3af"}
+            fontSize="7" fontFamily="monospace" opacity="0.8">SAFE</text>
+
+          {/* ══ THREE TORCHES — mounted on rock wall ══ */}
+          {[[aCX-oR-8, arcY+100, "orange"], [(aCX+bCX)/2, arcY+85, "orange"], [bCX+oR+8, arcY+100, "blue"]].map(([tx,ty,color],i) => (
             <g key={i}>
-              {/* Glow circle */}
-              <circle cx={tx} cy={ty-30} r="30" fill={color === "blue" ? "url(#torchGlowBlue)" : "url(#torchGlowOrange)"} />
+              <circle cx={tx} cy={ty-28} r="28" fill={color === "blue" ? "url(#torchGlowBlue)" : "url(#torchGlowOrange)"} />
+              {/* Torch bracket on rock */}
+              <rect x={tx-2} y={ty-6} width="4" height="10" rx="1" fill="#4a3a20" />
               {/* Torch handle */}
-              <rect x={tx-3} y={ty-18} width="6" height="22" rx="2"
-                fill="#6b4a20" stroke="#4a3015" strokeWidth="1" />
-              {/* Torch head */}
-              <rect x={tx-5} y={ty-26} width="10" height="9" rx="2"
-                fill="#8a5a28" />
-              {/* Flame */}
-              <path d={`M ${tx},${ty-35} Q ${tx-6},${ty-44} ${tx-3},${ty-50} Q ${tx},${ty-42} ${tx+5},${ty-48} Q ${tx+7},${ty-40} ${tx},${ty-35}`}
+              <rect x={tx-2.5} y={ty-20} width="5" height="15" rx="1.5" fill="#6b4a20" stroke="#4a3015" strokeWidth="0.8" />
+              {/* Torch cup */}
+              <rect x={tx-4} y={ty-26} width="8" height="7" rx="1.5" fill="#8a5a28" />
+              {/* Flame outer */}
+              <path d={`M ${tx},${ty-33} Q ${tx-5},${ty-42} ${tx-2},${ty-48} Q ${tx+1},${ty-41} ${tx+5},${ty-46} Q ${tx+7},${ty-38} ${tx},${ty-33}`}
                 fill={color === "blue" ? "#93c5fd" : "#f97316"} opacity="0.9">
-                <animate attributeName="opacity" values="0.8;1;0.7;0.95;0.8"
-                  dur={`${0.5+i*0.13}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.8;1;0.65;0.95;0.8"
+                  dur={`${0.5+i*0.15}s`} repeatCount="indefinite" />
               </path>
-              <path d={`M ${tx},${ty-35} Q ${tx+4},${ty-46} ${tx+1},${ty-53} Q ${tx-2},${ty-45} ${tx-4},${ty-50} Q ${tx-6},${ty-42} ${tx},${ty-35}`}
+              {/* Flame inner */}
+              <path d={`M ${tx},${ty-33} Q ${tx+4},${ty-44} ${tx+1},${ty-50} Q ${tx-2},${ty-43} ${tx-4},${ty-47} Q ${tx-5},${ty-40} ${tx},${ty-33}`}
                 fill={color === "blue" ? "#bfdbfe" : "#fbbf24"} opacity="0.7">
-                <animate attributeName="opacity" values="0.6;0.9;0.5;0.8;0.6"
-                  dur={`${0.42+i*0.11}s`} begin="0.1s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.55;0.85;0.45;0.75;0.55"
+                  dur={`${0.4+i*0.12}s`} begin="0.08s" repeatCount="indefinite" />
               </path>
             </g>
           ))}
 
-          {/* ══ STONE CRACKS on wall between arches ══ */}
-          <path d={`M ${aCX+oR+15},${arcY-20} L ${aCX+oR+28},${arcY+10} L ${aCX+oR+22},${arcY+40} L ${aCX+oR+35},${arcY+70}`}
-            stroke="#0a0806" strokeWidth="2" fill="none" opacity="0.65" />
-          <path d={`M ${aCX+oR+24},${arcY+25} L ${aCX+oR+38},${arcY+32}`}
-            stroke="#0a0806" strokeWidth="1.5" fill="none" opacity="0.5" />
-          {/* Crack on left wall */}
-          <path d={`M 45,${arcY-40} L 62,${arcY} L 55,${arcY+50} L 70,${arcY+90}`}
-            stroke="#0a0806" strokeWidth="2" fill="none" opacity="0.55" />
+          {/* ══ SCATTERED ROCKS on path between caves ══ */}
+          {[[330,445,12,8],[365,452,9,6],[410,448,14,9],[440,456,10,6]].map(([x,y,rx,ry],i) => (
+            <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry}
+              fill={["#2a2418","#322a1c","#242018"][i%3]} opacity="0.7" />
+          ))}
 
           {/* ══ FLOOR MIST ══ */}
-          <rect x="0" y={420} width="800" height="80" fill="url(#dungMist)" opacity="0.7" />
-          {/* Mist wisp animations */}
-          {[80,240,400,560,720].map((mx,i) => (
-            <ellipse key={i} cx={mx} cy={448} rx="55" ry="12" fill="#8ab4d4" opacity="0">
-              <animate attributeName="cx" values={`${mx};${mx+35};${mx}`}
-                dur={`${5+i*1.2}s`} repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0;0.1;0.07;0.12;0"
-                dur={`${5+i*1.2}s`} repeatCount="indefinite" />
+          <rect x="0" y={415} width="800" height="85" fill="url(#dungMist)" opacity="0.65" />
+          {[100,260,400,540,680].map((mx,i) => (
+            <ellipse key={i} cx={mx} cy={450} rx="50" ry="10" fill="#8ab4d4" opacity="0">
+              <animate attributeName="cx" values={`${mx};${mx+30};${mx}`}
+                dur={`${5.5+i*1.1}s`} repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0;0.09;0.06;0.11;0"
+                dur={`${5.5+i*1.1}s`} repeatCount="indefinite" />
             </ellipse>
           ))}
 
-          {/* ══ VIGNETTE overlay ══ */}
+          {/* ══ VIGNETTE ══ */}
           <rect x="0" y="0" width="800" height="500" fill="url(#dungVignette)" />
         </svg>
 
