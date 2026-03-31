@@ -979,7 +979,6 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     heroCheckWeather: `${heroName} reads conditions — right call!`,
     heroForkPath: `${heroName} picks the safer route!`,
     heroObstacle: `${heroName} clears the obstacle!`,
-    heroEnergyGate: `${heroName} powers up and charges through!`,
     heroFinalGate: `${heroName} unlocks the gate!`,
   }[gameAction] || `${heroName}'s condition passed!`;
 
@@ -987,7 +986,6 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     heroCheckWeather: "Condition is False — check your logic",
     heroForkPath: "Condition is False — wrong path",
     heroObstacle: "Condition is False — can't pass",
-    heroEnergyGate: "Not enough energy — hero must rest",
     heroFinalGate: "Condition is False — gate stays locked",
   }[gameAction] || "Condition is False — try again";
 
@@ -995,7 +993,6 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     heroCheckWeather: "Check the weather conditions...",
     heroForkPath: "Evaluate which path is safer...",
     heroObstacle: "Can the hero pass?",
-    heroEnergyGate: "Does the hero have enough energy?",
     heroFinalGate: "Does the hero have what it takes?",
   }[gameAction] || "Write conditions to navigate...";
 
@@ -1117,32 +1114,47 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     );
   }
 
-  // ── FORK PATH: ground-level Y-fork with mountains behind ────────────
+  // ── FORK PATH: flat ground-level Y-fork with roads curving left/right ──
   if (gameAction === "heroForkPath") {
-    // Layout: sky + mountains in top 45%, ground + roads in bottom 55%
-    const hz = 130;    // horizon line y — mountains sit above, ground below
-    const fy = 195;    // fork y — where the road splits (on the ground)
-    const topY = 138;  // where fork roads vanish (just below horizon)
+    const hz = 65;    // horizon — pushed high so ground dominates
+    const fy = 235;   // fork point — low in scene
 
-    // Approach road (single lane, narrows toward fork — perspective)
-    const apL = 148, apR = 252;    // bottom edges at y=300
-    const fkL = 175, fkR = 225;    // road edges at fork (y=fy)
+    // Approach road (bottom to fork)
+    const apL = 155, apR = 245;
+    const fkL = 185, fkR = 215;
 
-    // Divider tip — the V-point where road splits
-    const tipL = 193, tipR = 207;
+    // Fork roads curve nearly FLAT — only ~15px vertical rise, ~200px horizontal spread
+    // Roads exit the left/right edges of the viewBox
+    const leftRoadPath = `
+      M ${fkL},${fy}
+      C ${fkL - 55},${fy - 5} 65,${fy - 14} -15,${fy - 18}
+      L -15,${fy - 8}
+      C 75,${fy - 10} ${192 - 35},${fy - 3} 192,${fy}
+      Z`;
 
-    // Left fork road (Path A) at horizon y=topY
-    const aOut = 82, aIn = 148;    // outer / inner edges
-    // Right fork road (Path B) at horizon y=topY
-    const bIn = 252, bOut = 318;
+    const rightRoadPath = `
+      M ${fkR},${fy}
+      C ${fkR + 55},${fy - 5} 335,${fy - 14} 415,${fy - 18}
+      L 415,${fy - 8}
+      C 325,${fy - 10} ${208 + 35},${fy - 3} 208,${fy}
+      Z`;
 
-    // Center lines for each road segment
-    const aCx0 = (fkL + tipL) / 2, aCx1 = (aOut + aIn) / 2;
-    const bCx0 = (tipR + fkR) / 2, bCx1 = (bIn + bOut) / 2;
+    const leftCenterPath = `M 188,${fy} C 145,${fy - 5} 70,${fy - 12} -15,${fy - 13}`;
+    const rightCenterPath = `M 212,${fy} C 255,${fy - 5} 330,${fy - 12} 415,${fy - 13}`;
+
+    // Wedge = ground between the two fork roads
+    const wedgePath = `
+      M 192,${fy}
+      C ${192 - 35},${fy - 3} 75,${fy - 10} -15,${fy - 8}
+      L -15,${fy - 18}
+      L 415,${fy - 18}
+      L 415,${fy - 8}
+      C 325,${fy - 10} ${208 + 35},${fy - 3} 208,${fy}
+      Z`;
 
     return (
       <div className="w-full h-full relative overflow-hidden">
-        <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+        <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
           <defs>
             <linearGradient id="yfSky" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#050a18" />
@@ -1153,13 +1165,13 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
               <stop offset="0%" stopColor="#2a2418" />
               <stop offset="100%" stopColor="#4e3c28" />
             </linearGradient>
-            <linearGradient id="yfForkL" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={isSuccess ? "#38120a" : "#2a2418"} />
-              <stop offset="100%" stopColor={isSuccess ? "#58261a" : "#4e3c28"} />
+            <linearGradient id="yfForkL" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={isSuccess ? "#58261a" : "#4e3c28"} />
+              <stop offset="100%" stopColor={isSuccess ? "#38120a" : "#2a2418"} />
             </linearGradient>
-            <linearGradient id="yfForkR" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={isSuccess ? "#0a2c12" : "#2a2418"} />
-              <stop offset="100%" stopColor={isSuccess ? "#144820" : "#4e3c28"} />
+            <linearGradient id="yfForkR" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={isSuccess ? "#144820" : "#2a2418"} />
+              <stop offset="100%" stopColor={isSuccess ? "#0a2c12" : "#4e3c28"} />
             </linearGradient>
             <linearGradient id="yfGnd" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#121a26" />
@@ -1171,174 +1183,141 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
             </linearGradient>
           </defs>
 
-          {/* ── SKY (upper portion) ── */}
+          {/* ── SKY ── */}
           <rect x="0" y="0" width="400" height={hz + 10} fill="url(#yfSky)" />
 
           {/* ── STARS ── */}
-          {[[30,18],[70,8],[120,28],[160,12],[240,16],[290,10],[340,22],[380,14],[60,42],[310,38],[200,6],[150,50]].map(([x,y],i) => (
+          {[[30,12],[70,5],[120,22],[160,8],[240,10],[290,6],[340,16],[380,9],[200,3],[150,28]].map(([x,y],i) => (
             <circle key={i} cx={x} cy={y} r="1" fill="#8a9ab8" opacity={0.4 + (i % 3) * 0.2} />
           ))}
 
-          {/* ── MOUNTAINS (left range) ── */}
-          <polygon points={`0,${hz} 0,55 50,18 95,62 125,38 175,${hz}`} fill="url(#yfMtn)" />
-          <polygon points="50,18 36,48 64,48" fill="#3a4a5c" opacity="0.85" />
-          <polygon points="125,38 113,62 137,62" fill="#3a4a5c" opacity="0.7" />
-          <polygon points={`0,${hz} 0,55 50,18 62,50 30,${hz}`} fill="#080d18" opacity="0.4" />
+          {/* ── MOUNTAINS (left) ── */}
+          <polygon points={`0,${hz} 0,25 40,8 70,32 100,18 140,${hz}`} fill="url(#yfMtn)" />
+          <polygon points="40,8 28,28 52,28" fill="#3a4a5c" opacity="0.8" />
+          <polygon points="100,18 90,34 110,34" fill="#3a4a5c" opacity="0.65" />
 
-          {/* ── MOUNTAINS (right range) ── */}
-          <polygon points={`225,${hz} 275,38 310,62 350,18 400,55 400,${hz}`} fill="url(#yfMtn)" />
-          <polygon points="350,18 338,48 362,48" fill="#3a4a5c" opacity="0.85" />
-          <polygon points="275,38 263,62 287,62" fill="#3a4a5c" opacity="0.7" />
-          <polygon points={`400,${hz} 400,55 350,18 338,50 370,${hz}`} fill="#080d18" opacity="0.4" />
+          {/* ── MOUNTAINS (right) ── */}
+          <polygon points={`260,${hz} 300,18 330,32 360,8 400,25 400,${hz}`} fill="url(#yfMtn)" />
+          <polygon points="360,8 348,28 372,28" fill="#3a4a5c" opacity="0.8" />
+          <polygon points="300,18 290,34 310,34" fill="#3a4a5c" opacity="0.65" />
 
-          {/* ── DISTANT MOUNTAIN (center, behind fork) ── */}
-          <polygon points={`165,${hz} 200,75 235,${hz}`} fill="#1a2535" opacity="0.7" />
-          <polygon points="200,75 192,95 208,95" fill="#2a3a50" opacity="0.5" />
+          {/* ── DISTANT MOUNTAIN (center) ── */}
+          <polygon points={`170,${hz} 200,30 230,${hz}`} fill="#1a2535" opacity="0.6" />
+          <polygon points="200,30 193,45 207,45" fill="#2a3a50" opacity="0.4" />
 
-          {/* ── GROUND PLANE (below horizon) ── */}
+          {/* ── GROUND PLANE ── */}
           <rect x="0" y={hz} width="400" height={300 - hz} fill="url(#yfGnd)" />
+          <line x1="0" y1={hz} x2="400" y2={hz} stroke="#2a4a6a" strokeWidth="1" opacity="0.25" />
 
-          {/* Horizon glow line */}
-          <line x1="0" y1={hz} x2="400" y2={hz} stroke="#2a4a6a" strokeWidth="1.5" opacity="0.3" />
-
-          {/* ── GROUND WEDGE between fork roads (V-shaped terrain) ── */}
-          <polygon points={`${aIn},${topY} ${bIn},${topY} ${tipR},${fy} ${tipL},${fy}`} fill="#101a26" />
-          {/* Wedge terrain texture */}
-          {[0.15, 0.35, 0.55, 0.75, 0.92].map((t, i) => {
-            const y = topY + t * (fy - topY);
-            const lx = aIn + t * (tipL - aIn);
-            const rx = bIn - t * (bIn - tipR);
-            return <line key={i} x1={lx} y1={y} x2={rx} y2={y}
-              stroke="#1c2c3c" strokeWidth={0.4 + t * 0.6} opacity="0.6" />;
-          })}
-          {/* Grass tufts in wedge */}
-          {[[185,172],[200,160],[215,172],[200,150],[192,165],[208,165]].map(([cx, cy], i) => (
-            <g key={i} opacity="0.55">
-              <line x1={cx-3} y1={cy} x2={cx-5} y2={cy-6} stroke="#1c3416" strokeWidth="1" />
-              <line x1={cx}   y1={cy} x2={cx}   y2={cy-7} stroke="#1c3416" strokeWidth="1" />
-              <line x1={cx+3} y1={cy} x2={cx+4} y2={cy-6} stroke="#1c3416" strokeWidth="1" />
+          {/* ── GROUND WEDGE between fork roads ── */}
+          <path d={wedgePath} fill="#101a26" />
+          {/* Grass/terrain texture in wedge */}
+          {[[170,228],[200,225],[230,228],[185,230],[215,230],[155,226],[245,226]].map(([cx, cy], i) => (
+            <g key={i} opacity="0.5">
+              <line x1={cx-2} y1={cy} x2={cx-4} y2={cy-5} stroke="#1c3416" strokeWidth="0.8" />
+              <line x1={cx}   y1={cy} x2={cx}   y2={cy-6} stroke="#1c3416" strokeWidth="0.8" />
+              <line x1={cx+2} y1={cy} x2={cx+3} y2={cy-5} stroke="#1c3416" strokeWidth="0.8" />
             </g>
           ))}
 
-          {/* ── OUTER TERRAIN (left side of left fork → ground) ── */}
-          <polygon points={`0,${topY} ${aOut},${topY} ${fkL},${fy} ${apL},300 0,300`} fill="url(#yfGnd)" />
-          {/* OUTER TERRAIN (right side of right fork → ground) */}
-          <polygon points={`${bOut},${topY} 400,${topY} 400,300 ${apR},300 ${fkR},${fy}`} fill="url(#yfGnd)" />
-
-          {/* ── APPROACH ROAD (single lane, below fork) ── */}
-          <polygon points={`${apL},300 ${apR},300 ${fkR},${fy} ${tipR},${fy} ${tipL},${fy} ${fkL},${fy}`}
+          {/* ── APPROACH ROAD ── */}
+          <polygon points={`${apL},300 ${apR},300 ${fkR},${fy} 208,${fy} 192,${fy} ${fkL},${fy}`}
             fill="url(#yfRoad)" />
-          {/* Road outer edge lines */}
-          <line x1={apL} y1={300} x2={fkL} y2={fy} stroke="#7a6040" strokeWidth="2.4" opacity="0.9" />
-          <line x1={apR} y1={300} x2={fkR} y2={fy} stroke="#7a6040" strokeWidth="2.4" opacity="0.9" />
-          {/* Center dashed line on approach */}
+          <line x1={apL} y1={300} x2={fkL} y2={fy} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
+          <line x1={apR} y1={300} x2={fkR} y2={fy} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
           <line x1="200" y1="300" x2="200" y2={fy + 2}
-            stroke="#c8b060" strokeWidth="3" strokeDasharray="20 14" opacity="0.8" />
-          {/* Approach perspective shading bands */}
-          {[0.15, 0.32, 0.50, 0.68, 0.84].map((t, i) => {
-            const y = fy + t * (300 - fy);
-            const lx = fkL + t * (apL - fkL);
-            const rx = fkR + t * (apR - fkR);
-            return <line key={i} x1={lx} y1={y} x2={rx} y2={y}
-              stroke="#c4a870" strokeWidth={t * 1.5} opacity={0.04 + t * 0.09} />;
-          })}
+            stroke="#c8b060" strokeWidth="2.5" strokeDasharray="16 12" opacity="0.7" />
 
-          {/* ── LEFT FORK ROAD (Path A) ── */}
-          <polygon points={`${aOut},${topY} ${aIn},${topY} ${tipL},${fy} ${fkL},${fy}`}
-            fill="url(#yfForkL)" />
-          <line x1={fkL} y1={fy} x2={aOut} y2={topY} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
-          <line x1={tipL} y1={fy} x2={aIn}  y2={topY} stroke="#7a6040" strokeWidth="1.8" opacity="0.7" />
-          {/* Left fork center dashes */}
-          <line x1={aCx0} y1={fy} x2={aCx1} y2={topY}
-            stroke="#c8b060" strokeWidth="2" strokeDasharray="10 8" opacity="0.6" />
+          {/* ── LEFT FORK ROAD (Path A) — curves left along ground ── */}
+          <path d={leftRoadPath} fill="url(#yfForkL)" />
+          <path d={`M ${fkL},${fy} C ${fkL - 55},${fy - 5} 65,${fy - 14} -15,${fy - 18}`}
+            stroke="#7a6040" strokeWidth="2" fill="none" opacity="0.8" />
+          <path d={`M 192,${fy} C ${192 - 35},${fy - 3} 75,${fy - 10} -15,${fy - 8}`}
+            stroke="#7a6040" strokeWidth="1.5" fill="none" opacity="0.65" />
+          <path d={leftCenterPath}
+            stroke="#c8b060" strokeWidth="1.8" strokeDasharray="10 8" fill="none" opacity="0.5" />
 
-          {/* ── RIGHT FORK ROAD (Path B) ── */}
-          <polygon points={`${bIn},${topY} ${bOut},${topY} ${fkR},${fy} ${tipR},${fy}`}
-            fill="url(#yfForkR)" />
-          <line x1={tipR} y1={fy} x2={bIn}  y2={topY} stroke="#7a6040" strokeWidth="1.8" opacity="0.7" />
-          <line x1={fkR}  y1={fy} x2={bOut} y2={topY} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
-          {/* Right fork center dashes */}
-          <line x1={bCx0} y1={fy} x2={bCx1} y2={topY}
-            stroke="#c8b060" strokeWidth="2" strokeDasharray="10 8" opacity="0.6" />
+          {/* ── RIGHT FORK ROAD (Path B) — curves right along ground ── */}
+          <path d={rightRoadPath} fill="url(#yfForkR)" />
+          <path d={`M ${fkR},${fy} C ${fkR + 55},${fy - 5} 335,${fy - 14} 415,${fy - 18}`}
+            stroke="#7a6040" strokeWidth="2" fill="none" opacity="0.8" />
+          <path d={`M 208,${fy} C ${208 + 35},${fy - 3} 325,${fy - 10} 415,${fy - 8}`}
+            stroke="#7a6040" strokeWidth="1.5" fill="none" opacity="0.65" />
+          <path d={rightCenterPath}
+            stroke="#c8b060" strokeWidth="1.8" strokeDasharray="10 8" fill="none" opacity="0.5" />
 
-          {/* ── VEGETATION on left terrain ── */}
-          <ellipse cx="50"  cy="250" rx="20" ry="10" fill="#0c1520" opacity="0.8" />
-          <line x1="75" y1="225" x2="73" y2="213" stroke="#1c3416" strokeWidth="2.2" />
-          <ellipse cx="73" cy="211" rx="10" ry="7" fill="#182e14" opacity="0.8" />
-          <line x1="30" y1="210" x2="28" y2="200" stroke="#1c3416" strokeWidth="1.6" />
-          <ellipse cx="28" cy="198" rx="7" ry="5" fill="#182e14" opacity="0.7" />
-          <ellipse cx="100" cy="260" rx="14" ry="7" fill="#0c1520" opacity="0.7" />
+          {/* ── VEGETATION ── */}
+          {/* Left side trees/bushes */}
+          <line x1="55" y1={hz + 40} x2="53" y2={hz + 28} stroke="#1c3416" strokeWidth="2" />
+          <ellipse cx="53" cy={hz + 26} rx="9" ry="6" fill="#182e14" opacity="0.8" />
+          <line x1="25" y1={hz + 55} x2="23" y2={hz + 45} stroke="#1c3416" strokeWidth="1.5" />
+          <ellipse cx="23" cy={hz + 43} rx="6" ry="5" fill="#182e14" opacity="0.7" />
+          <ellipse cx="80" cy={hz + 60} rx="12" ry="5" fill="#0c1520" opacity="0.6" />
+          {/* Right side */}
+          <line x1="345" y1={hz + 40} x2="347" y2={hz + 28} stroke="#1c3416" strokeWidth="2" />
+          <ellipse cx="347" cy={hz + 26} rx="9" ry="6" fill="#182e14" opacity="0.8" />
+          <line x1="375" y1={hz + 55} x2="377" y2={hz + 45} stroke="#1c3416" strokeWidth="1.5" />
+          <ellipse cx="377" cy={hz + 43} rx="6" ry="5" fill="#182e14" opacity="0.7" />
+          <ellipse cx="320" cy={hz + 60} rx="12" ry="5" fill="#0c1520" opacity="0.6" />
 
-          {/* ── VEGETATION on right terrain ── */}
-          <ellipse cx="350" cy="250" rx="20" ry="10" fill="#0c1520" opacity="0.8" />
-          <line x1="325" y1="225" x2="327" y2="213" stroke="#1c3416" strokeWidth="2.2" />
-          <ellipse cx="327" cy="211" rx="10" ry="7" fill="#182e14" opacity="0.8" />
-          <line x1="370" y1="210" x2="372" y2="200" stroke="#1c3416" strokeWidth="1.6" />
-          <ellipse cx="372" cy="198" rx="7" ry="5" fill="#182e14" opacity="0.7" />
-          <ellipse cx="300" cy="260" rx="14" ry="7" fill="#0c1520" opacity="0.7" />
-
-          {/* ── PATH A SUCCESS GLOW (red — wrong path) ── */}
+          {/* ── SUCCESS GLOWS ── */}
           {isSuccess && (
-            <polygon points={`${aOut},${topY} ${aIn},${topY} ${tipL},${fy} ${fkL},${fy}`} fill="#ef4444" opacity="0.07">
-              <animate attributeName="opacity" values="0.03;0.13;0.03" dur="1.2s" repeatCount="indefinite" />
-            </polygon>
+            <path d={leftRoadPath} fill="#ef4444" opacity="0.07">
+              <animate attributeName="opacity" values="0.03;0.12;0.03" dur="1.2s" repeatCount="indefinite" />
+            </path>
           )}
-
-          {/* ── PATH B SUCCESS GLOW + SPARKLES (green — correct path) ── */}
           {isSuccess && (
             <>
-              <polygon points={`${bIn},${topY} ${bOut},${topY} ${fkR},${fy} ${tipR},${fy}`} fill="#22c55e" opacity="0.1">
+              <path d={rightRoadPath} fill="#22c55e" opacity="0.1">
                 <animate attributeName="opacity" values="0.05;0.18;0.05" dur="1.1s" repeatCount="indefinite" />
-              </polygon>
+              </path>
               {[0, 1, 2].map(i => (
-                <circle key={i} r="3" fill="#22c55e">
+                <circle key={i} r="2.5" fill="#22c55e">
                   <animate attributeName="cx"
-                    values={`${bCx0};${bCx0 + (bCx1 - bCx0) * 0.55};${bCx1}`}
-                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.35}s`} repeatCount="indefinite" />
+                    values={`212;${280 + i * 15};${370 + i * 10}`}
+                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite" />
                   <animate attributeName="cy"
-                    values={`${fy - 3};${topY + (fy - topY) * 0.5};${topY + 4}`}
-                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.35}s`} repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0;1;0"
-                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.35}s`} repeatCount="indefinite" />
+                    values={`${fy - 2};${fy - 8};${fy - 14}`}
+                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0;0.9;0"
+                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite" />
                 </circle>
               ))}
             </>
           )}
 
           {/* ── DANGER WARNING on Path A ── */}
-          <polygon points={`${aCx1},${topY+6} ${aCx1+7},${topY+18} ${aCx1-7},${topY+18}`}
-            fill="#f59e0b" opacity={isSuccess ? "0.2" : "0.9"} />
-          <text x={aCx1} y={topY + 16} fill="#1a1200" fontSize="6" textAnchor="middle" fontWeight="bold">!</text>
+          <polygon points={`65,${fy - 14} 71,${fy - 4} 59,${fy - 4}`}
+            fill="#f59e0b" opacity={isSuccess ? "0.2" : "0.85"} />
+          <text x="65" y={fy - 6} fill="#1a1200" fontSize="5" textAnchor="middle" fontWeight="bold">!</text>
 
-          {/* ── PATH LABELS ── */}
-          <text x={aCx1} y={topY + 2} textAnchor="middle"
+          {/* ── PATH LABELS on the road surface ── */}
+          <text x="90" y={fy - 10} textAnchor="middle"
             fill={isSuccess ? "#fca5a5" : "#94a3b8"} fontSize="8" fontFamily="monospace" fontWeight="bold">
             PATH A
           </text>
-          <text x={bCx1} y={topY + 2} textAnchor="middle"
+          <text x="310" y={fy - 10} textAnchor="middle"
             fill={isSuccess ? "#86efac" : "#94a3b8"} fontSize="8" fontFamily="monospace" fontWeight="bold">
             PATH B
           </text>
 
           {/* ── SIGNPOST at fork ── */}
-          <rect x="198" y={fy - 48} width="4" height="50" rx="2" fill="#7a5c35" />
-          {/* Sign A — angled left */}
-          <g transform={`translate(200,${fy - 42}) rotate(-28)`}>
-            <rect x="-48" y="-9" width="48" height="18" rx="3"
+          <rect x="198" y={fy - 44} width="4" height="46" rx="2" fill="#7a5c35" />
+          <g transform={`translate(200,${fy - 38}) rotate(-25)`}>
+            <rect x="-46" y="-8" width="46" height="16" rx="3"
               fill={isSuccess ? "#4b0808" : "#2d3748"} opacity="0.95" />
-            <rect x="-48" y="-9" width="48" height="18" rx="3" fill="none"
-              stroke={isSuccess ? "#ef4444" : "#4a5568"} strokeWidth="1.5" opacity="0.9" />
-            <text x="-24" y="4" textAnchor="middle" fill={isSuccess ? "#fca5a5" : "#e2e8f0"}
-              fontSize="8" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathALabel || "⚠ A: 7"}</text>
+            <rect x="-46" y="-8" width="46" height="16" rx="3" fill="none"
+              stroke={isSuccess ? "#ef4444" : "#4a5568"} strokeWidth="1.2" opacity="0.85" />
+            <text x="-23" y="3" textAnchor="middle" fill={isSuccess ? "#fca5a5" : "#e2e8f0"}
+              fontSize="7" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathALabel || "⚠ A: 7"}</text>
           </g>
-          {/* Sign B — angled right */}
-          <g transform={`translate(202,${fy - 20}) rotate(23)`}>
-            <rect x="0" y="-9" width="48" height="18" rx="3"
+          <g transform={`translate(202,${fy - 18}) rotate(22)`}>
+            <rect x="0" y="-8" width="46" height="16" rx="3"
               fill={isSuccess ? "#14532d" : "#2d3748"} opacity="0.95" />
-            <rect x="0" y="-9" width="48" height="18" rx="3" fill="none"
-              stroke={isSuccess ? "#22c55e" : "#4a5568"} strokeWidth="1.5" opacity="0.9" />
-            <text x="24" y="4" textAnchor="middle" fill={isSuccess ? "#86efac" : "#e2e8f0"}
-              fontSize="8" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathBLabel || "✓ B: 3"}</text>
+            <rect x="0" y="-8" width="46" height="16" rx="3" fill="none"
+              stroke={isSuccess ? "#22c55e" : "#4a5568"} strokeWidth="1.2" opacity="0.85" />
+            <text x="23" y="3" textAnchor="middle" fill={isSuccess ? "#86efac" : "#e2e8f0"}
+              fontSize="7" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathBLabel || "✓ B: 3"}</text>
           </g>
         </svg>
 
@@ -1473,130 +1452,268 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     );
   }
 
-  // ── ENERGY GATE: stamina check with visible energy bar on hero ───────
-  if (gameAction === "heroEnergyGate") {
-    const heroEnergy = 15;
-    const requiredEnergy = 20;
-    const gateColor = isSuccess ? "#22c55e" : isFail ? "#ef4444" : "#a855f7";
+  // ── OBSTACLE BLOCKER — context-aware visuals based on sceneConfig ─────
+  // Detect obstacle type from the lesson config
+  const obstacleType = (() => {
+    const label = sceneConfig?.conditionLabel || "";
+    const vars = sceneConfig?.varDisplay || "";
+    if (label.includes("energy") || vars.includes("energy"))    return "energy-gate";
+    if (label.includes("key == code") || vars.includes("key=")) return "treasure-chest";
+    if (label.includes("obstacle") || vars.includes("obstacle")) return "rock-block";
+    if (label.includes("rope") || vars.includes("rope"))        return "rope-bridge";
+    if (label.includes("poisoned") || vars.includes("poisoned")) return "poison-check";
+    if (label.includes("has_key") || vars.includes("has_key"))   return "locked-door";
+    return "rock-block";
+  })();
 
-    // Hero with floating energy meter above
-    const heroWithMeter = (
-      <div className="absolute z-10" style={{ left: `${heroX}%`, bottom: "58px", transition: heroTransition }}>
-        <div className="flex justify-center mb-1">
-          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border transition-all duration-700 ${
-            isSuccess ? "border-green-500/50 bg-green-500/10" : "border-amber-500/40 bg-[#0d1117]/80"
-          }`}>
-            <span className={`text-xs ${isSuccess ? "text-green-400" : "text-amber-400"}`}>⚡</span>
-            <div className="h-1.5 rounded-full bg-[#30363d] overflow-hidden" style={{ width: "38px" }}>
-              <div className={`h-full rounded-full transition-all duration-700 ${isSuccess ? "bg-green-500" : "bg-amber-500"}`}
-                style={{ width: isSuccess ? "100%" : `${(heroEnergy / requiredEnergy) * 100}%` }} />
-            </div>
-            <span className={`text-xs font-mono font-bold ${isSuccess ? "text-green-400" : "text-amber-400"}`}>
-              {isSuccess ? `${requiredEnergy}` : `${heroEnergy}`}
-            </span>
-          </div>
-        </div>
-        <GameHero color={heroColor} size={82} animation={heroAnim} />
-      </div>
-    );
+  const obstacleLabels = {
+    "energy-gate":    { idle: "energy barrier ahead", success: "✓ barrier down!", fail: "✗ not enough energy!" },
+    "treasure-chest": { idle: "locked chest...",       success: "✓ chest unlocked!", fail: "✗ wrong key!" },
+    "rock-block":     { idle: "boulder blocking path", success: "✓ path cleared!",   fail: "✗ can't move it!" },
+    "rope-bridge":    { idle: "bridge ahead...",       success: "✓ safe to cross!",  fail: "✗ can't cross!" },
+    "poison-check":   { idle: "status check...",       success: "✓ hero is healthy!", fail: "✗ hero is poisoned!" },
+    "locked-door":    { idle: "locked gate ahead",     success: "✓ gate opened!",    fail: "✗ gate stays locked!" },
+  };
+  const obsLabel = obstacleLabels[obstacleType] || obstacleLabels["rock-block"];
 
-    return (
-      <div className="w-full h-full relative overflow-hidden">
-        <SkyBackground />
-        <Ground variant="rocky" />
-        <Tree x={3} scale={0.7} />
-        <Tree x={86} scale={0.65} />
+  const renderObstacleVisual = () => {
+    switch (obstacleType) {
 
-        <svg className="absolute bottom-0 left-0 w-full z-[5]" viewBox="0 0 400 80" preserveAspectRatio="none" style={{ height: "38%" }}>
-          <path d="M 0,65 Q 150,58 400,52" stroke="#7a6a50" strokeWidth="22" fill="none" opacity="0.22" strokeLinecap="round" />
-          {isSuccess && (
-            <path d="M 0,65 Q 150,58 400,52" stroke="#22c55e" strokeWidth="5" fill="none" opacity="0.35">
-              <animate attributeName="opacity" values="0.1;0.5;0.1" dur="0.7s" repeatCount="indefinite" />
-            </path>
-          )}
-        </svg>
-
-        {/* Energy gate */}
-        <div className="absolute z-[9]" style={{ left: "50%", bottom: "62px", transform: "translateX(-50%)" }}>
-          <svg width="112" height="108" viewBox="0 0 112 108">
-            <ellipse cx="56" cy="104" rx="46" ry="5" fill="#000" opacity="0.18" />
+      case "energy-gate":
+        return (
+          <svg width="110" height="100" viewBox="0 0 110 100">
+            <ellipse cx="55" cy="95" rx="48" ry="6" fill="#000" opacity="0.2" />
             {/* Left pillar */}
-            <rect x="4" y="8" width="20" height="96" rx="3" fill="#4a3a28" />
-            <rect x="4" y="2" width="22" height="10" rx="2" fill="#6a5a42" />
-            <rect x="4" y="8" width="8" height="96" fill="#5a4a32" opacity="0.35" />
+            <rect x="8" y="12" width="14" height="80" rx="3" fill="#3a3a50" />
+            <rect x="8" y="12" width="5" height="80" rx="2" fill="#4a4a68" opacity="0.4" />
+            <rect x="5" y="6" width="20" height="8" rx="2" fill="#4a4a68" />
             {/* Right pillar */}
-            <rect x="88" y="8" width="20" height="96" rx="3" fill="#4a3a28" />
-            <rect x="86" y="2" width="22" height="10" rx="2" fill="#6a5a42" />
-            <rect x="88" y="8" width="8" height="96" fill="#5a4a32" opacity="0.35" />
-            {/* Energy bars (hidden on success) */}
-            {!isSuccess && [0,1,2,3,4,5].map(i => (
-              <rect key={i} x="24" y={12 + i * 15} width="64" height="8" rx="4"
-                fill={gateColor} opacity={isFail ? "0" : "0.55"}>
-                {!isFail && <animate attributeName="opacity" values="0.3;0.7;0.3" dur={`${0.8 + i * 0.13}s`} repeatCount="indefinite" />}
-                {isFail && <animate attributeName="opacity" values="0.7;0;0" dur="0.25s" repeatCount="1" fill="freeze" />}
+            <rect x="88" y="12" width="14" height="80" rx="3" fill="#3a3a50" />
+            <rect x="88" y="12" width="5" height="80" rx="2" fill="#4a4a68" opacity="0.4" />
+            <rect x="85" y="6" width="20" height="8" rx="2" fill="#4a4a68" />
+            {/* Energy bars */}
+            {!isSuccess && [0,1,2,3,4].map(i => (
+              <rect key={i} x="24" y={18 + i * 15} width="62" height="4" rx="2"
+                fill={isFail ? "#ef4444" : "#00d4ff"} opacity={isFail ? "0" : "0.6"}>
+                {!isFail && <animate attributeName="opacity" values="0.3;0.8;0.3" dur={`${1.2 + i * 0.15}s`} repeatCount="indefinite" />}
+                {isFail && <animate attributeName="opacity" values="0.7;0;0" dur="0.4s" fill="freeze" />}
               </rect>
             ))}
-            {/* "Need: 20" badge on gate */}
+            {/* Energy glow */}
+            {!isSuccess && !isFail && (
+              <rect x="22" y="14" width="66" height="76" rx="4" fill="#00d4ff" opacity="0.04">
+                <animate attributeName="opacity" values="0.02;0.08;0.02" dur="2s" repeatCount="indefinite" />
+              </rect>
+            )}
+            {/* Success — bars dissolve, sparkles */}
+            {isSuccess && [0,1,2].map(i => (
+              <circle key={i} cx={35 + i * 20} cy={30 + i * 15} r="3" fill="#22c55e" opacity="0">
+                <animate attributeName="cy" values={`${30 + i * 15};${10 + i * 5}`} dur="0.6s" fill="freeze" />
+                <animate attributeName="opacity" values="0;0.9;0" dur="0.6s" fill="freeze" />
+              </circle>
+            ))}
+          </svg>
+        );
+
+      case "treasure-chest":
+        return (
+          <svg width="100" height="90" viewBox="0 0 100 90">
+            <ellipse cx="50" cy="85" rx="42" ry="6" fill="#000" opacity="0.2" />
+            {/* Chest body */}
+            <rect x="15" y="48" width="70" height="35" rx="4" fill="#8B4513" />
+            <rect x="15" y="48" width="70" height="12" rx="4" fill="#A0522D" opacity="0.5" />
+            {/* Gold bands */}
+            <rect x="15" y="56" width="70" height="3" rx="1" fill="#DAA520" opacity="0.7" />
+            <rect x="15" y="76" width="70" height="3" rx="1" fill="#DAA520" opacity="0.7" />
+            {/* Lid — opens on success */}
+            <g transform={isSuccess ? "rotate(-35 15 48)" : ""} style={{ transition: "transform 0.5s" }}>
+              <rect x="15" y="30" width="70" height="20" rx="4" fill="#A0522D" />
+              <rect x="15" y="30" width="70" height="8" rx="4" fill="#8B4513" opacity="0.6" />
+              <rect x="15" y="44" width="70" height="3" rx="1" fill="#DAA520" opacity="0.7" />
+            </g>
+            {/* Keyhole */}
+            {!isSuccess && (
+              <g>
+                <circle cx="50" cy="64" r="5" fill={isFail ? "#ef4444" : "#581c87"} opacity="0.9">
+                  {!isFail && <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />}
+                </circle>
+                <rect x="48" y="64" width="4" height="8" rx="1" fill={isFail ? "#ef4444" : "#581c87"} opacity="0.9" />
+              </g>
+            )}
+            {/* Gold sparkles on success */}
+            {isSuccess && [0,1,2,3].map(i => (
+              <circle key={i} cx={30 + i * 14} cy="42" r="2" fill="#fbbf24">
+                <animate attributeName="cy" values="42;20;10" dur={`${0.5 + i * 0.1}s`} fill="freeze" />
+                <animate attributeName="opacity" values="0;1;0.3" dur={`${0.5 + i * 0.1}s`} fill="freeze" />
+              </circle>
+            ))}
+          </svg>
+        );
+
+      case "rope-bridge":
+        return (
+          <svg width="130" height="95" viewBox="0 0 130 95">
+            {/* Chasm / gap */}
+            <rect x="20" y="60" width="90" height="35" rx="2" fill="#0a0a1a" opacity="0.85" />
+            <rect x="22" y="62" width="86" height="4" fill="#1a1a2e" opacity="0.5" />
+            {/* Left post */}
+            <rect x="10" y="20" width="10" height="55" rx="2" fill="#5c4033" />
+            <rect x="8" y="16" width="14" height="6" rx="2" fill="#7a5c40" />
+            {/* Right post */}
+            <rect x="110" y="20" width="10" height="55" rx="2" fill="#5c4033" />
+            <rect x="108" y="16" width="14" height="6" rx="2" fill="#7a5c40" />
+            {/* Hand ropes */}
+            <path d="M 15,22 Q 65,35 115,22" stroke="#8B7355" strokeWidth="2.5" fill="none" opacity="0.9" />
+            <path d="M 15,28 Q 65,40 115,28" stroke="#8B7355" strokeWidth="2" fill="none" opacity="0.7" />
+            {/* Plank rope (bottom) */}
+            <path d={`M 20,55 Q 65,${isSuccess ? 62 : isFail ? 78 : 68} 110,55`}
+              stroke="#6b5a45" strokeWidth="3" fill="none" opacity="0.85" />
+            {/* Planks */}
+            {[0,1,2,3,4,5,6].map(i => {
+              const x = 28 + i * 12;
+              const sag = isSuccess ? 3 : isFail ? 12 : 7;
+              const midSag = Math.sin((i / 6) * Math.PI) * sag;
+              return <rect key={i} x={x} y={55 + midSag} width="8" height="3" rx="0.5"
+                fill={isFail ? "#4a3020" : "#8B7355"} opacity={isFail ? "0.4" : "0.85"} />;
+            })}
+            {/* Status indicators */}
+            {isSuccess && (
+              <path d={`M 20,55 Q 65,62 110,55`} stroke="#22c55e" strokeWidth="2" fill="none" opacity="0.5">
+                <animate attributeName="opacity" values="0.2;0.6;0.2" dur="1s" repeatCount="indefinite" />
+              </path>
+            )}
+            {isFail && [0,1,2].map(i => (
+              <rect key={i} x={40 + i * 15} y="70" width="6" height="2" rx="0.5" fill="#5c4033" opacity="0">
+                <animate attributeName="y" values="65;90" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
+                <animate attributeName="opacity" values="0.8;0" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
+              </rect>
+            ))}
+            {/* Ground edges */}
+            <rect x="0" y="55" width="22" height="40" fill="#2a201a" />
+            <rect x="108" y="55" width="22" height="40" fill="#2a201a" />
+          </svg>
+        );
+
+      case "poison-check":
+        return (
+          <svg width="90" height="95" viewBox="0 0 90 95">
+            <ellipse cx="45" cy="90" rx="35" ry="5" fill="#000" opacity="0.18" />
+            {/* Shield shape */}
+            <path d="M 45,8 L 72,20 L 72,52 Q 72,75 45,85 Q 18,75 18,52 L 18,20 Z"
+              fill={isSuccess ? "#14532d" : isFail ? "#4c1d1d" : "#1e293b"} opacity="0.9" />
+            <path d="M 45,8 L 72,20 L 72,52 Q 72,75 45,85 Q 18,75 18,52 L 18,20 Z"
+              fill="none" stroke={isSuccess ? "#22c55e" : isFail ? "#ef4444" : "#7c3aed"} strokeWidth="2.5" opacity="0.8" />
+            {/* Heart/cross icon */}
+            <path d="M 45,32 L 38,40 L 45,55 L 52,40 Z"
+              fill={isSuccess ? "#22c55e" : isFail ? "#ef4444" : "#a78bfa"} opacity="0.7" />
+            <line x1="38" y1="42" x2="52" y2="42" stroke={isSuccess ? "#22c55e" : isFail ? "#ef4444" : "#a78bfa"}
+              strokeWidth="3" opacity="0.8" />
+            <line x1="45" y1="35" x2="45" y2="52" stroke={isSuccess ? "#22c55e" : isFail ? "#ef4444" : "#a78bfa"}
+              strokeWidth="3" opacity="0.8" />
+            {/* Purple mist when idle/poisoned */}
             {!isSuccess && (
               <>
-                <rect x="22" y="44" width="68" height="22" rx="5" fill="#0d1117" opacity="0.88" />
-                <text x="56" y="58" textAnchor="middle" fill={gateColor} fontSize="11" fontFamily="monospace" fontWeight="bold">⚡ Need: {requiredEnergy}</text>
+                <circle cx="30" cy="50" r="12" fill="#7c3aed" opacity="0.06">
+                  <animate attributeName="r" values="10;16;10" dur="3s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="60" cy="45" r="10" fill="#7c3aed" opacity="0.05">
+                  <animate attributeName="r" values="8;14;8" dur="2.5s" repeatCount="indefinite" />
+                </circle>
               </>
             )}
-            {/* Success open-gate glow */}
+            {/* Green glow on success */}
+            {isSuccess && (
+              <path d="M 45,8 L 72,20 L 72,52 Q 72,75 45,85 Q 18,75 18,52 L 18,20 Z"
+                fill="#22c55e" opacity="0.08">
+                <animate attributeName="opacity" values="0.04;0.15;0.04" dur="1.2s" repeatCount="indefinite" />
+              </path>
+            )}
+          </svg>
+        );
+
+      case "locked-door":
+        return (
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <ellipse cx="50" cy="95" rx="44" ry="6" fill="#000" opacity="0.2" />
+            {/* Door frame */}
+            <rect x="15" y="8" width="70" height="84" rx="3" fill="#3d2817" />
+            {/* Arch top */}
+            <path d="M 15,35 L 15,8 Q 50,-5 85,8 L 85,35" fill="#4a3420" />
+            {/* Door panels */}
+            <rect x="20" y="35" width="27" height="52" rx="2" fill="#5a3d22" />
+            <rect x="53" y="35" width="27" height="52" rx="2" fill="#5a3d22" />
+            {/* Iron bands */}
+            <rect x="15" y="30" width="70" height="4" rx="1" fill="#4a5568" opacity="0.8" />
+            <rect x="15" y="60" width="70" height="4" rx="1" fill="#4a5568" opacity="0.8" />
+            {/* Lock */}
+            {!isSuccess && (
+              <g>
+                <rect x="42" y="48" width="16" height="12" rx="3"
+                  fill={isFail ? "#7f1d1d" : "#4a5568"} opacity="0.9" />
+                <path d="M 46,48 Q 46,40 50,40 Q 54,40 54,48"
+                  stroke={isFail ? "#ef4444" : "#7c3aed"} strokeWidth="2.5" fill="none" opacity="0.8" strokeLinecap="round" />
+                <circle cx="50" cy="54" r="2" fill={isFail ? "#ef4444" : "#a78bfa"} opacity="0.8">
+                  {!isFail && <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />}
+                </circle>
+              </g>
+            )}
+            {/* Door opening on success — gap between panels */}
             {isSuccess && (
               <>
-                <ellipse cx="56" cy="54" rx="22" ry="30" fill="#22c55e" opacity="0.08">
-                  <animate attributeName="ry" values="20;34;20" dur="0.65s" repeatCount="indefinite" />
-                </ellipse>
-                {[0,1,2,3].map(i => (
-                  <circle key={i} cx={32 + i * 16} cy={24 + i * 14} r="2.5" fill="#22c55e" opacity="0.75">
-                    <animate attributeName="cy" values={`${24+i*14};${8+i*10};${24+i*14}`} dur={`${0.55+i*0.1}s`} repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.75;0;0.75" dur={`${0.55+i*0.1}s`} repeatCount="indefinite" />
-                  </circle>
+                <rect x="44" y="35" width="12" height="52" fill="#0a0a0a" opacity="0.7" />
+                <rect x="44" y="35" width="12" height="52" fill="#22c55e" opacity="0.05">
+                  <animate attributeName="opacity" values="0.02;0.12;0.02" dur="1s" repeatCount="indefinite" />
+                </rect>
+                {/* Light rays from behind door */}
+                {[0,1,2].map(i => (
+                  <line key={i} x1="50" y1={40 + i * 14} x2={isSuccess ? 50 : 50} y2={40 + i * 14}
+                    stroke="#22c55e" strokeWidth="1" opacity="0.4">
+                    <animate attributeName="x1" values="50;42" dur="0.5s" fill="freeze" />
+                    <animate attributeName="x2" values="50;58" dur="0.5s" fill="freeze" />
+                  </line>
                 ))}
               </>
             )}
           </svg>
+        );
 
-          {/* Gate status label */}
-          <div className={`absolute -top-9 left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg text-xs font-mono border whitespace-nowrap transition-all duration-400 ${
-            isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10"
-            : isFail ? "text-red-400 border-red-500/40 bg-red-500/10"
-            : "text-violet-400 border-violet-500/40 bg-violet-500/10"
-          }`}>
-            {isSuccess ? `✓ ${heroEnergy} → ${requiredEnergy} — gate open!` : isFail ? `✗ ${heroEnergy} < ${requiredEnergy}` : `energy gate · need ${requiredEnergy}`}
-          </div>
-        </div>
+      default: // rock-block
+        return (
+          <svg width="96" height="84" viewBox="0 0 96 84">
+            <ellipse cx="48" cy="78" rx="40" ry="7" fill="#000" opacity="0.22" />
+            {/* Main boulder */}
+            <ellipse cx="48" cy="48" rx="40" ry="34"
+              fill={isSuccess ? "#374151" : isFail ? "#7f1d1d" : "#4b5563"} />
+            <ellipse cx="48" cy="48" rx="40" ry="34" fill="none"
+              stroke={isSuccess ? "#6b7280" : isFail ? "#991b1b" : "#6b7280"} strokeWidth="2" opacity="0.4" />
+            {/* Rock texture */}
+            <ellipse cx="36" cy="38" rx="12" ry="8" fill="#374151" opacity="0.5" />
+            <ellipse cx="58" cy="54" rx="10" ry="7" fill="#374151" opacity="0.4" />
+            <path d="M 30,30 L 35,42 L 28,50" stroke="#555" strokeWidth="0.8" fill="none" opacity="0.4" />
+            <path d="M 62,35 L 56,48 L 64,55" stroke="#555" strokeWidth="0.8" fill="none" opacity="0.35" />
+            {/* Exclamation when blocking */}
+            {!isSuccess && !isFail && (
+              <g>
+                <polygon points="48,28 44,50 52,50" fill="#f59e0b" opacity="0.7" />
+                <text x="48" y="47" textAnchor="middle" fill="#1a1200" fontSize="12" fontWeight="bold">!</text>
+              </g>
+            )}
+            {/* Crack on success */}
+            {isSuccess && (
+              <>
+                <path d="M 44 16 L 38 38 L 46 50 L 40 76" stroke="#9ca3af" strokeWidth="2" fill="none" opacity="0.8">
+                  <animate attributeName="opacity" values="0;0.9;0.8" dur="0.4s" fill="freeze" />
+                </path>
+                <path d="M 50 20 L 56 42 L 48 55 L 54 74" stroke="#6b7280" strokeWidth="1.2" fill="none" opacity="0.5">
+                  <animate attributeName="opacity" values="0;0.6;0.5" dur="0.5s" fill="freeze" />
+                </path>
+              </>
+            )}
+          </svg>
+        );
+    }
+  };
 
-        {/* Right panel */}
-        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
-          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
-            {sceneConfig?.varDisplay || "energy = 15"}
-          </div>
-          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
-            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
-            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
-            : "text-gray-500 border-[#30363d]/40"
-          }`}>
-            {sceneConfig?.conditionLabel || "if energy >= 20:"} {isSuccess ? "✓" : isFail ? "✗" : "?"}
-          </div>
-          {isSuccess && (
-            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/5">
-              {sceneConfig?.successAction || "→ charges ahead!"}
-            </div>
-          )}
-        </div>
-
-        {clearedBadge}
-        {isSuccess && <Sparkles heroColor={heroColor} />}
-        {heroWithMeter}
-        <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
-      </div>
-    );
-  }
-
-  // ── OBSTACLE BLOCKER (default — energy / stat check with boulder) ─────
   return (
     <div className="w-full h-full relative overflow-hidden">
       <SkyBackground />
@@ -1614,37 +1731,16 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
         )}
       </svg>
 
-      {/* Boulder obstacle */}
+      {/* Context-aware obstacle visual */}
       <div className="absolute z-[9]" style={{ left: "48%", bottom: "64px", transform: "translateX(-50%)" }}>
-        <svg width="96" height="84" viewBox="0 0 96 84">
-          <ellipse cx="48" cy="78" rx="40" ry="7" fill="#000" opacity="0.22" />
-          <ellipse cx="48" cy="48" rx="40" ry="34"
-            fill={isSuccess ? "#374151" : isFail ? "#7f1d1d" : "#4b5563"} />
-          <ellipse cx="48" cy="48" rx="40" ry="34" fill="none"
-            stroke={isSuccess ? "#6b7280" : isFail ? "#991b1b" : "#6b7280"} strokeWidth="2" opacity="0.4" />
-          <ellipse cx="40" cy="38" rx="13" ry="9" fill="#374151" opacity="0.5" />
-          <ellipse cx="58" cy="54" rx="10" ry="7" fill="#374151" opacity="0.4" />
-          {/* X when blocking */}
-          {!isSuccess && !isFail && (
-            <>
-              <line x1="34" y1="34" x2="62" y2="62" stroke="#ef4444" strokeWidth="3.5" opacity="0.55" strokeLinecap="round" />
-              <line x1="62" y1="34" x2="34" y2="62" stroke="#ef4444" strokeWidth="3.5" opacity="0.55" strokeLinecap="round" />
-            </>
-          )}
-          {/* Crack on success */}
-          {isSuccess && (
-            <path d="M 44 18 L 39 42 L 46 53 L 42 74" stroke="#9ca3af" strokeWidth="1.5" fill="none" opacity="0.7">
-              <animate attributeName="opacity" values="0;0.8;0.7" dur="0.4s" repeatCount="1" fill="freeze" />
-            </path>
-          )}
-        </svg>
+        {renderObstacleVisual()}
 
         <div className={`absolute -top-9 left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg text-xs font-mono border whitespace-nowrap transition-all duration-400 ${
           isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10"
           : isFail ? "text-red-400 border-red-500/40 bg-red-500/10"
           : "text-violet-400 border-violet-500/40 bg-violet-500/10"
         }`}>
-          {isSuccess ? "✓ True — path cleared!" : isFail ? "✗ False — blocked!" : "if condition?"}
+          {isSuccess ? obsLabel.success : isFail ? obsLabel.fail : obsLabel.idle}
         </div>
       </div>
 
