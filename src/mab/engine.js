@@ -110,10 +110,17 @@ export function createMAB(arms, epsilon = 0.2) {
 export function selectArm(mab) {
   const { arms, counts, rewards, epsilon } = mab;
 
+  // WARM-UP: if any arm has never been tried, pick one of them first.
+  // This ensures every strategy gets at least one real test before
+  // exploitation can lock in on an early high-scorer.
+  const untriedArms = arms.filter((arm) => counts[arm] === 0);
+  if (untriedArms.length > 0) {
+    return untriedArms[Math.floor(Math.random() * untriedArms.length)];
+  }
+
   // EXPLORE: with probability epsilon, pick a random arm
   if (Math.random() < epsilon) {
-    const randomIndex = Math.floor(Math.random() * arms.length);
-    return arms[randomIndex];
+    return arms[Math.floor(Math.random() * arms.length)];
   }
 
   // EXPLOIT: pick the arm with the best average reward
@@ -121,8 +128,7 @@ export function selectArm(mab) {
   let bestAverage = -Infinity;
 
   for (const arm of arms) {
-    const average = counts[arm] === 0 ? 0 : rewards[arm] / counts[arm];
-
+    const average = rewards[arm] / counts[arm];
     if (average > bestAverage) {
       bestAverage = average;
       bestArm = arm;

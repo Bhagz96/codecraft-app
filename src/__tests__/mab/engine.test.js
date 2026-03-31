@@ -75,10 +75,39 @@ describe('selectArm', () => {
     vi.restoreAllMocks();
   });
 
-  it('falls back to first arm when all arms are untried (counts = 0)', () => {
-    // With epsilon 0 and all counts 0, averages are all 0 → picks first arm
+  it('WARM-UP — picks an untried arm when any arm has 0 pulls', () => {
+    // Two arms tried, one untried → must pick the untried one
     const mab = createMAB(['x', 'y', 'z'], 0);
-    expect(selectArm(mab)).toBe('x');
+    mab.counts['x'] = 3;
+    mab.rewards['x'] = 3;  // avg 1.0 — would win if exploit ran
+    mab.counts['y'] = 1;
+    mab.rewards['y'] = 0.5;
+    // 'z' is untried — warm-up must return it regardless of epsilon
+    expect(selectArm(mab)).toBe('z');
+  });
+
+  it('WARM-UP — all 5 support strategies are tried before any is repeated', () => {
+    const mab = createMAB(SUPPORT_STRATEGIES, 0);
+    const chosen = new Set();
+    // First 5 calls must each return a different strategy
+    for (let i = 0; i < SUPPORT_STRATEGIES.length; i++) {
+      const arm = selectArm(mab);
+      expect(SUPPORT_STRATEGIES).toContain(arm);
+      expect(chosen.has(arm)).toBe(false); // no repeats yet
+      chosen.add(arm);
+      updateMAB(mab, arm, 0.8); // mark it as tried
+    }
+    expect(chosen.size).toBe(SUPPORT_STRATEGIES.length);
+  });
+
+  it('WARM-UP — switches to exploit once all arms have been tried', () => {
+    const mab = createMAB(['a', 'b', 'c'], 0); // epsilon=0 forces pure exploit after warm-up
+    // Pre-fill all arms so warm-up is complete
+    mab.counts['a'] = 1; mab.rewards['a'] = 0.3;
+    mab.counts['b'] = 1; mab.rewards['b'] = 0.9; // best
+    mab.counts['c'] = 1; mab.rewards['c'] = 0.1;
+    // All tried → epsilon-greedy should exploit 'b'
+    expect(selectArm(mab)).toBe('b');
   });
 
   it('consistently exploits the best arm across many calls', () => {

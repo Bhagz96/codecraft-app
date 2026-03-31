@@ -305,19 +305,28 @@ function AdminDashboard() {
           <h2 className="text-lg font-bold text-gray-100 mb-3">
             How the Epsilon-Greedy MAB Works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4">
-              <h3 className="font-bold text-cyan-400 mb-1 font-mono text-xs">
-                1. EXPLORE (30%)
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-4">
+              <h3 className="font-bold text-orange-400 mb-1 font-mono text-xs">
+                1. WARM-UP (first 5 sessions)
               </h3>
               <p className="text-gray-400 text-xs">
-                30% of the time, a random support strategy is assigned. This ensures
-                all five strategies get tested and none is prematurely ruled out.
+                Each strategy is tried exactly once before exploitation begins.
+                Prevents an early high-scorer from locking out untested strategies.
+              </p>
+            </div>
+            <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4">
+              <h3 className="font-bold text-cyan-400 mb-1 font-mono text-xs">
+                2. EXPLORE (30%)
+              </h3>
+              <p className="text-gray-400 text-xs">
+                30% of the time, a random strategy is assigned. Keeps testing
+                all options so the MAB can detect if conditions change.
               </p>
             </div>
             <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4">
               <h3 className="font-bold text-violet-400 mb-1 font-mono text-xs">
-                2. EXPLOIT (70%)
+                3. EXPLOIT (70%)
               </h3>
               <p className="text-gray-400 text-xs">
                 70% of the time, the strategy with the highest average learning
@@ -326,7 +335,7 @@ function AdminDashboard() {
             </div>
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
               <h3 className="font-bold text-green-400 mb-1 font-mono text-xs">
-                3. REWARD SIGNAL
+                4. REWARD SIGNAL
               </h3>
               <p className="text-gray-400 text-xs">
                 Score is based on first-try correctness and hint usage —
