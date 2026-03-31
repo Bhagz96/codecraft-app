@@ -1258,251 +1258,330 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     );
   }
 
-  // ── FORK PATH: top-down RPG map view — Zelda-style overhead ──────────
+  // ── FORK PATH: Cave Dungeon Two Tunnels ──────────────────────────────
   if (gameAction === "heroForkPath") {
-    const pathALabel = sceneConfig?.pathALabel || "⚠ A: 7";
-    const pathBLabel = sceneConfig?.pathBLabel || "✓ B: 3";
+    const pathALabel = sceneConfig?.pathALabel || "A: 7";
+    const pathBLabel = sceneConfig?.pathBLabel || "B: 3";
 
-    // Top-down tree helper (viewed from directly above)
-    const MapTree = ({ x, y, r = 18 }) => (
-      <g>
-        <ellipse cx={x + 4} cy={y + 5} rx={r + 5} ry={r * 0.55} fill="#00000030" />
-        <circle cx={x} cy={y} r={r} fill="#14532d" />
-        <circle cx={x} cy={y - 2} r={r * 0.7} fill="#166534" />
-        <circle cx={x} cy={y - 4} r={r * 0.42} fill="#22c55e" opacity="0.85" />
-        <circle cx={x - r * 0.3} cy={y - r * 0.5} r={r * 0.2} fill="#4ade80" opacity="0.4" />
-      </g>
-    );
+    // Arch geometry
+    // floorY=440, arcY=340, iR=72(inner), oR=108(outer)
+    // aCX=262(Path A center), bCX=498(Path B center)
+    const aCX = 262, bCX = 498, arcY = 340, iR = 72, oR = 108, floorY = 440;
+    // voussoir joints: 8 lines at angles 195°–345° spaced 21.4° apart
+    const vAngles = [195,216.4,237.9,259.3,280.7,302.1,323.6,345].map(d => d * Math.PI / 180);
 
     return (
       <div className="w-full h-full relative overflow-hidden">
         <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 800 500" preserveAspectRatio="xMidYMax slice">
           <defs>
-            <radialGradient id="fkDangerCore" cx="70%" cy="28%" r="38%">
-              <stop offset="0%" stopColor="#1a0808" stopOpacity="0.72" />
-              <stop offset="100%" stopColor="#1a0808" stopOpacity="0" />
+            {/* Cave wall stone gradient */}
+            <linearGradient id="dungWall" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1a1410" />
+              <stop offset="50%" stopColor="#2a2018" />
+              <stop offset="100%" stopColor="#0e0c08" />
+            </linearGradient>
+            {/* Floor gradient */}
+            <linearGradient id="dungFloor" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1e1a14" />
+              <stop offset="100%" stopColor="#0a0806" />
+            </linearGradient>
+            {/* Tunnel A interior — red/orange fire glow */}
+            <radialGradient id="dungTunnelA" cx="50%" cy="60%" r="50%">
+              <stop offset="0%" stopColor="#7f1d1d" stopOpacity="0.9" />
+              <stop offset="55%" stopColor="#450a0a" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#1a0000" stopOpacity="1" />
             </radialGradient>
-            <radialGradient id="fkVillageGlow" cx="78%" cy="88%" r="28%">
-              <stop offset="0%" stopColor="#fde68a" stopOpacity={isSuccess ? "0.5" : "0.22"} />
-              <stop offset="100%" stopColor="#fde68a" stopOpacity="0" />
+            {/* Tunnel B interior — blue-white safe glow, brightens on success */}
+            <radialGradient id="dungTunnelB" cx="50%" cy="60%" r="50%">
+              <stop offset="0%" stopColor={isSuccess ? "#bfdbfe" : "#1e3a5f"} stopOpacity="0.9" />
+              <stop offset="55%" stopColor={isSuccess ? "#1d4ed8" : "#0f2040"} stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#050814" stopOpacity="1" />
             </radialGradient>
-            <linearGradient id="fkGrassBase" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#3a7a1a" />
-              <stop offset="100%" stopColor="#4e922a" />
+            {/* Torch glow — orange */}
+            <radialGradient id="torchGlowOrange" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#f97316" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+            </radialGradient>
+            {/* Torch glow — blue (right torch) */}
+            <radialGradient id="torchGlowBlue" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#93c5fd" stopOpacity={isSuccess ? "0.8" : "0.4"} />
+              <stop offset="100%" stopColor="#93c5fd" stopOpacity="0" />
+            </radialGradient>
+            {/* Vignette overlay */}
+            <radialGradient id="dungVignette" cx="50%" cy="50%" r="70%">
+              <stop offset="0%" stopColor="black" stopOpacity="0" />
+              <stop offset="100%" stopColor="black" stopOpacity="0.75" />
+            </radialGradient>
+            {/* Mist gradient */}
+            <linearGradient id="dungMist" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#8ab4d4" stopOpacity="0" />
+              <stop offset="100%" stopColor="#8ab4d4" stopOpacity="0.12" />
             </linearGradient>
-            <linearGradient id="fkRoadApproach" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#a07838" />
-              <stop offset="100%" stopColor="#b89050" />
-            </linearGradient>
-            <linearGradient id="fkPathBGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#b89050" />
-              <stop offset="100%" stopColor={isSuccess ? "#cca85a" : "#a87840"} />
-            </linearGradient>
-            <linearGradient id="fkPathAGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#b08840" />
-              <stop offset="100%" stopColor={isSuccess ? "#5a2010" : "#906830"} />
-            </linearGradient>
+            {/* Stone block clip for arch faces */}
+            <clipPath id="clipArchA">
+              <path d={`M ${aCX-oR},${floorY} L ${aCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${aCX+oR},${arcY} L ${aCX+oR},${floorY} Z`} />
+            </clipPath>
+            <clipPath id="clipArchB">
+              <path d={`M ${bCX-oR},${floorY} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX+oR},${arcY} L ${bCX+oR},${floorY} Z`} />
+            </clipPath>
           </defs>
 
-          {/* ══ BASE GRASS ══ */}
-          <rect x="0" y="0" width="800" height="500" fill="url(#fkGrassBase)" />
+          {/* ══ CAVE BACKGROUND — dark rocky cavern ══ */}
+          <rect x="0" y="0" width="800" height="500" fill="url(#dungWall)" />
 
-          {/* Grass texture variation patches */}
-          {[[40,60,110,70],[180,30,90,60],[350,80,120,55],[580,50,100,65],[720,120,70,55],
-            [90,180,80,50],[280,200,110,60],[520,160,90,45],[700,210,80,50],
-            [30,300,100,40],[200,320,90,50],[460,290,110,45],[680,310,85,40]].map(([x,y,w,h],i) => (
-            <ellipse key={i} cx={x+w/2} cy={y+h/2} rx={w/2} ry={h/2}
-              fill={["#5aaa32","#3a7a18","#4e9220"][i%3]} opacity="0.45" />
+          {/* ══ STONE BLOCK WALL TEXTURE ══ */}
+          {/* Horizontal mortar lines */}
+          {[60,120,180,240,300,360,420,480].map((y,i) => (
+            <line key={i} x1="0" y1={y} x2="800" y2={y} stroke="#0a0806" strokeWidth="2.5" opacity="0.7" />
           ))}
+          {/* Vertical mortar — alternating offset per row */}
+          {[0,1,2,3,4,5,6,7].map(row => {
+            const y = row * 60;
+            const offset = row % 2 === 0 ? 0 : 60;
+            return [0,1,2,3,4,5,6,7,8,9,10,11].map(col => {
+              const x = col * 120 + offset;
+              return <line key={`${row}-${col}`} x1={x} y1={y} x2={x} y2={y+60} stroke="#0a0806" strokeWidth="2" opacity="0.55" />;
+            });
+          })}
+          {/* Stone block color variation */}
+          {[0,1,2,3,4,5,6,7].map(row => {
+            const y = row * 60;
+            const offset = row % 2 === 0 ? 0 : 60;
+            return [0,1,2,3,4,5,6,7,8,9,10,11].map(col => {
+              const x = col * 120 + offset;
+              const shade = ["#1e1a14","#221e16","#1a1610","#262018","#1c1812"][((row*7+col*3)%5)];
+              return <rect key={`b${row}-${col}`} x={x+1} y={y+1} width="118" height="58" fill={shade} opacity="0.45" />;
+            });
+          })}
 
-          {/* ══ DARK DANGER FOREST ZONE — upper right (Path A destination) ══ */}
-          <rect x="490" y="0" width="310" height="290" fill="#1c4a10" opacity="0.9" />
-          {/* Dense tree canopy cluster */}
-          {[[510,22,20],[548,50,22],[592,18,18],[634,38,22],[678,15,19],[722,42,21],[765,20,18],
-            [525,80,19],[568,68,21],[612,84,20],[658,62,19],[702,80,21],[752,65,18],
-            [518,112,18],[562,126,21],[608,106,19],[654,120,21],[700,104,19],[748,118,18],
-            [530,152,19],[576,164,20],[622,144,19],[668,158,21],[714,140,18],[760,155,19],
-            [515,192,18],[562,204,21],[610,184,19],[656,198,20],[704,180,18],[755,196,19],
-            [528,232,18],[575,248,20],[622,226,19],[668,242,21],[715,224,18],[762,240,19]].map(([x,y,r],i) => (
+          {/* ══ STALACTITES hanging from ceiling ══ */}
+          {[[60,0,18,55],[140,0,12,42],[220,0,20,62],[310,0,14,48],[395,0,10,35],
+            [450,0,16,52],[540,0,22,68],[620,0,13,44],[700,0,18,58],[770,0,11,38]].map(([x,y,w,h],i) => (
             <g key={i}>
-              <circle cx={x} cy={y} r={r} fill="#0e2a08" />
-              <circle cx={x} cy={y-2} r={r*0.68} fill="#12340a" />
-              <circle cx={x} cy={y-3} r={r*0.4} fill="#183e10" opacity="0.8" />
+              <polygon points={`${x},${y} ${x+w},${y} ${x+w/2},${y+h}`}
+                fill={["#1e1a14","#2a2018","#161210"][i%3]} />
+              <polygon points={`${x},${y} ${x+w*0.35},${y} ${x+w/2},${y+h}`}
+                fill="#2e2820" opacity="0.5" />
+              {/* Water drip */}
+              <circle cx={x+w/2} cy={y+h+2} r="2" fill="#4a8ab4" opacity="0.55">
+                <animate attributeName="cy" values={`${y+h+2};${y+h+18};${y+h+2}`}
+                  dur={`${2.8+i*0.4}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.55;0;0.55"
+                  dur={`${2.8+i*0.4}s`} repeatCount="indefinite" />
+              </circle>
             </g>
           ))}
-          {/* Danger fog overlay */}
-          <rect x="490" y="0" width="310" height="290" fill="url(#fkDangerCore)" />
-          {/* Red danger tint — intensifies on success (confirming this was the wrong path) */}
-          <rect x="490" y="0" width="310" height="290" fill="#3a0808"
-            opacity={isSuccess ? "0.38" : "0.12"} style={{ transition: "opacity 0.6s" }}>
-            {isSuccess && <animate attributeName="opacity" values="0.28;0.48;0.28" dur="1.6s" repeatCount="indefinite" />}
-          </rect>
-          {/* Skull markers in forest */}
-          {[[555,262],[640,256],[728,260]].map(([x,y],i) => (
-            <g key={i} opacity={isSuccess ? "0.18" : "0.65"}>
-              <circle cx={x} cy={y} r="11" fill="#1a0808" stroke="#7f2a2a" strokeWidth="1.5" />
-              <text x={x} y={y+4} textAnchor="middle" fill="#dc2626" fontSize="11">☠</text>
+          {/* ══ FLOOR STONE TILES ══ */}
+          <rect x="0" y={440} width="800" height="60" fill="url(#dungFloor)" />
+          {[0,1,2,3,4,5,6,7,8,9,10,11].map(col => (
+            <g key={col}>
+              <rect x={col*68} y={441} width="67" height="29" fill="none" stroke="#0a0806" strokeWidth="1.5" opacity="0.6" />
+              <rect x={col*68+34} y={471} width="67" height="28" fill="none" stroke="#0a0806" strokeWidth="1.5" opacity="0.6" />
             </g>
           ))}
-          {/* DANGER label banner */}
-          <rect x="554" y="275" width="82" height="20" rx="4" fill="#7f1d1d" opacity="0.9" />
-          <text x="595" y="289" textAnchor="middle" fill="#fca5a5" fontSize="9"
-            fontFamily="monospace" fontWeight="bold">⚠ DANGER</text>
 
-          {/* ══ VILLAGE ZONE — lower right (Path B destination) ══ */}
-          {/* Clearing */}
-          <ellipse cx="680" cy="448" rx="150" ry="52" fill="#5aaa30" opacity="0.55" />
-          {/* Village warm glow */}
-          <rect x="540" y="395" width="260" height="105" fill="url(#fkVillageGlow)" />
-          {/* Building 1 — stone house top-down */}
-          <rect x="622" y="414" width="34" height="26" rx="2" fill="#8a7a5a" />
-          <line x1="622" y1="427" x2="656" y2="427" stroke="#6a5a3a" strokeWidth="1.8" opacity="0.75" />
-          <rect x="628" y="417" width="6" height="5" fill="#1a1208" opacity="0.85" />
-          <rect x="641" y="417" width="6" height="5" fill="#1a1208" opacity="0.85" />
-          <rect x="637" y="432" width="8" height="8" fill="#4a3820" opacity="0.8" />
-          {/* Building 2 */}
-          <rect x="666" y="418" width="28" height="22" rx="2" fill="#8a7a5a" />
-          <line x1="666" y1="429" x2="694" y2="429" stroke="#6a5a3a" strokeWidth="1.5" opacity="0.7" />
-          <rect x="671" y="421" width="5" height="4" fill="#1a1208" opacity="0.85" />
-          <rect x="681" y="421" width="5" height="4" fill="#1a1208" opacity="0.85" />
-          {/* Well */}
-          <circle cx="716" cy="432" r="8" fill="#6a5a45" stroke="#4a3a28" strokeWidth="2" />
-          <circle cx="716" cy="432" r="4" fill="#1a3040" opacity="0.9" />
-          {/* Cobblestone plaza dots */}
-          {[[600,440],[612,445],[624,438],[636,444],[648,439],[660,446],[672,441],[684,447],
-            [696,440],[708,446],[720,442],[732,447],[744,441]].map(([x,y],i) => (
-            <ellipse key={i} cx={x} cy={y} rx="4" ry="2.5" fill="#c4a85a" opacity="0.3" />
-          ))}
-          {/* Village pulsing beacon on success */}
-          {isSuccess && (
-            <ellipse cx="672" cy="437" rx="95" ry="35" fill="#fde68a" opacity="0.18">
-              <animate attributeName="opacity" values="0.08;0.26;0.08" dur="2s" repeatCount="indefinite" />
+          {/* ══ APPROACH PATH — worn stone ground leading to tunnels ══ */}
+          <path d="M 0,440 L 154,440 L 154,500 L 0,500 Z" fill="#1a1610" opacity="0.4" />
+          {/* Worn center track */}
+          <path d="M 0,455 Q 80,450 154,453" stroke="#2e2820" strokeWidth="8" fill="none" opacity="0.5" />
+
+          {/* ══ TUNNEL A INTERIOR — red glowing darkness ══ */}
+          <path d={`M ${aCX-iR},${440} L ${aCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${aCX+iR},${arcY} L ${aCX+iR},${440} Z`}
+            fill="url(#dungTunnelA)" />
+          {/* Red ambient pulse on tunnel A */}
+          <path d={`M ${aCX-iR},${440} L ${aCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${aCX+iR},${arcY} L ${aCX+iR},${440} Z`}
+            fill="#ef4444" opacity="0.08">
+            <animate attributeName="opacity" values="0.04;0.15;0.04" dur="1.8s" repeatCount="indefinite" />
+          </path>
+          {/* Glowing eyes in tunnel A darkness */}
+          <g opacity={isSuccess ? "0.2" : "0.85"} style={{ transition: "opacity 0.8s" }}>
+            <ellipse cx={aCX-18} cy={arcY+55} rx="5" ry="3" fill="#dc2626" opacity="0.9">
+              <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.2s" repeatCount="indefinite" />
             </ellipse>
+            <ellipse cx={aCX-6} cy={arcY+55} rx="5" ry="3" fill="#dc2626" opacity="0.9">
+              <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.2s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx={aCX+14} cy={arcY+72} rx="4.5" ry="2.5" fill="#dc2626" opacity="0.7">
+              <animate attributeName="opacity" values="0.7;0.1;0.7" dur="3.1s" begin="0.5s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx={aCX+25} cy={arcY+72} rx="4.5" ry="2.5" fill="#dc2626" opacity="0.7">
+              <animate attributeName="opacity" values="0.7;0.1;0.7" dur="3.1s" begin="0.5s" repeatCount="indefinite" />
+            </ellipse>
+          </g>
+          {/* Danger fire lick at mouth of tunnel A */}
+          {!isSuccess && (
+            <g opacity="0.7">
+              <path d={`M ${aCX-30},${440} Q ${aCX-20},${410} ${aCX-8},${425} Q ${aCX},${405} ${aCX+10},${420} Q ${aCX+22},${408} ${aCX+30},${440}`}
+                fill="#ef4444" opacity="0.5">
+                <animate attributeName="opacity" values="0.3;0.65;0.3" dur="0.6s" repeatCount="indefinite" />
+              </path>
+              <path d={`M ${aCX-20},${440} Q ${aCX-8},${415} ${aCX+5},${430} Q ${aCX+15},${412} ${aCX+22},${440}`}
+                fill="#f97316" opacity="0.4">
+                <animate attributeName="opacity" values="0.25;0.55;0.25" dur="0.8s" begin="0.1s" repeatCount="indefinite" />
+              </path>
+            </g>
           )}
-          {/* SAFE label */}
-          <rect x="625" y="460" width="74" height="20" rx="4"
-            fill={isSuccess ? "#14532d" : "#1a3a20"} opacity="0.92" />
-          <text x="662" y="474" textAnchor="middle"
-            fill={isSuccess ? "#86efac" : "#6aaa6a"} fontSize="9"
-            fontFamily="monospace" fontWeight="bold">{isSuccess ? "✓ SAFE" : "🏘 VILLAGE"}</text>
 
-          {/* ══ PATH A — diagonal dirt road toward danger forest ══ */}
-          <polygon points="392,418 800,42 800,108 406,462" fill="url(#fkPathAGrad)"
-            opacity={isSuccess ? "0.45" : "0.85"} style={{ transition: "opacity 0.6s" }} />
-          {/* Path A edges (dashed) */}
-          <path d="M 394,418 L 800,44" stroke="#d4b060" strokeWidth="1.5" fill="none"
-            strokeDasharray="14,9" opacity={isSuccess ? "0.18" : "0.5"} />
-          <path d="M 406,462 L 800,106" stroke="#d4b060" strokeWidth="1.5" fill="none"
-            strokeDasharray="14,9" opacity={isSuccess ? "0.15" : "0.42"} />
-          {/* Thorny bushes lining Path A danger side */}
-          {!isSuccess && [[455,432],[510,412],[565,390],[622,366],[680,340],[738,314]].map(([x,y],i) => (
-            <g key={i}>
-              <circle cx={x-20} cy={y} r="9" fill="#5a1a1a" opacity="0.65" />
-              <circle cx={x+28} cy={y+9} r="7" fill="#5a1a1a" opacity="0.55" />
-            </g>
-          ))}
-
-          {/* ══ PATH B — safe horizontal road ══ */}
-          <rect x="402" y="420" width="398" height="42" fill="url(#fkPathBGrad)" />
-          {/* Path B center dashes */}
-          <line x1="412" y1="441" x2="792" y2="441" stroke="#f0d898"
-            strokeWidth="2.2" strokeDasharray="18,11" opacity="0.55" />
-          {/* Path B edges */}
-          <line x1="402" y1="420" x2="800" y2="420" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
-          <line x1="402" y1="462" x2="800" y2="462" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
-          {/* Wildflowers along Path B */}
-          {[[428,412],[476,466],[532,409],[588,467],[644,411],[702,468],[758,412]].map(([x,y],i) => (
-            <g key={i} opacity={isSuccess ? "1" : "0.55"}>
-              <circle cx={x} cy={y} r="3.5" fill={["#fbbf24","#f472b6","#a78bfa","#34d399"][i%4]} />
-              <circle cx={x} cy={y} r="1.5" fill="white" opacity="0.6" />
-            </g>
-          ))}
-          {/* Path B success glow */}
+          {/* ══ TUNNEL B INTERIOR — blue-white safe glow ══ */}
+          <path d={`M ${bCX-iR},${440} L ${bCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${bCX+iR},${arcY} L ${bCX+iR},${440} Z`}
+            fill="url(#dungTunnelB)" />
+          {/* Safe exit light at end of tunnel B */}
+          <ellipse cx={bCX} cy={arcY+20} rx={iR*0.55} ry="22"
+            fill={isSuccess ? "#bfdbfe" : "#1e40af"} opacity={isSuccess ? "0.45" : "0.18"}
+            style={{ transition: "all 0.8s" }}>
+            {isSuccess && <animate attributeName="opacity" values="0.35;0.6;0.35" dur="1.4s" repeatCount="indefinite" />}
+          </ellipse>
+          {/* Tunnel B success bright flash */}
           {isSuccess && (
-            <>
-              <rect x="402" y="420" width="398" height="42" fill="#22c55e" opacity="0.08">
-                <animate attributeName="opacity" values="0.04;0.16;0.04" dur="1.3s" repeatCount="indefinite" />
-              </rect>
-              {[0,1,2,3].map(i => (
-                <circle key={i} r="3.5" fill="#4ade80" opacity="0.9">
-                  <animate attributeName="cx"
-                    values={`412;${520+i*55};${660+i*38}`}
-                    dur={`${1.1+i*0.28}s`} begin={`${i*0.32}s`} repeatCount="indefinite" />
-                  <animate attributeName="cy" values="441;439;437"
-                    dur={`${1.1+i*0.28}s`} begin={`${i*0.32}s`} repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0;0.9;0"
-                    dur={`${1.1+i*0.28}s`} begin={`${i*0.32}s`} repeatCount="indefinite" />
-                </circle>
-              ))}
-            </>
+            <path d={`M ${bCX-iR},${440} L ${bCX-iR},${arcY} A ${iR},${iR} 0 0 1 ${bCX+iR},${arcY} L ${bCX+iR},${440} Z`}
+              fill="#93c5fd" opacity="0.18">
+              <animate attributeName="opacity" values="0.1;0.32;0.1" dur="1s" repeatCount="indefinite" />
+            </path>
           )}
 
-          {/* ══ MAIN APPROACH ROAD (left → fork) ══ */}
-          <rect x="0" y="420" width="408" height="42" fill="#b09048" />
-          <line x1="0" y1="420" x2="408" y2="420" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="462" x2="408" y2="462" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
-          <line x1="0" y1="441" x2="396" y2="441" stroke="#f0d898"
-            strokeWidth="2.2" strokeDasharray="18,11" opacity="0.55" />
-
-          {/* ══ FORK JUNCTION (dirt diamond) ══ */}
-          <polygon points="378,414 422,414 432,468 368,468" fill="#c4a050" />
-          <polygon points="378,414 422,414 432,468 368,468" fill="none"
-            stroke="#d4b060" strokeWidth="1.5" opacity="0.5" />
-
-          {/* ══ TREES — lining approach road ══ */}
-          {/* Above road */}
-          {[[55,398,17],[128,393,16],[205,399,18],[285,394,16],[355,397,17]].map(([x,y,r],i) => (
-            <MapTree key={`ta${i}`} x={x} y={y} r={r} />
+          {/* ══ ARCH A — outer stone surround with voussoir joints ══ */}
+          {/* Outer stone donut */}
+          <path d={`M ${aCX-oR},${440} L ${aCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${aCX+oR},${arcY} L ${aCX+oR},${440} L ${aCX+iR},${440} L ${aCX+iR},${arcY} A ${iR},${iR} 0 0 0 ${aCX-iR},${arcY} L ${aCX-iR},${440} Z`}
+            fill="#2a2018" stroke="#0e0c08" strokeWidth="1.5" />
+          {/* Voussoir joints on arch A */}
+          {vAngles.map((theta, i) => (
+            <line key={i}
+              x1={aCX + iR * Math.cos(theta)} y1={arcY + iR * Math.sin(theta)}
+              x2={aCX + oR * Math.cos(theta)} y2={arcY + oR * Math.sin(theta)}
+              stroke="#0e0c08" strokeWidth="2" opacity="0.75" />
           ))}
-          {/* Below road */}
-          {[[70,470,15],[148,474,16],[228,468,17],[318,472,15]].map(([x,y,r],i) => (
-            <MapTree key={`tb${i}`} x={x} y={y} r={r} />
-          ))}
-          {/* Trees along top border */}
-          {[[18,28,14],[55,15,13],[100,32,15],[155,18,13],[230,25,14],[310,14,13],
-            [385,28,14],[445,15,13]].map(([x,y,r],i) => (
-            <MapTree key={`tt${i}`} x={x} y={y} r={r} />
-          ))}
-          {/* Trees framing the dangerous forest entrance */}
-          <MapTree x={490} y={298} r={20} />
-          <MapTree x={490} y={335} r={18} />
-          <MapTree x={490} y={372} r={19} />
-          <MapTree x={490} y={410} r={17} />
+          {/* Keystone highlight at top of arch A */}
+          <path d={`M ${aCX-14},${arcY-oR+8} A ${oR},${oR} 0 0 1 ${aCX+14},${arcY-oR+8} L ${aCX+iR*0.18},${arcY-iR+8} A ${iR},${iR} 0 0 0 ${aCX-iR*0.18},${arcY-iR+8} Z`}
+            fill="#3a3025" />
+          {/* Stone highlight edge on arch A left */}
+          <path d={`M ${aCX-oR},${440} L ${aCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${aCX},${arcY-oR}`}
+            stroke="#4a3e30" strokeWidth="2.5" fill="none" opacity="0.5" />
 
-          {/* ══ SIGNPOST at fork ══ */}
-          <rect x="397" y="362" width="6" height="60" rx="2" fill="#8a6835" />
-          <rect x="394" y="358" width="12" height="6" rx="2" fill="#6a4a20" />
-          {/* Sign A — angled toward danger forest (upper right) */}
-          <g transform="translate(403,380) rotate(-38)">
-            <rect x="-6" y="-10" width="58" height="20" rx="3"
-              fill={isSuccess ? "#4b0808" : "#3a2a14"} opacity="0.96" />
-            <rect x="-6" y="-10" width="58" height="20" rx="3" fill="none"
-              stroke={isSuccess ? "#ef4444" : "#7a5a28"} strokeWidth="1.5" opacity="0.9" />
-            <text x="23" y="5" textAnchor="middle"
-              fill={isSuccess ? "#fca5a5" : "#e8d8a8"} fontSize="8"
-              fontFamily="monospace" fontWeight="bold">{pathALabel}</text>
-          </g>
-          {/* Sign B — pointing right toward village */}
-          <g transform="translate(403,410)">
-            <rect x="-6" y="-10" width="58" height="20" rx="3"
-              fill={isSuccess ? "#14532d" : "#3a2a14"} opacity="0.96" />
-            <rect x="-6" y="-10" width="58" height="20" rx="3" fill="none"
-              stroke={isSuccess ? "#22c55e" : "#7a5a28"} strokeWidth="1.5" opacity="0.9" />
-            <text x="23" y="5" textAnchor="middle"
-              fill={isSuccess ? "#86efac" : "#e8d8a8"} fontSize="8"
-              fontFamily="monospace" fontWeight="bold">{pathBLabel}</text>
+          {/* ══ SKULL carved above arch A ══ */}
+          <g transform={`translate(${aCX},${arcY-oR-22})`} opacity={isSuccess ? "0.25" : "0.9"}
+            style={{ transition: "opacity 0.8s" }}>
+            <ellipse cx="0" cy="0" rx="16" ry="14" fill="#2a1a10" stroke="#5a2a10" strokeWidth="1.5" />
+            <ellipse cx="0" cy="0" rx="11" ry="9" fill="#1e1208" opacity="0.7" />
+            {/* Eye sockets */}
+            <ellipse cx="-5" cy="-1" rx="4" ry="4.5" fill="#0a0604" />
+            <ellipse cx="5" cy="-1" rx="4" ry="4.5" fill="#0a0604" />
+            {/* Nose */}
+            <path d="M -2,5 L 0,8 L 2,5" stroke="#4a2a14" strokeWidth="1.2" fill="none" />
+            {/* Teeth */}
+            <rect x="-7" y="8" width="3" height="5" rx="1" fill="#2a1a0a" />
+            <rect x="-2.5" y="8" width="3" height="6" rx="1" fill="#2a1a0a" />
+            <rect x="2" y="8" width="3" height="5" rx="1" fill="#2a1a0a" />
+            {/* Red glow in eye sockets */}
+            <ellipse cx="-5" cy="-1" rx="2.5" ry="3" fill="#dc2626" opacity="0.6">
+              <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="5" cy="-1" rx="2.5" ry="3" fill="#dc2626" opacity="0.6">
+              <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" begin="0.3s" repeatCount="indefinite" />
+            </ellipse>
           </g>
 
-          {/* ══ FOREGROUND GRASS STRIP ══ */}
-          <rect x="0" y="470" width="800" height="30" fill="#3a7a18" opacity="0.85" />
-          {[18,50,90,135,180,225,265,310,360,410,455,505,555,605,655,705,750,785].map((x,i) => (
+          {/* ══ ARCH B — outer stone surround with voussoir joints ══ */}
+          <path d={`M ${bCX-oR},${440} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX+oR},${arcY} L ${bCX+oR},${440} L ${bCX+iR},${440} L ${bCX+iR},${arcY} A ${iR},${iR} 0 0 0 ${bCX-iR},${arcY} L ${bCX-iR},${440} Z`}
+            fill="#2a2018" stroke="#0e0c08" strokeWidth="1.5" />
+          {vAngles.map((theta, i) => (
+            <line key={i}
+              x1={bCX + iR * Math.cos(theta)} y1={arcY + iR * Math.sin(theta)}
+              x2={bCX + oR * Math.cos(theta)} y2={arcY + oR * Math.sin(theta)}
+              stroke="#0e0c08" strokeWidth="2" opacity="0.75" />
+          ))}
+          {/* Keystone arch B */}
+          <path d={`M ${bCX-14},${arcY-oR+8} A ${oR},${oR} 0 0 1 ${bCX+14},${arcY-oR+8} L ${bCX+iR*0.18},${arcY-iR+8} A ${iR},${iR} 0 0 0 ${bCX-iR*0.18},${arcY-iR+8} Z`}
+            fill="#3a3025" />
+          {/* Safe glow outline on arch B when success */}
+          {isSuccess && (
+            <path d={`M ${bCX-oR},${440} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX+oR},${arcY} L ${bCX+oR},${440} L ${bCX+iR},${440} L ${bCX+iR},${arcY} A ${iR},${iR} 0 0 0 ${bCX-iR},${arcY} L ${bCX-iR},${440} Z`}
+              fill="none" stroke="#60a5fa" strokeWidth="3" opacity="0.55">
+              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.2s" repeatCount="indefinite" />
+            </path>
+          )}
+          {/* Stone highlight on arch B */}
+          <path d={`M ${bCX-oR},${440} L ${bCX-oR},${arcY} A ${oR},${oR} 0 0 1 ${bCX},${arcY-oR}`}
+            stroke="#4a3e30" strokeWidth="2.5" fill="none" opacity="0.5" />
+
+          {/* ══ STONE SLABS with engraved danger values ══ */}
+          {/* Slab A — left of Arch A */}
+          <rect x={aCX-oR-72} y={arcY+20} width="66" height="90" rx="4" fill="#1e1a12" stroke="#2e2818" strokeWidth="2" />
+          <rect x={aCX-oR-70} y={arcY+22} width="62" height="86" rx="3" fill="none" stroke="#3a3020" strokeWidth="1" opacity="0.5" />
+          <text x={aCX-oR-39} y={arcY+55} textAnchor="middle" fill="#dc2626" fontSize="13"
+            fontFamily="monospace" fontWeight="bold" opacity="0.9">⚠</text>
+          <text x={aCX-oR-39} y={arcY+73} textAnchor="middle" fill="#fca5a5" fontSize="10"
+            fontFamily="monospace" fontWeight="bold">{pathALabel}</text>
+          <text x={aCX-oR-39} y={arcY+91} textAnchor="middle" fill="#9ca3af" fontSize="8"
+            fontFamily="monospace" opacity="0.7">DANGER</text>
+          {/* Stone crack on slab A */}
+          <path d={`M ${aCX-oR-55},${arcY+30} L ${aCX-oR-48},${arcY+45} L ${aCX-oR-52},${arcY+60}`}
+            stroke="#0a0806" strokeWidth="1.5" fill="none" opacity="0.6" />
+
+          {/* Slab B — right of Arch B */}
+          <rect x={bCX+oR+6} y={arcY+20} width="66" height="90" rx="4"
+            fill={isSuccess ? "#0f1e30" : "#1e1a12"} stroke={isSuccess ? "#1e3a5f" : "#2e2818"} strokeWidth="2"
+            style={{ transition: "all 0.6s" }} />
+          <rect x={bCX+oR+8} y={arcY+22} width="62" height="86" rx="3" fill="none"
+            stroke={isSuccess ? "#3b82f6" : "#3a3020"} strokeWidth="1" opacity="0.5" />
+          <text x={bCX+oR+39} y={arcY+55} textAnchor="middle"
+            fill={isSuccess ? "#60a5fa" : "#9ca3af"} fontSize="13"
+            fontFamily="monospace" fontWeight="bold" opacity="0.9">✓</text>
+          <text x={bCX+oR+39} y={arcY+73} textAnchor="middle"
+            fill={isSuccess ? "#93c5fd" : "#d1d5db"} fontSize="10"
+            fontFamily="monospace" fontWeight="bold">{pathBLabel}</text>
+          <text x={bCX+oR+39} y={arcY+91} textAnchor="middle"
+            fill={isSuccess ? "#60a5fa" : "#9ca3af"} fontSize="8"
+            fontFamily="monospace" opacity="0.7">SAFE</text>
+
+          {/* ══ THREE TORCHES — left of A, between A&B, right of B ══ */}
+          {/* Torch left of A */}
+          {[[aCX-oR-16, arcY+90, "orange"], [(aCX+oR+bCX-iR)/2, arcY+90, "orange"], [bCX+oR+16, arcY+90, "blue"]].map(([tx,ty,color],i) => (
             <g key={i}>
-              <path d={`M${x},500 C${x-2},488 ${x-5},480 ${x-3},470`}
-                stroke="#4ade80" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.55" />
-              <path d={`M${x+5},500 C${x+6},490 ${x+3},482 ${x+5},472`}
-                stroke="#22c55e" strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.45" />
+              {/* Glow circle */}
+              <circle cx={tx} cy={ty-30} r="30" fill={color === "blue" ? "url(#torchGlowBlue)" : "url(#torchGlowOrange)"} />
+              {/* Torch handle */}
+              <rect x={tx-3} y={ty-18} width="6" height="22" rx="2"
+                fill="#6b4a20" stroke="#4a3015" strokeWidth="1" />
+              {/* Torch head */}
+              <rect x={tx-5} y={ty-26} width="10" height="9" rx="2"
+                fill="#8a5a28" />
+              {/* Flame */}
+              <path d={`M ${tx},${ty-35} Q ${tx-6},${ty-44} ${tx-3},${ty-50} Q ${tx},${ty-42} ${tx+5},${ty-48} Q ${tx+7},${ty-40} ${tx},${ty-35}`}
+                fill={color === "blue" ? "#93c5fd" : "#f97316"} opacity="0.9">
+                <animate attributeName="opacity" values="0.8;1;0.7;0.95;0.8"
+                  dur={`${0.5+i*0.13}s`} repeatCount="indefinite" />
+              </path>
+              <path d={`M ${tx},${ty-35} Q ${tx+4},${ty-46} ${tx+1},${ty-53} Q ${tx-2},${ty-45} ${tx-4},${ty-50} Q ${tx-6},${ty-42} ${tx},${ty-35}`}
+                fill={color === "blue" ? "#bfdbfe" : "#fbbf24"} opacity="0.7">
+                <animate attributeName="opacity" values="0.6;0.9;0.5;0.8;0.6"
+                  dur={`${0.42+i*0.11}s`} begin="0.1s" repeatCount="indefinite" />
+              </path>
             </g>
           ))}
+
+          {/* ══ STONE CRACKS on wall between arches ══ */}
+          <path d={`M ${aCX+oR+15},${arcY-20} L ${aCX+oR+28},${arcY+10} L ${aCX+oR+22},${arcY+40} L ${aCX+oR+35},${arcY+70}`}
+            stroke="#0a0806" strokeWidth="2" fill="none" opacity="0.65" />
+          <path d={`M ${aCX+oR+24},${arcY+25} L ${aCX+oR+38},${arcY+32}`}
+            stroke="#0a0806" strokeWidth="1.5" fill="none" opacity="0.5" />
+          {/* Crack on left wall */}
+          <path d={`M 45,${arcY-40} L 62,${arcY} L 55,${arcY+50} L 70,${arcY+90}`}
+            stroke="#0a0806" strokeWidth="2" fill="none" opacity="0.55" />
+
+          {/* ══ FLOOR MIST ══ */}
+          <rect x="0" y={420} width="800" height="80" fill="url(#dungMist)" opacity="0.7" />
+          {/* Mist wisp animations */}
+          {[80,240,400,560,720].map((mx,i) => (
+            <ellipse key={i} cx={mx} cy={448} rx="55" ry="12" fill="#8ab4d4" opacity="0">
+              <animate attributeName="cx" values={`${mx};${mx+35};${mx}`}
+                dur={`${5+i*1.2}s`} repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0;0.1;0.07;0.12;0"
+                dur={`${5+i*1.2}s`} repeatCount="indefinite" />
+            </ellipse>
+          ))}
+
+          {/* ══ VIGNETTE overlay ══ */}
+          <rect x="0" y="0" width="800" height="500" fill="url(#dungVignette)" />
         </svg>
 
         {/* Condition panel */}
