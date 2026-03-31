@@ -392,7 +392,7 @@ function LessonPage() {
                     onClick={() => setShowWorkedExample(false)}
                     className="mt-2 text-amber-400 text-xs font-mono hover:text-amber-300 transition-colors cursor-pointer"
                   >
-                    Got it, show question →
+                    Now try it yourself →
                   </button>
                 </div>
               );
@@ -478,18 +478,20 @@ function LessonPage() {
             )}
           </div>
 
-          {/* Code challenge */}
-          <div className="flex-1">
-            <ModeComponent
-              step={step}
-              onAnswer={handleAnswer}
-              feedback={canRetry ? null : feedback}
-              hero={hero}
-            />
-          </div>
+          {/* Code challenge — hidden while worked example is showing */}
+          {!showWorkedExample && (
+            <div className="flex-1">
+              <ModeComponent
+                step={step}
+                onAnswer={handleAnswer}
+                feedback={canRetry ? null : feedback}
+                hero={hero}
+              />
+            </div>
+          )}
 
           {/* Next button */}
-          {feedback !== null && (
+          {!showWorkedExample && feedback !== null && (
             <div className="text-center lg:text-right">
               <button
                 onClick={handleNext}
