@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { completeLevel } from "../data/progress";
@@ -13,16 +13,22 @@ import {
   createMAB,
   selectArm,
   updateMAB,
+  calculateRewardScore,
   MODALITIES,
   REWARD_TYPES,
+  SUPPORT_STRATEGIES,
+  SUPPORT_LABELS,
 } from "../mab/engine";
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
 
 /**
- * LESSON PAGE — v3 Side-by-Side Layout
- * ======================================
+ * LESSON PAGE — v4 with Instructional Support Strategy MAB
+ * =========================================================
  * Desktop: Game scene on LEFT, code/questions on RIGHT
  * Mobile: Stacked vertically (game on top, code below)
+ *
+ * The primary MAB now selects a SUPPORT STRATEGY that determines
+ * how the learner is scaffolded through each question.
  */
 
 function getSceneId(conceptId, level) {
@@ -49,39 +55,183 @@ function LessonPage() {
 
   const [showIntro, setShowIntro] = useState(true);
 
-  const { modality, rewardType } = useMemo(() => {
+  // ── MAB arm selection (all three layers) ────────────────────────
+  const { modality, rewardType, supportStrategy } = useMemo(() => {
     const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
     const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
+    const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
+
     const modalityMAB = savedModalityMAB ? JSON.parse(savedModalityMAB) : createMAB(MODALITIES, 0.3);
     const rewardMAB = savedRewardMAB ? JSON.parse(savedRewardMAB) : createMAB(REWARD_TYPES, 0.3);
-    return { modality: selectArm(modalityMAB), rewardType: selectArm(rewardMAB) };
-  }, [conceptId, levelNum]);
+    const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
+
+    return {
+      modality: selectArm(modalityMAB),
+      rewardType: selectArm(rewardMAB),
+      supportStrategy: selectArm(supportMAB),
+    };
+  }, [conceptId, levelNum]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [currentStep, setCurrentStep] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [correctCount, setCorrectCount] = useState(0);
-  const [session] = useState(() => startSession(conceptId, levelNum, modality, rewardType));
+  const [session] = useState(() => startSession(conceptId, levelNum, modality, rewardType, supportStrategy));
   const [sceneResult, setSceneResult] = useState(null);
 
+  // ── Per-question tracking state ─────────────────────────────────
+  const [attempts, setAttempts] = useState(0);       // attempts on current question
+  const [hintCount, setHintCount] = useState(0);     // hints used on current question
+  const [hintVisible, setHintVisible] = useState(false);
+  const [showWorkedExample, setShowWorkedExample] = useState(
+    supportStrategy === "worked_example_first"
+  );
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [stepScaffoldPhase, setStepScaffoldPhase] = useState(0); // for step_by_step_scaffold
+
+  // Aggregate tracking
+  const [firstTryCount, setFirstTryCount] = useState(0);
+  const [totalAttempts, setTotalAttempts] = useState(0);
+  const [totalHints, setTotalHints] = useState(0);
+  const [stepDetails, setStepDetails] = useState([]);
+
+  // ── Hint text generator ─────────────────────────────────────────
+  const getHintForStep = useCallback((step) => {
+    if (step.explanation) {
+      // Extract first sentence as hint
+      const firstSentence = step.explanation.split(".")[0] + ".";
+      return firstSentence;
+    }
+    return "Think about what each line of code does, step by step.";
+  }, []);
+
+  // ── Support strategy: should hint show initially? ───────────────
+  const shouldShowHintInitially = supportStrategy === "hint_first";
+
+  // ── Handle requesting a hint ────────────────────────────────────
+  const requestHint = useCallback(() => {
+    setHintVisible(true);
+    setHintCount((prev) => prev + 1);
+  }, []);
+
+  // ── Handle answer ───────────────────────────────────────────────
   const handleAnswer = (chosenIndex) => {
-    if (feedback !== null) return;
+    if (feedback !== null && supportStrategy !== "explain_after_error") return;
+
+    // If we're showing explanation after error and user is retrying
+    if (showExplanation) {
+      setShowExplanation(false);
+    }
+
     const step = levelData.steps[currentStep];
     const isCorrect = chosenIndex === step.correctIndex;
-    if (isCorrect) setCorrectCount((prev) => prev + 1);
-    const result = isCorrect ? "correct" : "incorrect";
-    setFeedback(result);
-    setSceneResult(result);
+    const currentAttempt = attempts + 1;
+    setAttempts(currentAttempt);
+    setTotalAttempts((prev) => prev + 1);
+
+    if (isCorrect) {
+      const isFirstTry = currentAttempt === 1;
+      if (isFirstTry) setFirstTryCount((prev) => prev + 1);
+      setCorrectCount((prev) => prev + 1);
+
+      // Calculate per-question reward score
+      const reward = calculateRewardScore({
+        correct: true,
+        firstTry: isFirstTry,
+        attempts: currentAttempt,
+        hintCount,
+      });
+
+      // Record step detail
+      setStepDetails((prev) => [...prev, {
+        stepIndex: currentStep,
+        correct: true,
+        firstTry: isFirstTry,
+        attempts: currentAttempt,
+        hintCount,
+        rewardScore: reward,
+      }]);
+
+      // Update support strategy MAB after each question
+      const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
+      const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
+      updateMAB(supportMAB, supportStrategy, reward);
+      localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
+
+      setFeedback("correct");
+      setSceneResult("correct");
+    } else {
+      // Wrong answer handling depends on strategy
+      if (supportStrategy === "explain_after_error" && currentAttempt === 1) {
+        // Show explanation and let them retry (don't set feedback yet)
+        setShowExplanation(true);
+        setSceneResult("incorrect");
+        return;
+      }
+
+      if (supportStrategy === "try_first_then_hint" && currentAttempt === 1 && !hintVisible) {
+        // Auto-show hint after first wrong attempt
+        setHintVisible(true);
+        setHintCount((prev) => prev + 1);
+        setTotalHints((prev) => prev + 1);
+        setSceneResult("incorrect");
+        // Don't lock in feedback — let them try again
+        return;
+      }
+
+      // Record incorrect step detail
+      setStepDetails((prev) => [...prev, {
+        stepIndex: currentStep,
+        correct: false,
+        firstTry: false,
+        attempts: currentAttempt,
+        hintCount,
+        rewardScore: 0,
+      }]);
+
+      // Update support MAB with 0 reward for incorrect
+      const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
+      const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
+      updateMAB(supportMAB, supportStrategy, 0);
+      localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
+
+      setFeedback("incorrect");
+      setSceneResult("incorrect");
+    }
   };
 
+  // ── Handle next question ────────────────────────────────────────
   const handleNext = () => {
     if (currentStep < levelData.steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
       setFeedback(null);
       setSceneResult(null);
+      // Reset per-question state
+      setAttempts(0);
+      setHintCount(0);
+      setHintVisible(supportStrategy === "hint_first");
+      setShowWorkedExample(supportStrategy === "worked_example_first");
+      setShowExplanation(false);
+      setStepScaffoldPhase(0);
     } else {
+      // ── Lesson complete: finalize session ──
+      const avgReward = stepDetails.length > 0
+        ? stepDetails.reduce((sum, d) => sum + d.rewardScore, 0) / stepDetails.length
+        : 0;
+
+      // Update session with final metrics
+      session.correctCount = correctCount;
+      session.totalSteps = levelData.steps.length;
+      session.firstTryCount = firstTryCount;
+      session.totalAttempts = totalAttempts;
+      session.totalHints = totalHints;
+      session.scaffoldUsed = supportStrategy === "step_by_step_scaffold";
+      session.rewardScore = Math.round(avgReward * 100) / 100;
+      session.stepDetails = stepDetails;
+
       const finalSession = endSession(session, true);
       saveSession(finalSession);
 
+      // Update modality & reward MABs (legacy, kept for compatibility)
       const reward = correctCount / levelData.steps.length;
       const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
       const savedRewardMAB = localStorage.getItem("kidcode_rewardMAB");
@@ -157,6 +307,29 @@ function LessonPage() {
     speedCoding: "SPEED CODING",
   }[modality] || "CHALLENGE";
 
+  // ── Support strategy UI elements ────────────────────────────────
+  const strategyBadgeColor = {
+    worked_example_first:  "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    hint_first:            "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+    try_first_then_hint:   "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    step_by_step_scaffold: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+    explain_after_error:   "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  }[supportStrategy] || "text-gray-400 bg-gray-500/10 border-gray-500/20";
+
+  const strategyShortLabel = {
+    worked_example_first:  "EXAMPLE FIRST",
+    hint_first:            "HINT FIRST",
+    try_first_then_hint:   "TRY → HINT",
+    step_by_step_scaffold: "SCAFFOLD",
+    explain_after_error:   "EXPLAIN ON ERROR",
+  }[supportStrategy] || "STANDARD";
+
+  // Can the learner retry this question? (depends on strategy)
+  const canRetry = feedback === null && (
+    (supportStrategy === "try_first_then_hint" && attempts > 0 && attempts < 3) ||
+    (supportStrategy === "explain_after_error" && showExplanation)
+  );
+
   return (
     <div className="min-h-screen px-4 py-4 lg:py-6">
       {/* Top bar — full width */}
@@ -207,28 +380,94 @@ function LessonPage() {
         <div className="lg:w-[45%] flex flex-col gap-4">
           {/* Learning context card */}
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+            {/* Worked Example (shown before question for worked_example_first) */}
+            {showWorkedExample && step.codeSnippet && (
+              <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+                <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
+                <pre className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">
+                  {step.codeSnippet.split("\\n").join("\n")}
+                </pre>
+                <button
+                  onClick={() => setShowWorkedExample(false)}
+                  className="mt-2 text-amber-400 text-xs font-mono hover:text-amber-300 transition-colors cursor-pointer"
+                >
+                  Got it, show question →
+                </button>
+              </div>
+            )}
+
+            {/* Step-by-step scaffold guidance */}
+            {supportStrategy === "step_by_step_scaffold" && feedback === null && (
+              <div className="mb-3 bg-violet-500/5 border border-violet-500/20 rounded-lg p-3">
+                <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1">Step-by-Step Guide</p>
+                <p className="text-gray-400 text-xs">
+                  {stepScaffoldPhase === 0 && "Step 1: Read the code carefully. What values are the variables set to?"}
+                  {stepScaffoldPhase === 1 && "Step 2: Look at the condition. Is it True or False with these values?"}
+                  {stepScaffoldPhase === 2 && "Step 3: Which branch runs? Select your answer below."}
+                </p>
+                {stepScaffoldPhase < 2 && (
+                  <button
+                    onClick={() => setStepScaffoldPhase((p) => p + 1)}
+                    className="mt-1 text-violet-400 text-xs font-mono hover:text-violet-300 transition-colors cursor-pointer"
+                  >
+                    Next step →
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Explanation after error */}
+            {showExplanation && step.explanation && (
+              <div className="mb-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                <p className="text-emerald-400 text-[10px] font-mono uppercase tracking-wider mb-1">Let&apos;s Review</p>
+                <p className="text-gray-300 text-xs leading-relaxed">{step.explanation}</p>
+                <p className="text-emerald-400 text-xs font-mono mt-2">Try again with this in mind ↓</p>
+              </div>
+            )}
+
             {/* Story context */}
-            {step.storyContext && (
+            {step.storyContext && !showWorkedExample && (
               <p className="text-gray-300 text-sm mb-3 leading-relaxed">
                 {step.storyContext}
               </p>
             )}
-            {/* Explanation hint (shown before answering) */}
-            {!step.storyContext && (
+            {/* Instruction */}
+            {!step.storyContext && !showWorkedExample && (
               <p className="text-gray-300 text-sm mb-3 leading-relaxed">
                 {step.instruction}
               </p>
             )}
 
-            {/* Modality badge */}
-            <div className="flex items-center gap-2">
+            {/* Hint box (visible based on strategy or user request) */}
+            {(hintVisible || shouldShowHintInitially) && !showWorkedExample && (
+              <div className="mb-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-2.5">
+                <p className="text-yellow-400 text-[10px] font-mono uppercase tracking-wider mb-1">Hint</p>
+                <p className="text-gray-400 text-xs">{getHintForStep(step)}</p>
+              </div>
+            )}
+
+            {/* Badges: modality + strategy */}
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 {modalityLabel}
+              </span>
+              <span className={`text-[10px] font-mono ${strategyBadgeColor} border px-2 py-0.5 rounded-full uppercase tracking-wider`}>
+                {strategyShortLabel}
               </span>
               {step.storyContext && (
                 <span className="text-gray-500 text-xs">{step.instruction}</span>
               )}
             </div>
+
+            {/* Hint request button (for try_first strategies) */}
+            {!hintVisible && !shouldShowHintInitially && feedback === null && !showWorkedExample && (
+              <button
+                onClick={() => { requestHint(); setTotalHints((p) => p + 1); }}
+                className="mt-2 text-yellow-500/60 text-xs font-mono hover:text-yellow-400 transition-colors cursor-pointer"
+              >
+                Need a hint?
+              </button>
+            )}
           </div>
 
           {/* Code challenge */}
@@ -236,7 +475,7 @@ function LessonPage() {
             <ModeComponent
               step={step}
               onAnswer={handleAnswer}
-              feedback={feedback}
+              feedback={canRetry ? null : feedback}
               hero={hero}
             />
           </div>

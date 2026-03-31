@@ -1,23 +1,32 @@
 /**
- * SESSION TRACKER — Version 2
- * ============================
+ * SESSION TRACKER — Version 3 (Learning-Focused)
+ * ================================================
  * Manages user sessions and logs interactions for the MAB engine.
  *
  * For the MVP, we use localStorage (no login required).
  * When Supabase is connected, sessions will also be logged to the database.
  *
  * Each session records:
- *   - sessionId:    unique ID for this visit
- *   - userId:       anonymous user identifier
- *   - conceptId:    which concept was played (variables/loops/conditions)
- *   - level:        which difficulty level (1-5)
- *   - modality:     which teaching mode was shown (codeSimulation/dragDrop/speedCoding)
- *   - rewardType:   which reward was given (badge/coins/mysteryBox)
- *   - completed:    did the user finish the lesson?
- *   - timeSpent:    how long they spent (in seconds)
- *   - score:        points earned (for speed coding mode)
- *   - streak:       consecutive correct answers
- *   - timestamp:    when this session happened
+ *   - sessionId:         unique ID for this visit
+ *   - userId:            anonymous user identifier
+ *   - conceptId:         which concept (variables/loops/conditions)
+ *   - level:             difficulty level (1-5)
+ *   - modality:          teaching mode (codeSimulation/dragDrop/speedCoding)
+ *   - rewardType:        reward given (badge/coins/mysteryBox)
+ *   - supportStrategy:   instructional support strategy (MAB primary arm)
+ *   - completed:         did they finish?
+ *   - timeSpent:         seconds spent
+ *   - score:             points earned
+ *   - streak:            consecutive correct
+ *   - correctCount:      total correct answers
+ *   - totalSteps:        total questions in lesson
+ *   - firstTryCount:     how many correct on first try
+ *   - totalAttempts:     total attempts across all steps
+ *   - totalHints:        total hints used across all steps
+ *   - scaffoldUsed:      whether scaffolding was activated
+ *   - rewardScore:       MAB reward (learning-focused, 0-1)
+ *   - stepDetails:       per-question metrics array
+ *   - timestamp:         when this session happened
  */
 
 /**
@@ -42,13 +51,14 @@ export function getUserId() {
 /**
  * Start a new session. Call this when a user begins a lesson.
  *
- * @param {string} conceptId  – which concept they're starting (e.g. "variables")
- * @param {number} level      – difficulty level (1-5)
- * @param {string} modality   – which teaching mode was assigned
- * @param {string} rewardType – which reward type was assigned
- * @returns {object}          – the session object
+ * @param {string} conceptId        – which concept
+ * @param {number} level            – difficulty level
+ * @param {string} modality         – teaching mode
+ * @param {string} rewardType       – reward type
+ * @param {string} supportStrategy  – instructional support strategy
+ * @returns {object}                – the session object
  */
-export function startSession(conceptId, level, modality, rewardType) {
+export function startSession(conceptId, level, modality, rewardType, supportStrategy) {
   return {
     sessionId: generateSessionId(),
     userId: getUserId(),
@@ -56,10 +66,19 @@ export function startSession(conceptId, level, modality, rewardType) {
     level,
     modality,
     rewardType,
+    supportStrategy: supportStrategy || "try_first_then_hint",
     completed: false,
     timeSpent: 0,
     score: 0,
     streak: 0,
+    correctCount: 0,
+    totalSteps: 0,
+    firstTryCount: 0,
+    totalAttempts: 0,
+    totalHints: 0,
+    scaffoldUsed: false,
+    rewardScore: 0,
+    stepDetails: [],
     timestamp: new Date().toISOString(),
     startTime: Date.now(),
   };
@@ -69,8 +88,8 @@ export function startSession(conceptId, level, modality, rewardType) {
  * End a session. Call this when the user finishes or leaves a lesson.
  *
  * @param {object}  session   – the session object from startSession()
- * @param {boolean} completed – did they finish the lesson?
- * @param {number}  score     – points earned (optional, for speed coding)
+ * @param {boolean} completed – did they finish?
+ * @param {number}  score     – points earned (optional)
  * @param {number}  streak    – max streak (optional)
  * @returns {object}          – the finalised session
  */

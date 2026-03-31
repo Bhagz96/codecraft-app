@@ -46,6 +46,32 @@ describe('startSession', () => {
     });
   });
 
+  it('records supportStrategy when provided', () => {
+    const session = startSession('loops', 2, 'dragDrop', 'coins', 'try_first_then_hint');
+    expect(session.supportStrategy).toBe('try_first_then_hint');
+  });
+
+  it('defaults supportStrategy to try_first_then_hint when omitted', () => {
+    const session = startSession('variables', 1, 'codeSimulation', 'badge');
+    expect(session.supportStrategy).toBe('try_first_then_hint');
+  });
+
+  it('initialises learning metric fields to zero', () => {
+    const session = startSession('conditions', 3, 'speedCoding', 'mysteryBox', 'hint_first');
+    expect(session.correctCount).toBe(0);
+    expect(session.totalSteps).toBe(0);
+    expect(session.firstTryCount).toBe(0);
+    expect(session.totalAttempts).toBe(0);
+    expect(session.totalHints).toBe(0);
+    expect(session.scaffoldUsed).toBe(false);
+    expect(session.rewardScore).toBe(0);
+  });
+
+  it('initialises stepDetails as an empty array', () => {
+    const session = startSession('variables', 1, 'codeSimulation', 'badge', 'worked_example_first');
+    expect(session.stepDetails).toEqual([]);
+  });
+
   it('session has a sessionId beginning with "sess_"', () => {
     const session = startSession('loops', 2, 'dragDrop', 'coins');
     expect(session.sessionId).toMatch(/^sess_/);

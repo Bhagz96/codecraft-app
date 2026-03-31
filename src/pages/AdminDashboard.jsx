@@ -6,23 +6,32 @@ import {
   getArmStats,
   MODALITIES,
   REWARD_TYPES,
+  SUPPORT_STRATEGIES,
+  SUPPORT_DESCRIPTIONS,
 } from "../mab/engine";
 import { getAllSessions, clearSessions } from "../mab/sessionTracker";
 import { resetProgress } from "../data/progress";
 import { resetHero } from "../data/hero";
 
 /**
- * ADMIN DASHBOARD — Version 2 (Dark Dev Theme)
- * =============================================
- * Shows MAB analytics with dark theme styling.
- * Updated arm labels for new modality names.
+ * ADMIN DASHBOARD — Version 3 (Instructional Support MAB)
+ * =========================================================
+ * Primary panel: Support Strategy MAB (learning-focused reward signal)
+ * Secondary panels: Teaching Modality + Reward Type (kept for compatibility)
  */
 function AdminDashboard() {
+  const [supportStats, setSupportStats] = useState([]);
   const [modalityStats, setModalityStats] = useState([]);
   const [rewardStats, setRewardStats] = useState([]);
   const [sessions, setSessions] = useState([]);
 
   const loadData = () => {
+    const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
+    const supportMAB = savedSupportMAB
+      ? JSON.parse(savedSupportMAB)
+      : createMAB(SUPPORT_STRATEGIES, 0.3);
+    setSupportStats(getArmStats(supportMAB));
+
     const savedModalityMAB = localStorage.getItem("kidcode_modalityMAB");
     const modalityMAB = savedModalityMAB
       ? JSON.parse(savedModalityMAB)
@@ -42,12 +51,20 @@ function AdminDashboard() {
     loadData();
   }, []);
 
-  // Simulate 50 sessions with biased results
+  // Simulate 50 sessions with biased support strategy outcomes
   const simulateData = () => {
+    const supportMAB = createMAB(SUPPORT_STRATEGIES, 0.3);
     const modalityMAB = createMAB(MODALITIES, 0.3);
     const rewardMAB = createMAB(REWARD_TYPES, 0.3);
 
-    // Code Simulation wins in this simulation
+    // try_first_then_hint wins — students learn best when they attempt first then get a hint
+    const supportRates = {
+      try_first_then_hint:   0.85,
+      explain_after_error:   0.75,
+      worked_example_first:  0.70,
+      hint_first:            0.60,
+      step_by_step_scaffold: 0.55,
+    };
     const modalityRates = {
       codeSimulation: 0.8,
       dragDrop: 0.65,
@@ -59,14 +76,21 @@ function AdminDashboard() {
     const fakeSessions = [];
 
     for (let i = 0; i < 50; i++) {
+      const support = SUPPORT_STRATEGIES[Math.floor(Math.random() * SUPPORT_STRATEGIES.length)];
       const mod = MODALITIES[Math.floor(Math.random() * MODALITIES.length)];
       const rew = REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)];
 
-      const modReward = Math.random() < modalityRates[mod] ? 1 : 0;
-      const rewReward = Math.random() < rewardRates[rew] ? 1 : 0;
+      const rewardScore = Math.random() < supportRates[support]
+        ? parseFloat((0.6 + Math.random() * 0.4).toFixed(2))
+        : parseFloat((Math.random() * 0.4).toFixed(2));
 
-      updateMAB(modalityMAB, mod, modReward);
-      updateMAB(rewardMAB, rew, rewReward);
+      const totalSteps = 3 + Math.floor(Math.random() * 3);
+      const correctCount = Math.min(totalSteps, Math.round(rewardScore * totalSteps + Math.random()));
+      const firstTryCount = Math.round(correctCount * (0.5 + Math.random() * 0.5));
+
+      updateMAB(supportMAB, support, rewardScore);
+      updateMAB(modalityMAB, mod, Math.random() < modalityRates[mod] ? 1 : 0);
+      updateMAB(rewardMAB, rew, Math.random() < rewardRates[rew] ? 1 : 0);
 
       fakeSessions.push({
         sessionId: "sim_" + i,
@@ -75,14 +99,20 @@ function AdminDashboard() {
         level: (i % 5) + 1,
         modality: mod,
         rewardType: rew,
-        completed: modReward === 1,
+        supportStrategy: support,
+        completed: rewardScore > 0,
         timeSpent: Math.floor(Math.random() * 120) + 30,
         score: Math.floor(Math.random() * 500),
         streak: Math.floor(Math.random() * 5),
+        correctCount,
+        totalSteps,
+        firstTryCount,
+        rewardScore,
         timestamp: new Date(Date.now() - (50 - i) * 3600000).toISOString(),
       });
     }
 
+    localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
     localStorage.setItem("kidcode_modalityMAB", JSON.stringify(modalityMAB));
     localStorage.setItem("kidcode_rewardMAB", JSON.stringify(rewardMAB));
     localStorage.setItem("kidcode_sessions", JSON.stringify(fakeSessions));
@@ -90,8 +120,8 @@ function AdminDashboard() {
     loadData();
   };
 
-  // Reset everything
   const resetData = () => {
+    localStorage.removeItem("kidcode_supportMAB");
     localStorage.removeItem("kidcode_modalityMAB");
     localStorage.removeItem("kidcode_rewardMAB");
     clearSessions();
@@ -107,10 +137,10 @@ function AdminDashboard() {
     );
   };
 
+  const bestSupport = getBestArm(supportStats);
   const bestModality = getBestArm(modalityStats);
   const bestReward = getBestArm(rewardStats);
 
-  // Updated labels for V2 modalities
   const modalityLabels = {
     codeSimulation: ">_ Code Simulation",
     dragDrop: "{ } Drag & Drop",
@@ -121,8 +151,27 @@ function AdminDashboard() {
     coins: "⚡ XP Credits",
     mysteryBox: "$ Mystery Drop",
   };
-
-  // Bar colours per modality
+  const strategyShortLabels = {
+    worked_example_first:  "📖 Example First",
+    hint_first:            "💡 Hint First",
+    try_first_then_hint:   "🎯 Try → Hint",
+    step_by_step_scaffold: "🪜 Scaffold",
+    explain_after_error:   "🔄 Explain on Error",
+  };
+  const strategyTextColors = {
+    worked_example_first:  "text-amber-400",
+    hint_first:            "text-yellow-400",
+    try_first_then_hint:   "text-cyan-400",
+    step_by_step_scaffold: "text-violet-400",
+    explain_after_error:   "text-emerald-400",
+  };
+  const strategyBarColors = {
+    worked_example_first:  "from-amber-500 to-yellow-500",
+    hint_first:            "from-yellow-500 to-lime-500",
+    try_first_then_hint:   "from-cyan-500 to-teal-500",
+    step_by_step_scaffold: "from-violet-500 to-purple-500",
+    explain_after_error:   "from-emerald-500 to-green-500",
+  };
   const modalityColors = {
     codeSimulation: "from-cyan-500 to-blue-500",
     dragDrop: "from-violet-500 to-purple-500",
@@ -132,14 +181,13 @@ function AdminDashboard() {
   return (
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-5xl mx-auto">
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-100 font-mono">
-              /admin
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-100 font-mono">/admin</h1>
             <p className="text-gray-500 text-sm">
-              MAB Analytics — Multi-Armed Bandit Performance
+              MAB Analytics — Instructional Support Performance
             </p>
           </div>
           <Link
@@ -166,12 +214,76 @@ function AdminDashboard() {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* PRIMARY CARD: Instructional Support Strategy — full width */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6 mb-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-100">
+                Instructional Support Strategy
+                <span className="ml-2 text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">
+                  primary mab
+                </span>
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Which scaffolding method produces the highest first-try correctness?
+                Score = 1.0 (first try, no hint) → 0.0 (incorrect / skipped).
+              </p>
+            </div>
+          </div>
+
+          {bestSupport && bestSupport.count > 0 && (
+            <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 mb-5">
+              <p className="text-green-400 font-medium text-sm">
+                Current leader:{" "}
+                <strong>{strategyShortLabels[bestSupport.arm]}</strong>
+                {" — "}avg learning score{" "}
+                <strong>{(bestSupport.averageReward * 100).toFixed(0)}%</strong>
+                <span className="text-green-500/60 text-xs ml-2">({bestSupport.count} questions)</span>
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {supportStats.map((stat) => {
+              const maxCount = Math.max(...supportStats.map((s) => s.count), 1);
+              const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
+              return (
+                <div key={stat.arm}>
+                  <div className="flex justify-between items-baseline mb-1.5">
+                    <div className="flex items-baseline gap-2 min-w-0 pr-4">
+                      <span className={`font-mono text-xs font-medium shrink-0 ${strategyTextColors[stat.arm] || "text-gray-400"}`}>
+                        {strategyShortLabels[stat.arm] || stat.arm}
+                      </span>
+                      <span className="text-gray-600 text-[10px] truncate hidden sm:inline">
+                        {SUPPORT_DESCRIPTIONS[stat.arm]}
+                      </span>
+                    </div>
+                    <span className="text-gray-500 text-xs shrink-0">
+                      {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}% avg
+                    </span>
+                  </div>
+                  <div className="bg-[#0d1117] rounded-full h-3 overflow-hidden border border-[#30363d]">
+                    <div
+                      className={`h-full bg-gradient-to-r ${strategyBarColors[stat.arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* SECONDARY CARDS: Modality + Reward Type */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Teaching Modality Stats */}
+
+          {/* Teaching Modality */}
           <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
             <h2 className="text-lg font-bold text-gray-100 mb-1">
               Teaching Modality
+              <span className="ml-2 text-[10px] font-mono text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">
+                secondary
+              </span>
             </h2>
             <p className="text-xs text-gray-500 mb-4">
               Which game mode keeps users most engaged?
@@ -180,22 +292,16 @@ function AdminDashboard() {
             {bestModality && bestModality.count > 0 && (
               <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 mb-4">
                 <p className="text-green-400 font-medium text-sm">
-                  Current leader:{" "}
-                  <strong>{modalityLabels[bestModality.arm]}</strong> (
-                  {(bestModality.averageReward * 100).toFixed(0)}% avg)
+                  Leader: <strong>{modalityLabels[bestModality.arm]}</strong>{" "}
+                  ({(bestModality.averageReward * 100).toFixed(0)}% avg)
                 </p>
               </div>
             )}
 
             <div className="space-y-3">
               {modalityStats.map((stat) => {
-                const maxCount = Math.max(
-                  ...modalityStats.map((s) => s.count),
-                  1
-                );
-                const barWidth =
-                  stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
-
+                const maxCount = Math.max(...modalityStats.map((s) => s.count), 1);
+                const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
                 return (
                   <div key={stat.arm}>
                     <div className="flex justify-between text-sm mb-1">
@@ -203,8 +309,7 @@ function AdminDashboard() {
                         {modalityLabels[stat.arm]}
                       </span>
                       <span className="text-gray-500 text-xs">
-                        {stat.count} pulls · avg{" "}
-                        {(stat.averageReward * 100).toFixed(0)}%
+                        {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}%
                       </span>
                     </div>
                     <div className="bg-[#0d1117] rounded-full h-4 overflow-hidden border border-[#30363d]">
@@ -219,10 +324,13 @@ function AdminDashboard() {
             </div>
           </div>
 
-          {/* Reward Type Stats */}
+          {/* Reward Type */}
           <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
             <h2 className="text-lg font-bold text-gray-100 mb-1">
               Reward Type
+              <span className="ml-2 text-[10px] font-mono text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">
+                secondary
+              </span>
             </h2>
             <p className="text-xs text-gray-500 mb-4">
               Which reward motivates users to continue?
@@ -231,22 +339,16 @@ function AdminDashboard() {
             {bestReward && bestReward.count > 0 && (
               <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 mb-4">
                 <p className="text-green-400 font-medium text-sm">
-                  Current leader:{" "}
-                  <strong>{rewardLabels[bestReward.arm]}</strong> (
-                  {(bestReward.averageReward * 100).toFixed(0)}% avg)
+                  Leader: <strong>{rewardLabels[bestReward.arm]}</strong>{" "}
+                  ({(bestReward.averageReward * 100).toFixed(0)}% avg)
                 </p>
               </div>
             )}
 
             <div className="space-y-3">
               {rewardStats.map((stat) => {
-                const maxCount = Math.max(
-                  ...rewardStats.map((s) => s.count),
-                  1
-                );
-                const barWidth =
-                  stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
-
+                const maxCount = Math.max(...rewardStats.map((s) => s.count), 1);
+                const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
                 return (
                   <div key={stat.arm}>
                     <div className="flex justify-between text-sm mb-1">
@@ -254,8 +356,7 @@ function AdminDashboard() {
                         {rewardLabels[stat.arm]}
                       </span>
                       <span className="text-gray-500 text-xs">
-                        {stat.count} pulls · avg{" "}
-                        {(stat.averageReward * 100).toFixed(0)}%
+                        {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}%
                       </span>
                     </div>
                     <div className="bg-[#0d1117] rounded-full h-4 overflow-hidden border border-[#30363d]">
@@ -271,20 +372,19 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* How MAB Works */}
+        {/* How MAB Works — updated for v3 */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6 mb-8">
           <h2 className="text-lg font-bold text-gray-100 mb-3">
             How the Epsilon-Greedy MAB Works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4">
               <h3 className="font-bold text-cyan-400 mb-1 font-mono text-xs">
                 1. EXPLORE (30%)
               </h3>
               <p className="text-gray-400 text-xs">
-                30% of the time, the algorithm picks a RANDOM arm. This ensures
-                we keep testing all options and don't miss a potentially better
-                one.
+                30% of the time, a random support strategy is assigned. This ensures
+                all five strategies get tested and none is prematurely ruled out.
               </p>
             </div>
             <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4">
@@ -292,17 +392,18 @@ function AdminDashboard() {
                 2. EXPLOIT (70%)
               </h3>
               <p className="text-gray-400 text-xs">
-                70% of the time, it picks the arm with the HIGHEST average
-                reward so far. Most users get the best-performing experience.
+                70% of the time, the strategy with the highest average learning
+                score is assigned. Most learners get the best-performing scaffolding.
               </p>
             </div>
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
               <h3 className="font-bold text-green-400 mb-1 font-mono text-xs">
-                3. LEARN & ADAPT
+                3. REWARD SIGNAL
               </h3>
               <p className="text-gray-400 text-xs">
-                After each session, the reward is recorded and averages are
-                updated. Over time, the best arm naturally gets selected more.
+                Score is based on first-try correctness and hint usage —
+                1.0 = correct first try, no hint. Down to 0.0 = incorrect.
+                Updated after <em>every question</em>, not just at lesson end.
               </p>
             </div>
           </div>
@@ -326,27 +427,15 @@ function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#30363d] text-left">
-                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">
-                      Concept
-                    </th>
-                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">
-                      Lvl
-                    </th>
-                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">
-                      Modality
-                    </th>
-                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">
-                      Reward
-                    </th>
-                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">
-                      Done
-                    </th>
-                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">
-                      Time
-                    </th>
-                    <th className="pb-2 text-gray-500 font-mono text-xs">
-                      When
-                    </th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Strategy</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Concept</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Lvl</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Score</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Correct</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">1st Try</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Done</th>
+                    <th className="pb-2 pr-4 text-gray-500 font-mono text-xs">Time</th>
+                    <th className="pb-2 text-gray-500 font-mono text-xs">When</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -355,24 +444,40 @@ function AdminDashboard() {
                     .reverse()
                     .map((s, i) => (
                       <tr key={i} className="border-b border-[#21262d]">
+                        <td className="py-2 pr-4">
+                          <span className={`text-[10px] font-mono ${strategyTextColors[s.supportStrategy] || "text-gray-500"}`}>
+                            {strategyShortLabels[s.supportStrategy] || s.supportStrategy || "—"}
+                          </span>
+                        </td>
                         <td className="py-2 pr-4 text-gray-300 font-mono text-xs">
                           {s.conceptId || s.lessonId}
                         </td>
-                        <td className="py-2 pr-4 text-gray-400 text-xs">
-                          {s.level || "-"}
+                        <td className="py-2 pr-4 text-gray-400 text-xs">{s.level || "—"}</td>
+                        <td className="py-2 pr-4 text-xs font-mono">
+                          {s.rewardScore != null ? (
+                            <span className={
+                              s.rewardScore >= 0.7
+                                ? "text-green-400"
+                                : s.rewardScore >= 0.4
+                                ? "text-yellow-400"
+                                : "text-red-400"
+                            }>
+                              {(s.rewardScore * 100).toFixed(0)}%
+                            </span>
+                          ) : "—"}
                         </td>
-                        <td className="py-2 pr-4 text-gray-400 text-xs">
-                          {modalityLabels[s.modality] || s.modality}
+                        <td className="py-2 pr-4 text-gray-400 text-xs font-mono">
+                          {s.correctCount != null && s.totalSteps != null
+                            ? `${s.correctCount}/${s.totalSteps}`
+                            : "—"}
                         </td>
-                        <td className="py-2 pr-4 text-gray-400 text-xs">
-                          {rewardLabels[s.rewardType] || s.rewardType}
+                        <td className="py-2 pr-4 text-gray-400 text-xs font-mono">
+                          {s.firstTryCount != null ? s.firstTryCount : "—"}
                         </td>
                         <td className="py-2 pr-4">
-                          {s.completed ? (
-                            <span className="text-green-400 text-xs">✓</span>
-                          ) : (
-                            <span className="text-red-400 text-xs">✗</span>
-                          )}
+                          {s.completed
+                            ? <span className="text-green-400 text-xs">✓</span>
+                            : <span className="text-red-400 text-xs">✗</span>}
                         </td>
                         <td className="py-2 pr-4 text-gray-500 text-xs font-mono">
                           {s.timeSpent}s
@@ -387,6 +492,7 @@ function AdminDashboard() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   );

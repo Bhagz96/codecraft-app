@@ -4,8 +4,10 @@ import {
   selectArm,
   updateMAB,
   getArmStats,
+  calculateRewardScore,
   MODALITIES,
   REWARD_TYPES,
+  SUPPORT_STRATEGIES,
 } from '../../mab/engine';
 
 describe('createMAB', () => {
@@ -175,6 +177,88 @@ describe('getArmStats', () => {
     const stats = getArmStats(mab);
     // 1/3 = 0.333... → should round to 0.33
     expect(stats[0].averageReward).toBe(0.33);
+  });
+});
+
+describe('calculateRewardScore', () => {
+  it('returns 1.0 for first-try correct with no hints', () => {
+    expect(calculateRewardScore({ correct: true, firstTry: true, attempts: 1, hintCount: 0 })).toBe(1.0);
+  });
+
+  it('returns 0.0 for an incorrect answer', () => {
+    expect(calculateRewardScore({ correct: false, firstTry: false, attempts: 1, hintCount: 0 })).toBe(0.0);
+  });
+
+  it('returns 0.7 for correct after one hint', () => {
+    expect(calculateRewardScore({ correct: true, firstTry: false, attempts: 2, hintCount: 1 })).toBe(0.7);
+  });
+
+  it('returns 0.4 for correct after two or more hints', () => {
+    expect(calculateRewardScore({ correct: true, firstTry: false, attempts: 2, hintCount: 2 })).toBe(0.4);
+    expect(calculateRewardScore({ correct: true, firstTry: false, attempts: 2, hintCount: 3 })).toBe(0.4);
+  });
+
+  it('returns 0.4 for correct after 3 or more attempts', () => {
+    expect(calculateRewardScore({ correct: true, firstTry: false, attempts: 3, hintCount: 0 })).toBe(0.4);
+  });
+
+  it('returns 0.2 for correct after 2 attempts with no hints', () => {
+    expect(calculateRewardScore({ correct: true, firstTry: false, attempts: 2, hintCount: 0 })).toBe(0.2);
+  });
+
+  it('returns 0.7 for correct with some support (fallback case)', () => {
+    // correct=true, firstTry=false, attempts=1, hintCount=0 — hits the fallback
+    expect(calculateRewardScore({ correct: true, firstTry: false, attempts: 1, hintCount: 0 })).toBe(0.7);
+  });
+
+  it('reward is always between 0.0 and 1.0', () => {
+    const cases = [
+      { correct: true,  firstTry: true,  attempts: 1, hintCount: 0 },
+      { correct: true,  firstTry: false, attempts: 2, hintCount: 1 },
+      { correct: true,  firstTry: false, attempts: 3, hintCount: 2 },
+      { correct: false, firstTry: false, attempts: 5, hintCount: 4 },
+    ];
+    for (const c of cases) {
+      const r = calculateRewardScore(c);
+      expect(r).toBeGreaterThanOrEqual(0.0);
+      expect(r).toBeLessThanOrEqual(1.0);
+    }
+  });
+});
+
+describe('SUPPORT_STRATEGIES constant', () => {
+  it('contains exactly 5 entries', () => {
+    expect(SUPPORT_STRATEGIES).toHaveLength(5);
+  });
+
+  it('contains all expected strategy names', () => {
+    expect(SUPPORT_STRATEGIES).toContain('worked_example_first');
+    expect(SUPPORT_STRATEGIES).toContain('hint_first');
+    expect(SUPPORT_STRATEGIES).toContain('try_first_then_hint');
+    expect(SUPPORT_STRATEGIES).toContain('step_by_step_scaffold');
+    expect(SUPPORT_STRATEGIES).toContain('explain_after_error');
+  });
+
+  it('can be used as arms in createMAB', () => {
+    const mab = createMAB(SUPPORT_STRATEGIES, 0.3);
+    expect(mab.arms).toEqual(SUPPORT_STRATEGIES);
+    for (const arm of SUPPORT_STRATEGIES) {
+      expect(mab.counts[arm]).toBe(0);
+      expect(mab.rewards[arm]).toBe(0);
+    }
+  });
+
+  it('selectArm returns a valid strategy', () => {
+    const mab = createMAB(SUPPORT_STRATEGIES, 0.3);
+    const chosen = selectArm(mab);
+    expect(SUPPORT_STRATEGIES).toContain(chosen);
+  });
+
+  it('updateMAB works with strategy arms', () => {
+    const mab = createMAB(SUPPORT_STRATEGIES);
+    updateMAB(mab, 'try_first_then_hint', 1.0);
+    expect(mab.counts['try_first_then_hint']).toBe(1);
+    expect(mab.rewards['try_first_then_hint']).toBe(1.0);
   });
 });
 
