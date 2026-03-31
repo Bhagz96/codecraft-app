@@ -673,11 +673,11 @@ const lessons = [
         },
         steps: [
           {
-            instruction: "Your hero faces a grid of enemies. How many attacks are needed?",
+            instruction: "The enemy formation has 2 rows with 3 enemies in each row. Write a nested loop to attack every enemy!",
             instructions: {
-              codeSimulation: "Count the total attacks in this nested loop battle.",
-              dragDrop: "Arrange the nested loop that fights a grid of enemies.",
-              speedCoding: "Complete the inner loop to fight enemies in each row.",
+              codeSimulation: "2 rows × 3 enemies each — count the total attacks in this nested loop battle.",
+              dragDrop: "Arrange the nested loop that attacks 2 rows of 3 enemies each.",
+              speedCoding: "There are 3 enemies in each row. Fill in the inner loop range to attack all of them.",
             },
             gameAction: "heroFightWave",
             codeSnippet: "for row in range(2):\n    for col in range(3):\n        print(f\"Attack ({row},{col})!\")",
@@ -685,13 +685,13 @@ const lessons = [
             codeBlocks: ["for row in range(2):", "    for col in range(3):", '        print(f"Attack ({row},{col})!")'],
             correctOrder: [0, 1, 2],
             visualScene: "mountain",
-            codeTemplate: "for row in range(2):\n    for col in range(___):\n        print(f\"Attack!\")",
+            codeTemplate: "# 2 rows, 3 enemies per row\nfor row in range(2):\n    for col in range(___):\n        print(f\"Attack!\")",
             blanks: [
               { position: 0, options: ["3", "2", "6"], correctIndex: 0 },
             ],
             options: ["6 attacks", "5 attacks", "2 attacks"],
             correctIndex: 0,
-            hint: "Outer loop runs range(2) = 2 times. Inner loop runs range(3) = 3 times each. Multiply them.",
+            hint: "The inner loop controls how many enemies per row. Each row has 3 enemies, so range(3) runs 3 times per row. 2 rows × 3 enemies = 6 total attacks.",
             explanation:
               "Outer loop runs 2 times, inner runs 3 times each. Total: 2 × 3 = 6 attacks. Nested loops multiply — games use them for grids, maps, and enemy formations!",
           },
