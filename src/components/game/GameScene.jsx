@@ -1826,48 +1826,7 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
         );
 
       case "rope-bridge":
-        return (
-          <svg width="130" height="95" viewBox="0 0 130 95">
-            {/* Chasm / gap */}
-            <rect x="20" y="60" width="90" height="35" rx="2" fill="#0a0a1a" opacity="0.85" />
-            <rect x="22" y="62" width="86" height="4" fill="#1a1a2e" opacity="0.5" />
-            {/* Left post */}
-            <rect x="10" y="20" width="10" height="55" rx="2" fill="#5c4033" />
-            <rect x="8" y="16" width="14" height="6" rx="2" fill="#7a5c40" />
-            {/* Right post */}
-            <rect x="110" y="20" width="10" height="55" rx="2" fill="#5c4033" />
-            <rect x="108" y="16" width="14" height="6" rx="2" fill="#7a5c40" />
-            {/* Hand ropes */}
-            <path d="M 15,22 Q 65,35 115,22" stroke="#8B7355" strokeWidth="2.5" fill="none" opacity="0.9" />
-            <path d="M 15,28 Q 65,40 115,28" stroke="#8B7355" strokeWidth="2" fill="none" opacity="0.7" />
-            {/* Plank rope (bottom) */}
-            <path d={`M 20,55 Q 65,${isSuccess ? 62 : isFail ? 78 : 68} 110,55`}
-              stroke="#6b5a45" strokeWidth="3" fill="none" opacity="0.85" />
-            {/* Planks */}
-            {[0,1,2,3,4,5,6].map(i => {
-              const x = 28 + i * 12;
-              const sag = isSuccess ? 3 : isFail ? 12 : 7;
-              const midSag = Math.sin((i / 6) * Math.PI) * sag;
-              return <rect key={i} x={x} y={55 + midSag} width="8" height="3" rx="0.5"
-                fill={isFail ? "#4a3020" : "#8B7355"} opacity={isFail ? "0.4" : "0.85"} />;
-            })}
-            {/* Status indicators */}
-            {isSuccess && (
-              <path d={`M 20,55 Q 65,62 110,55`} stroke="#22c55e" strokeWidth="2" fill="none" opacity="0.5">
-                <animate attributeName="opacity" values="0.2;0.6;0.2" dur="1s" repeatCount="indefinite" />
-              </path>
-            )}
-            {isFail && [0,1,2].map(i => (
-              <rect key={i} x={40 + i * 15} y="70" width="6" height="2" rx="0.5" fill="#5c4033" opacity="0">
-                <animate attributeName="y" values="65;90" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
-                <animate attributeName="opacity" values="0.8;0" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
-              </rect>
-            ))}
-            {/* Ground edges */}
-            <rect x="0" y="55" width="22" height="40" fill="#2a201a" />
-            <rect x="108" y="55" width="22" height="40" fill="#2a201a" />
-          </svg>
-        );
+        return null; // handled by full-scene early return below
 
       case "poison-check":
         return (
@@ -1954,40 +1913,274 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
 
       default: // rock-block
         return (
-          <svg width="96" height="84" viewBox="0 0 96 84">
-            <ellipse cx="48" cy="78" rx="40" ry="7" fill="#000" opacity="0.22" />
-            {/* Main boulder */}
-            <ellipse cx="48" cy="48" rx="40" ry="34"
-              fill={isSuccess ? "#374151" : isFail ? "#7f1d1d" : "#4b5563"} />
-            <ellipse cx="48" cy="48" rx="40" ry="34" fill="none"
-              stroke={isSuccess ? "#6b7280" : isFail ? "#991b1b" : "#6b7280"} strokeWidth="2" opacity="0.4" />
-            {/* Rock texture */}
-            <ellipse cx="36" cy="38" rx="12" ry="8" fill="#374151" opacity="0.5" />
-            <ellipse cx="58" cy="54" rx="10" ry="7" fill="#374151" opacity="0.4" />
-            <path d="M 30,30 L 35,42 L 28,50" stroke="#555" strokeWidth="0.8" fill="none" opacity="0.4" />
-            <path d="M 62,35 L 56,48 L 64,55" stroke="#555" strokeWidth="0.8" fill="none" opacity="0.35" />
-            {/* Exclamation when blocking */}
+          <svg width="110" height="90" viewBox="0 0 110 90">
+            {/* Shadow */}
+            <ellipse cx="55" cy="84" rx="44" ry="7" fill="#000" opacity="0.25" />
+            {/* Main boulder body — irregular polygon */}
+            <polygon points="20,78 8,58 6,40 16,22 32,10 55,6 74,10 90,24 96,44 90,62 76,76 54,82 32,80"
+              fill={isSuccess ? "#52525b" : isFail ? "#5a1a10" : "#4b5563"} />
+            {/* Left highlight face */}
+            <polygon points="20,78 8,58 6,40 16,22 32,10 55,6"
+              fill="#6b7280" opacity="0.35" />
+            {/* Right shadow face */}
+            <polygon points="74,10 90,24 96,44 90,62 76,76 54,82"
+              fill="#1f2937" opacity="0.45" />
+            {/* Top highlight — light catches the peak */}
+            <polygon points="32,10 55,6 74,10 62,18 42,16"
+              fill="#9ca3af" opacity="0.3" />
+            {/* Rock texture fracture lines */}
+            <path d="M 38,14 L 44,32 L 36,52 L 42,72" stroke="#374151" strokeWidth="1.8" fill="none" opacity="0.6" />
+            <path d="M 60,12 L 66,28 L 58,46 L 64,66" stroke="#374151" strokeWidth="1.2" fill="none" opacity="0.4" />
+            <path d="M 28,40 L 44,46 L 38,56" stroke="#374151" strokeWidth="1" fill="none" opacity="0.35" />
+            {/* Moss patch on lower left */}
+            <ellipse cx="22" cy="66" rx="9" ry="6" fill="#2d4a1a" opacity="0.45" />
+            <ellipse cx="34" cy="74" rx="7" ry="4" fill="#3a5a20" opacity="0.35" />
+            {/* Warning triangle when blocking */}
             {!isSuccess && !isFail && (
               <g>
-                <polygon points="48,28 44,50 52,50" fill="#f59e0b" opacity="0.7" />
-                <text x="48" y="47" textAnchor="middle" fill="#1a1200" fontSize="12" fontWeight="bold">!</text>
+                <polygon points="55,22 49,38 61,38" fill="#f59e0b" opacity="0.85" />
+                <text x="55" y="36" textAnchor="middle" fill="#1a0e00" fontSize="11" fontWeight="bold">!</text>
               </g>
             )}
-            {/* Crack on success */}
+            {/* Crack splits on success */}
             {isSuccess && (
               <>
-                <path d="M 44 16 L 38 38 L 46 50 L 40 76" stroke="#9ca3af" strokeWidth="2" fill="none" opacity="0.8">
-                  <animate attributeName="opacity" values="0;0.9;0.8" dur="0.4s" fill="freeze" />
+                <path d="M 48,10 L 42,34 L 50,52 L 44,78" stroke="#d1d5db" strokeWidth="2.5" fill="none" opacity="0">
+                  <animate attributeName="opacity" values="0;0.85;0.75" dur="0.35s" fill="freeze" />
                 </path>
-                <path d="M 50 20 L 56 42 L 48 55 L 54 74" stroke="#6b7280" strokeWidth="1.2" fill="none" opacity="0.5">
-                  <animate attributeName="opacity" values="0;0.6;0.5" dur="0.5s" fill="freeze" />
+                <path d="M 56,12 L 62,36 L 54,54 L 60,76" stroke="#9ca3af" strokeWidth="1.5" fill="none" opacity="0">
+                  <animate attributeName="opacity" values="0;0.6;0.5" dur="0.45s" fill="freeze" />
+                </path>
+                {/* Rock split glow */}
+                <path d="M 52,10 L 48,38 L 54,78" stroke="#e5e7eb" strokeWidth="3" fill="none" opacity="0">
+                  <animate attributeName="opacity" values="0;0.5;0" dur="0.3s" fill="freeze" />
                 </path>
               </>
+            )}
+            {/* Red damage glow on fail */}
+            {isFail && (
+              <polygon points="20,78 8,58 6,40 16,22 32,10 55,6 74,10 90,24 96,44 90,62 76,76 54,82 32,80"
+                fill="#ef4444" opacity="0">
+                <animate attributeName="opacity" values="0;0.25;0" dur="0.4s" fill="freeze" />
+              </polygon>
             )}
           </svg>
         );
     }
   };
+
+  // ── ROPE BRIDGE: full river-gorge scene ─────────────────────────────────
+  if (obstacleType === "rope-bridge") {
+    const leftPost = 118, rightPost = 682;
+    const postTopY = 300, plankY = 436, gorgeTop = 385;
+    const sagBase = isSuccess ? 8 : isFail ? 52 : 26;
+    const handMidY = postTopY + sagBase;
+    const plankCount = 20;
+    const bridgeSpan = rightPost - leftPost;
+
+    return (
+      <div className="w-full h-full relative overflow-hidden">
+        <SkyBackground />
+
+        <svg className="absolute inset-0 w-full h-full z-[4]"
+          viewBox="0 0 800 500" preserveAspectRatio="xMidYMax slice">
+          <defs>
+            <linearGradient id="brRiver" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#1e4a6a" />
+              <stop offset="60%" stopColor="#163858" />
+              <stop offset="100%" stopColor="#0a1e30" />
+            </linearGradient>
+            <linearGradient id="brBank" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#3a3020" />
+              <stop offset="100%" stopColor="#1a1408" />
+            </linearGradient>
+          </defs>
+
+          {/* ── Mountains behind gorge ── */}
+          <polygon points="0,380 60,310 130,348 200,280 280,322 360,262 440,302 520,252 600,292 680,242 760,285 800,268 800,380"
+            fill="#1a2a3a" opacity="0.7" />
+          <polygon points="0,380 40,332 110,360 180,302 260,338 340,276 420,318 500,272 580,308 660,260 740,298 800,280 800,380"
+            fill="#101820" opacity="0.85" />
+
+          {/* ── Left rocky bank ── */}
+          <polygon points={`0,${gorgeTop} ${leftPost+18},${gorgeTop-20} ${leftPost+10},${gorgeTop+8} ${leftPost},500 0,500`}
+            fill="url(#brBank)" />
+          {[[18,gorgeTop+5,22,14],[58,gorgeTop+3,18,11],[92,gorgeTop+8,15,10]].map(([x,y,rx,ry],i) => (
+            <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry} fill="#2a2418" opacity="0.65" />
+          ))}
+          {/* Worn dirt path approach */}
+          <path d={`M 0,${plankY} Q 60,${plankY-4} ${leftPost},${plankY}`}
+            stroke="#3a2e18" strokeWidth="30" fill="none" opacity="0.9" />
+          <path d={`M 0,${plankY} Q 60,${plankY-4} ${leftPost},${plankY}`}
+            stroke="#4a3a22" strokeWidth="12" fill="none" opacity="0.4" />
+
+          {/* ── Right rocky bank ── */}
+          <polygon points={`${rightPost},500 ${rightPost},${gorgeTop+8} ${rightPost-10},${gorgeTop-20} 800,${gorgeTop} 800,500`}
+            fill="url(#brBank)" />
+          {[[720,gorgeTop+5,20,13],[756,gorgeTop+3,16,11],[784,gorgeTop+9,14,9]].map(([x,y,rx,ry],i) => (
+            <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry} fill="#2a2418" opacity="0.65" />
+          ))}
+          <path d={`M ${rightPost},${plankY} Q 740,${plankY-4} 800,${plankY}`}
+            stroke="#3a2e18" strokeWidth="30" fill="none" opacity="0.9" />
+
+          {/* ── Gorge cavity ── */}
+          <rect x={leftPost} y={gorgeTop} width={bridgeSpan} height={500-gorgeTop} fill="#0e0c08" />
+          {/* Jagged gorge walls */}
+          <polygon points={`${leftPost},${gorgeTop} ${leftPost+22},${gorgeTop+28} ${leftPost+12},${gorgeTop+60} ${leftPost+20},${gorgeTop+110} ${leftPost},500`}
+            fill="#1a1810" />
+          <polygon points={`${rightPost},${gorgeTop} ${rightPost-22},${gorgeTop+28} ${rightPost-12},${gorgeTop+60} ${rightPost-20},${gorgeTop+110} ${rightPost},500`}
+            fill="#1a1810" />
+
+          {/* ── River water ── */}
+          <rect x={leftPost+25} y={gorgeTop+55} width={bridgeSpan-50} height={500-gorgeTop-55}
+            fill="url(#brRiver)" />
+          {/* River current lines */}
+          {[gorgeTop+72, gorgeTop+98, gorgeTop+126, gorgeTop+156].map((y,i) => (
+            <line key={i} x1={leftPost+35} y1={y} x2={rightPost-35} y2={y}
+              stroke="#3a8ab4" strokeWidth="1.5" opacity="0.16">
+              <animate attributeName="x1"
+                values={`${leftPost+35};${leftPost+90};${leftPost+35}`}
+                dur={`${3+i*0.65}s`} repeatCount="indefinite" />
+              <animate attributeName="x2"
+                values={`${rightPost-35};${rightPost-90};${rightPost-35}`}
+                dur={`${3+i*0.65}s`} repeatCount="indefinite" />
+            </line>
+          ))}
+          {/* Water sheen */}
+          <rect x={leftPost+25} y={gorgeTop+55} width={bridgeSpan-50} height="28"
+            fill="#3a8ab4" opacity="0.12" />
+          {/* Ripples */}
+          {[220,360,480,600].map((x,i) => (
+            <ellipse key={i} cx={x} cy={gorgeTop+82+i*14} rx="5" ry="3" fill="#5ab0d4" opacity="0">
+              <animate attributeName="rx" values="5;24;5" dur={`${2+i*0.55}s`} begin={`${i*0.7}s`} repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0;0.18;0" dur={`${2+i*0.55}s`} begin={`${i*0.7}s`} repeatCount="indefinite" />
+            </ellipse>
+          ))}
+
+          {/* ── Bridge left post ── */}
+          <rect x={leftPost-8} y={postTopY} width={17} height={plankY-postTopY+14}
+            rx="3" fill="#7a5028" stroke="#5a3818" strokeWidth="1.5" />
+          <rect x={leftPost-8} y={postTopY} width={7} height={plankY-postTopY+14}
+            fill="#9a6838" opacity="0.28" rx="3" />
+          <rect x={leftPost-12} y={postTopY-8} width={24} height={11} rx="3" fill="#8a5e28" />
+
+          {/* ── Bridge right post ── */}
+          <rect x={rightPost-9} y={postTopY} width={17} height={plankY-postTopY+14}
+            rx="3" fill="#7a5028" stroke="#5a3818" strokeWidth="1.5" />
+          <rect x={rightPost+2} y={postTopY} width={7} height={plankY-postTopY+14}
+            fill="#9a6838" opacity="0.28" rx="3" />
+          <rect x={rightPost-12} y={postTopY-8} width={24} height={11} rx="3" fill="#8a5e28" />
+
+          {/* ── Handrail ropes ── */}
+          <path d={`M ${leftPost+1},${postTopY+5} Q 400,${handMidY} ${rightPost+1},${postTopY+5}`}
+            stroke="#a08858" strokeWidth="3.5" fill="none" opacity="0.95" />
+          <path d={`M ${leftPost+1},${postTopY+14} Q 400,${handMidY+10} ${rightPost+1},${postTopY+14}`}
+            stroke="#8B7345" strokeWidth="2.2" fill="none" opacity="0.72" />
+          {isSuccess && (
+            <path d={`M ${leftPost+1},${postTopY+5} Q 400,${handMidY} ${rightPost+1},${postTopY+5}`}
+              stroke="#86efac" strokeWidth="2" fill="none" opacity="0.3">
+              <animate attributeName="opacity" values="0.12;0.5;0.12" dur="1.6s" repeatCount="indefinite" />
+            </path>
+          )}
+
+          {/* ── Vertical suspender ropes ── */}
+          {Array.from({length: 14}, (_,i) => {
+            const t = (i+1)/15;
+            const x = leftPost + t * bridgeSpan;
+            const y0 = postTopY+5, ymid = handMidY, y1 = postTopY+5;
+            const ropeY = (1-t)*(1-t)*y0 + 2*t*(1-t)*ymid + t*t*y1;
+            return (
+              <line key={i} x1={x} y1={ropeY} x2={x} y2={plankY-6}
+                stroke="#8B7345" strokeWidth="1.8" opacity={isFail ? "0.25" : "0.65"} />
+            );
+          })}
+
+          {/* ── Planks ── */}
+          {Array.from({length: plankCount}, (_,i) => {
+            const x = leftPost + (i + 0.5) * (bridgeSpan / plankCount);
+            const plankW = (bridgeSpan / plankCount) - 5;
+            const broken = isFail && i >= 8 && i <= 13;
+            return (
+              <g key={i}>
+                <rect x={x - plankW/2} y={plankY - 8} width={plankW} height={10}
+                  rx="1.5"
+                  fill={broken ? "#3a2010" : isSuccess ? "#a07e38" : "#8B6a30"}
+                  opacity={broken ? "0.3" : "0.95"} />
+                <line x1={x - plankW/2 + 3} y1={plankY-7} x2={x - plankW/2 + 3} y2={plankY+1}
+                  stroke="#6a4a18" strokeWidth="0.9" opacity="0.4" />
+              </g>
+            );
+          })}
+
+          {/* ── Hero's rope on success (hero pulls himself across) ── */}
+          {isSuccess && (
+            <path d={`M ${leftPost+2},${postTopY+5} Q ${leftPost+bridgeSpan*0.3},${postTopY+sagBase*0.6} ${leftPost+bridgeSpan*0.58},${plankY-50}`}
+              stroke="#c8a060" strokeWidth="3" fill="none" opacity="0.55">
+              <animate attributeName="opacity" values="0.35;0.7;0.35" dur="2s" repeatCount="indefinite" />
+            </path>
+          )}
+
+          {/* ── Planks falling on fail ── */}
+          {isFail && [0,1,2].map(i => (
+            <rect key={i} x={290+i*55} y={plankY-6} width={28} height={8} rx="1"
+              fill="#5c3818" opacity="0">
+              <animate attributeName="y" values={`${plankY-6};${plankY+90}`}
+                dur="0.75s" begin={`${i*0.18}s`} fill="freeze" />
+              <animate attributeName="opacity" values="0.9;0" dur="0.75s" begin={`${i*0.18}s`} fill="freeze" />
+            </rect>
+          ))}
+
+          {/* ── Success sparkles on crossing ── */}
+          {isSuccess && [0,1,2,3].map(i => (
+            <circle key={i}
+              cx={leftPost + (i+1) * bridgeSpan/5} cy={plankY-22}
+              r="3" fill="#86efac" opacity="0">
+              <animate attributeName="cy"
+                values={`${plankY-22};${plankY-60};${plankY-80}`}
+                dur={`${0.55+i*0.14}s`} begin={`${i*0.22}s`} fill="freeze" />
+              <animate attributeName="opacity"
+                values="0;0.9;0" dur={`${0.55+i*0.14}s`} begin={`${i*0.22}s`} fill="freeze" />
+            </circle>
+          ))}
+        </svg>
+
+        {/* Obstacle label */}
+        <div className="absolute z-20" style={{ left: "50%", bottom: "92px", transform: "translateX(-50%)" }}>
+          <div className={`px-3 py-1 rounded-lg text-xs font-mono border whitespace-nowrap ${
+            isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10"
+            : isFail ? "text-red-400 border-red-500/40 bg-red-500/10"
+            : "text-violet-400 border-violet-500/40 bg-violet-500/10"
+          }`}>
+            {isSuccess ? obsLabel.success : isFail ? obsLabel.fail : obsLabel.idle}
+          </div>
+        </div>
+
+        {/* Condition panel */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
+            {sceneConfig?.varDisplay || "rope=True · stamina=80"}
+          </div>
+          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
+            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
+            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
+            : "text-gray-500 border-[#30363d]/40"
+          }`}>
+            {sceneConfig?.conditionLabel || "if rope and stamina >= 50:"} {isSuccess ? "✓" : isFail ? "✗" : "?"}
+          </div>
+          {isSuccess && (
+            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/5">
+              {sceneConfig?.successAction || "→ hero crosses safely!"}
+            </div>
+          )}
+        </div>
+
+        {clearedBadge}
+        {isSuccess && <Sparkles heroColor={heroColor} />}
+        {heroEl}
+        <StatusMessage phase={phase} successMsg={successMsg} failMsg={failMsg} idleMsg={idleMsg} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full relative overflow-hidden">
