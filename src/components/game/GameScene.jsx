@@ -1258,227 +1258,268 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     );
   }
 
-  // ── FORK PATH: flat ground-level Y-fork with roads curving left/right ──
+  // ── FORK PATH: top-down RPG map view — Zelda-style overhead ──────────
   if (gameAction === "heroForkPath") {
-    const hz = 65;    // horizon — pushed high so ground dominates
-    const fy = 235;   // fork point — low in scene
+    const pathALabel = sceneConfig?.pathALabel || "⚠ A: 7";
+    const pathBLabel = sceneConfig?.pathBLabel || "✓ B: 3";
 
-    // Approach road (bottom to fork)
-    const apL = 155, apR = 245;
-    const fkL = 185, fkR = 215;
-
-    // Fork roads curve nearly FLAT — only ~15px vertical rise, ~200px horizontal spread
-    // Roads exit the left/right edges of the viewBox
-    const leftRoadPath = `
-      M ${fkL},${fy}
-      C ${fkL - 55},${fy - 5} 65,${fy - 14} -15,${fy - 18}
-      L -15,${fy - 8}
-      C 75,${fy - 10} ${192 - 35},${fy - 3} 192,${fy}
-      Z`;
-
-    const rightRoadPath = `
-      M ${fkR},${fy}
-      C ${fkR + 55},${fy - 5} 335,${fy - 14} 415,${fy - 18}
-      L 415,${fy - 8}
-      C 325,${fy - 10} ${208 + 35},${fy - 3} 208,${fy}
-      Z`;
-
-    const leftCenterPath = `M 188,${fy} C 145,${fy - 5} 70,${fy - 12} -15,${fy - 13}`;
-    const rightCenterPath = `M 212,${fy} C 255,${fy - 5} 330,${fy - 12} 415,${fy - 13}`;
-
-    // Wedge = ground between the two fork roads
-    const wedgePath = `
-      M 192,${fy}
-      C ${192 - 35},${fy - 3} 75,${fy - 10} -15,${fy - 8}
-      L -15,${fy - 18}
-      L 415,${fy - 18}
-      L 415,${fy - 8}
-      C 325,${fy - 10} ${208 + 35},${fy - 3} 208,${fy}
-      Z`;
+    // Top-down tree helper (viewed from directly above)
+    const MapTree = ({ x, y, r = 18 }) => (
+      <g>
+        <ellipse cx={x + 4} cy={y + 5} rx={r + 5} ry={r * 0.55} fill="#00000030" />
+        <circle cx={x} cy={y} r={r} fill="#14532d" />
+        <circle cx={x} cy={y - 2} r={r * 0.7} fill="#166534" />
+        <circle cx={x} cy={y - 4} r={r * 0.42} fill="#22c55e" opacity="0.85" />
+        <circle cx={x - r * 0.3} cy={y - r * 0.5} r={r * 0.2} fill="#4ade80" opacity="0.4" />
+      </g>
+    );
 
     return (
       <div className="w-full h-full relative overflow-hidden">
-        <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice">
+        <svg className="absolute inset-0 w-full h-full z-[4]" viewBox="0 0 800 500" preserveAspectRatio="xMidYMax slice">
           <defs>
-            <linearGradient id="yfSky" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#050a18" />
-              <stop offset="60%" stopColor="#0e1a2e" />
-              <stop offset="100%" stopColor="#182840" />
+            <radialGradient id="fkDangerCore" cx="70%" cy="28%" r="38%">
+              <stop offset="0%" stopColor="#1a0808" stopOpacity="0.72" />
+              <stop offset="100%" stopColor="#1a0808" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="fkVillageGlow" cx="78%" cy="88%" r="28%">
+              <stop offset="0%" stopColor="#fde68a" stopOpacity={isSuccess ? "0.5" : "0.22"} />
+              <stop offset="100%" stopColor="#fde68a" stopOpacity="0" />
+            </radialGradient>
+            <linearGradient id="fkGrassBase" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#3a7a1a" />
+              <stop offset="100%" stopColor="#4e922a" />
             </linearGradient>
-            <linearGradient id="yfRoad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#2a2418" />
-              <stop offset="100%" stopColor="#4e3c28" />
+            <linearGradient id="fkRoadApproach" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#a07838" />
+              <stop offset="100%" stopColor="#b89050" />
             </linearGradient>
-            <linearGradient id="yfForkL" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={isSuccess ? "#58261a" : "#4e3c28"} />
-              <stop offset="100%" stopColor={isSuccess ? "#38120a" : "#2a2418"} />
+            <linearGradient id="fkPathBGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#b89050" />
+              <stop offset="100%" stopColor={isSuccess ? "#cca85a" : "#a87840"} />
             </linearGradient>
-            <linearGradient id="yfForkR" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={isSuccess ? "#144820" : "#2a2418"} />
-              <stop offset="100%" stopColor={isSuccess ? "#0a2c12" : "#4e3c28"} />
-            </linearGradient>
-            <linearGradient id="yfGnd" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#121a26" />
-              <stop offset="100%" stopColor="#0c1520" />
-            </linearGradient>
-            <linearGradient id="yfMtn" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#2c3848" />
-              <stop offset="100%" stopColor="#141e2c" />
+            <linearGradient id="fkPathAGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#b08840" />
+              <stop offset="100%" stopColor={isSuccess ? "#5a2010" : "#906830"} />
             </linearGradient>
           </defs>
 
-          {/* ── SKY ── */}
-          <rect x="0" y="0" width="400" height={hz + 10} fill="url(#yfSky)" />
+          {/* ══ BASE GRASS ══ */}
+          <rect x="0" y="0" width="800" height="500" fill="url(#fkGrassBase)" />
 
-          {/* ── STARS ── */}
-          {[[30,12],[70,5],[120,22],[160,8],[240,10],[290,6],[340,16],[380,9],[200,3],[150,28]].map(([x,y],i) => (
-            <circle key={i} cx={x} cy={y} r="1" fill="#8a9ab8" opacity={0.4 + (i % 3) * 0.2} />
+          {/* Grass texture variation patches */}
+          {[[40,60,110,70],[180,30,90,60],[350,80,120,55],[580,50,100,65],[720,120,70,55],
+            [90,180,80,50],[280,200,110,60],[520,160,90,45],[700,210,80,50],
+            [30,300,100,40],[200,320,90,50],[460,290,110,45],[680,310,85,40]].map(([x,y,w,h],i) => (
+            <ellipse key={i} cx={x+w/2} cy={y+h/2} rx={w/2} ry={h/2}
+              fill={["#5aaa32","#3a7a18","#4e9220"][i%3]} opacity="0.45" />
           ))}
 
-          {/* ── MOUNTAINS (left) ── */}
-          <polygon points={`0,${hz} 0,25 40,8 70,32 100,18 140,${hz}`} fill="url(#yfMtn)" />
-          <polygon points="40,8 28,28 52,28" fill="#3a4a5c" opacity="0.8" />
-          <polygon points="100,18 90,34 110,34" fill="#3a4a5c" opacity="0.65" />
+          {/* ══ DARK DANGER FOREST ZONE — upper right (Path A destination) ══ */}
+          <rect x="490" y="0" width="310" height="290" fill="#1c4a10" opacity="0.9" />
+          {/* Dense tree canopy cluster */}
+          {[[510,22,20],[548,50,22],[592,18,18],[634,38,22],[678,15,19],[722,42,21],[765,20,18],
+            [525,80,19],[568,68,21],[612,84,20],[658,62,19],[702,80,21],[752,65,18],
+            [518,112,18],[562,126,21],[608,106,19],[654,120,21],[700,104,19],[748,118,18],
+            [530,152,19],[576,164,20],[622,144,19],[668,158,21],[714,140,18],[760,155,19],
+            [515,192,18],[562,204,21],[610,184,19],[656,198,20],[704,180,18],[755,196,19],
+            [528,232,18],[575,248,20],[622,226,19],[668,242,21],[715,224,18],[762,240,19]].map(([x,y,r],i) => (
+            <g key={i}>
+              <circle cx={x} cy={y} r={r} fill="#0e2a08" />
+              <circle cx={x} cy={y-2} r={r*0.68} fill="#12340a" />
+              <circle cx={x} cy={y-3} r={r*0.4} fill="#183e10" opacity="0.8" />
+            </g>
+          ))}
+          {/* Danger fog overlay */}
+          <rect x="490" y="0" width="310" height="290" fill="url(#fkDangerCore)" />
+          {/* Red danger tint — intensifies on success (confirming this was the wrong path) */}
+          <rect x="490" y="0" width="310" height="290" fill="#3a0808"
+            opacity={isSuccess ? "0.38" : "0.12"} style={{ transition: "opacity 0.6s" }}>
+            {isSuccess && <animate attributeName="opacity" values="0.28;0.48;0.28" dur="1.6s" repeatCount="indefinite" />}
+          </rect>
+          {/* Skull markers in forest */}
+          {[[555,262],[640,256],[728,260]].map(([x,y],i) => (
+            <g key={i} opacity={isSuccess ? "0.18" : "0.65"}>
+              <circle cx={x} cy={y} r="11" fill="#1a0808" stroke="#7f2a2a" strokeWidth="1.5" />
+              <text x={x} y={y+4} textAnchor="middle" fill="#dc2626" fontSize="11">☠</text>
+            </g>
+          ))}
+          {/* DANGER label banner */}
+          <rect x="554" y="275" width="82" height="20" rx="4" fill="#7f1d1d" opacity="0.9" />
+          <text x="595" y="289" textAnchor="middle" fill="#fca5a5" fontSize="9"
+            fontFamily="monospace" fontWeight="bold">⚠ DANGER</text>
 
-          {/* ── MOUNTAINS (right) ── */}
-          <polygon points={`260,${hz} 300,18 330,32 360,8 400,25 400,${hz}`} fill="url(#yfMtn)" />
-          <polygon points="360,8 348,28 372,28" fill="#3a4a5c" opacity="0.8" />
-          <polygon points="300,18 290,34 310,34" fill="#3a4a5c" opacity="0.65" />
+          {/* ══ VILLAGE ZONE — lower right (Path B destination) ══ */}
+          {/* Clearing */}
+          <ellipse cx="680" cy="448" rx="150" ry="52" fill="#5aaa30" opacity="0.55" />
+          {/* Village warm glow */}
+          <rect x="540" y="395" width="260" height="105" fill="url(#fkVillageGlow)" />
+          {/* Building 1 — stone house top-down */}
+          <rect x="622" y="414" width="34" height="26" rx="2" fill="#8a7a5a" />
+          <line x1="622" y1="427" x2="656" y2="427" stroke="#6a5a3a" strokeWidth="1.8" opacity="0.75" />
+          <rect x="628" y="417" width="6" height="5" fill="#1a1208" opacity="0.85" />
+          <rect x="641" y="417" width="6" height="5" fill="#1a1208" opacity="0.85" />
+          <rect x="637" y="432" width="8" height="8" fill="#4a3820" opacity="0.8" />
+          {/* Building 2 */}
+          <rect x="666" y="418" width="28" height="22" rx="2" fill="#8a7a5a" />
+          <line x1="666" y1="429" x2="694" y2="429" stroke="#6a5a3a" strokeWidth="1.5" opacity="0.7" />
+          <rect x="671" y="421" width="5" height="4" fill="#1a1208" opacity="0.85" />
+          <rect x="681" y="421" width="5" height="4" fill="#1a1208" opacity="0.85" />
+          {/* Well */}
+          <circle cx="716" cy="432" r="8" fill="#6a5a45" stroke="#4a3a28" strokeWidth="2" />
+          <circle cx="716" cy="432" r="4" fill="#1a3040" opacity="0.9" />
+          {/* Cobblestone plaza dots */}
+          {[[600,440],[612,445],[624,438],[636,444],[648,439],[660,446],[672,441],[684,447],
+            [696,440],[708,446],[720,442],[732,447],[744,441]].map(([x,y],i) => (
+            <ellipse key={i} cx={x} cy={y} rx="4" ry="2.5" fill="#c4a85a" opacity="0.3" />
+          ))}
+          {/* Village pulsing beacon on success */}
+          {isSuccess && (
+            <ellipse cx="672" cy="437" rx="95" ry="35" fill="#fde68a" opacity="0.18">
+              <animate attributeName="opacity" values="0.08;0.26;0.08" dur="2s" repeatCount="indefinite" />
+            </ellipse>
+          )}
+          {/* SAFE label */}
+          <rect x="625" y="460" width="74" height="20" rx="4"
+            fill={isSuccess ? "#14532d" : "#1a3a20"} opacity="0.92" />
+          <text x="662" y="474" textAnchor="middle"
+            fill={isSuccess ? "#86efac" : "#6aaa6a"} fontSize="9"
+            fontFamily="monospace" fontWeight="bold">{isSuccess ? "✓ SAFE" : "🏘 VILLAGE"}</text>
 
-          {/* ── DISTANT MOUNTAIN (center) ── */}
-          <polygon points={`170,${hz} 200,30 230,${hz}`} fill="#1a2535" opacity="0.6" />
-          <polygon points="200,30 193,45 207,45" fill="#2a3a50" opacity="0.4" />
-
-          {/* ── GROUND PLANE ── */}
-          <rect x="0" y={hz} width="400" height={300 - hz} fill="url(#yfGnd)" />
-          <line x1="0" y1={hz} x2="400" y2={hz} stroke="#2a4a6a" strokeWidth="1" opacity="0.25" />
-
-          {/* ── GROUND WEDGE between fork roads ── */}
-          <path d={wedgePath} fill="#101a26" />
-          {/* Grass/terrain texture in wedge */}
-          {[[170,228],[200,225],[230,228],[185,230],[215,230],[155,226],[245,226]].map(([cx, cy], i) => (
-            <g key={i} opacity="0.5">
-              <line x1={cx-2} y1={cy} x2={cx-4} y2={cy-5} stroke="#1c3416" strokeWidth="0.8" />
-              <line x1={cx}   y1={cy} x2={cx}   y2={cy-6} stroke="#1c3416" strokeWidth="0.8" />
-              <line x1={cx+2} y1={cy} x2={cx+3} y2={cy-5} stroke="#1c3416" strokeWidth="0.8" />
+          {/* ══ PATH A — diagonal dirt road toward danger forest ══ */}
+          <polygon points="392,418 800,42 800,108 406,462" fill="url(#fkPathAGrad)"
+            opacity={isSuccess ? "0.45" : "0.85"} style={{ transition: "opacity 0.6s" }} />
+          {/* Path A edges (dashed) */}
+          <path d="M 394,418 L 800,44" stroke="#d4b060" strokeWidth="1.5" fill="none"
+            strokeDasharray="14,9" opacity={isSuccess ? "0.18" : "0.5"} />
+          <path d="M 406,462 L 800,106" stroke="#d4b060" strokeWidth="1.5" fill="none"
+            strokeDasharray="14,9" opacity={isSuccess ? "0.15" : "0.42"} />
+          {/* Thorny bushes lining Path A danger side */}
+          {!isSuccess && [[455,432],[510,412],[565,390],[622,366],[680,340],[738,314]].map(([x,y],i) => (
+            <g key={i}>
+              <circle cx={x-20} cy={y} r="9" fill="#5a1a1a" opacity="0.65" />
+              <circle cx={x+28} cy={y+9} r="7" fill="#5a1a1a" opacity="0.55" />
             </g>
           ))}
 
-          {/* ── APPROACH ROAD ── */}
-          <polygon points={`${apL},300 ${apR},300 ${fkR},${fy} 208,${fy} 192,${fy} ${fkL},${fy}`}
-            fill="url(#yfRoad)" />
-          <line x1={apL} y1={300} x2={fkL} y2={fy} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
-          <line x1={apR} y1={300} x2={fkR} y2={fy} stroke="#7a6040" strokeWidth="2" opacity="0.85" />
-          <line x1="200" y1="300" x2="200" y2={fy + 2}
-            stroke="#c8b060" strokeWidth="2.5" strokeDasharray="16 12" opacity="0.7" />
-
-          {/* ── LEFT FORK ROAD (Path A) — curves left along ground ── */}
-          <path d={leftRoadPath} fill="url(#yfForkL)" />
-          <path d={`M ${fkL},${fy} C ${fkL - 55},${fy - 5} 65,${fy - 14} -15,${fy - 18}`}
-            stroke="#7a6040" strokeWidth="2" fill="none" opacity="0.8" />
-          <path d={`M 192,${fy} C ${192 - 35},${fy - 3} 75,${fy - 10} -15,${fy - 8}`}
-            stroke="#7a6040" strokeWidth="1.5" fill="none" opacity="0.65" />
-          <path d={leftCenterPath}
-            stroke="#c8b060" strokeWidth="1.8" strokeDasharray="10 8" fill="none" opacity="0.5" />
-
-          {/* ── RIGHT FORK ROAD (Path B) — curves right along ground ── */}
-          <path d={rightRoadPath} fill="url(#yfForkR)" />
-          <path d={`M ${fkR},${fy} C ${fkR + 55},${fy - 5} 335,${fy - 14} 415,${fy - 18}`}
-            stroke="#7a6040" strokeWidth="2" fill="none" opacity="0.8" />
-          <path d={`M 208,${fy} C ${208 + 35},${fy - 3} 325,${fy - 10} 415,${fy - 8}`}
-            stroke="#7a6040" strokeWidth="1.5" fill="none" opacity="0.65" />
-          <path d={rightCenterPath}
-            stroke="#c8b060" strokeWidth="1.8" strokeDasharray="10 8" fill="none" opacity="0.5" />
-
-          {/* ── VEGETATION ── */}
-          {/* Left side trees/bushes */}
-          <line x1="55" y1={hz + 40} x2="53" y2={hz + 28} stroke="#1c3416" strokeWidth="2" />
-          <ellipse cx="53" cy={hz + 26} rx="9" ry="6" fill="#182e14" opacity="0.8" />
-          <line x1="25" y1={hz + 55} x2="23" y2={hz + 45} stroke="#1c3416" strokeWidth="1.5" />
-          <ellipse cx="23" cy={hz + 43} rx="6" ry="5" fill="#182e14" opacity="0.7" />
-          <ellipse cx="80" cy={hz + 60} rx="12" ry="5" fill="#0c1520" opacity="0.6" />
-          {/* Right side */}
-          <line x1="345" y1={hz + 40} x2="347" y2={hz + 28} stroke="#1c3416" strokeWidth="2" />
-          <ellipse cx="347" cy={hz + 26} rx="9" ry="6" fill="#182e14" opacity="0.8" />
-          <line x1="375" y1={hz + 55} x2="377" y2={hz + 45} stroke="#1c3416" strokeWidth="1.5" />
-          <ellipse cx="377" cy={hz + 43} rx="6" ry="5" fill="#182e14" opacity="0.7" />
-          <ellipse cx="320" cy={hz + 60} rx="12" ry="5" fill="#0c1520" opacity="0.6" />
-
-          {/* ── SUCCESS GLOWS ── */}
-          {isSuccess && (
-            <path d={leftRoadPath} fill="#ef4444" opacity="0.07">
-              <animate attributeName="opacity" values="0.03;0.12;0.03" dur="1.2s" repeatCount="indefinite" />
-            </path>
-          )}
+          {/* ══ PATH B — safe horizontal road ══ */}
+          <rect x="402" y="420" width="398" height="42" fill="url(#fkPathBGrad)" />
+          {/* Path B center dashes */}
+          <line x1="412" y1="441" x2="792" y2="441" stroke="#f0d898"
+            strokeWidth="2.2" strokeDasharray="18,11" opacity="0.55" />
+          {/* Path B edges */}
+          <line x1="402" y1="420" x2="800" y2="420" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
+          <line x1="402" y1="462" x2="800" y2="462" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
+          {/* Wildflowers along Path B */}
+          {[[428,412],[476,466],[532,409],[588,467],[644,411],[702,468],[758,412]].map(([x,y],i) => (
+            <g key={i} opacity={isSuccess ? "1" : "0.55"}>
+              <circle cx={x} cy={y} r="3.5" fill={["#fbbf24","#f472b6","#a78bfa","#34d399"][i%4]} />
+              <circle cx={x} cy={y} r="1.5" fill="white" opacity="0.6" />
+            </g>
+          ))}
+          {/* Path B success glow */}
           {isSuccess && (
             <>
-              <path d={rightRoadPath} fill="#22c55e" opacity="0.1">
-                <animate attributeName="opacity" values="0.05;0.18;0.05" dur="1.1s" repeatCount="indefinite" />
-              </path>
-              {[0, 1, 2].map(i => (
-                <circle key={i} r="2.5" fill="#22c55e">
+              <rect x="402" y="420" width="398" height="42" fill="#22c55e" opacity="0.08">
+                <animate attributeName="opacity" values="0.04;0.16;0.04" dur="1.3s" repeatCount="indefinite" />
+              </rect>
+              {[0,1,2,3].map(i => (
+                <circle key={i} r="3.5" fill="#4ade80" opacity="0.9">
                   <animate attributeName="cx"
-                    values={`212;${280 + i * 15};${370 + i * 10}`}
-                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite" />
-                  <animate attributeName="cy"
-                    values={`${fy - 2};${fy - 8};${fy - 14}`}
-                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite" />
+                    values={`412;${520+i*55};${660+i*38}`}
+                    dur={`${1.1+i*0.28}s`} begin={`${i*0.32}s`} repeatCount="indefinite" />
+                  <animate attributeName="cy" values="441;439;437"
+                    dur={`${1.1+i*0.28}s`} begin={`${i*0.32}s`} repeatCount="indefinite" />
                   <animate attributeName="opacity" values="0;0.9;0"
-                    dur={`${1.3 + i * 0.2}s`} begin={`${i * 0.3}s`} repeatCount="indefinite" />
+                    dur={`${1.1+i*0.28}s`} begin={`${i*0.32}s`} repeatCount="indefinite" />
                 </circle>
               ))}
             </>
           )}
 
-          {/* ── DANGER WARNING on Path A ── */}
-          <polygon points={`65,${fy - 14} 71,${fy - 4} 59,${fy - 4}`}
-            fill="#f59e0b" opacity={isSuccess ? "0.2" : "0.85"} />
-          <text x="65" y={fy - 6} fill="#1a1200" fontSize="5" textAnchor="middle" fontWeight="bold">!</text>
+          {/* ══ MAIN APPROACH ROAD (left → fork) ══ */}
+          <rect x="0" y="420" width="408" height="42" fill="#b09048" />
+          <line x1="0" y1="420" x2="408" y2="420" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="462" x2="408" y2="462" stroke="#d4a850" strokeWidth="1.5" opacity="0.7" />
+          <line x1="0" y1="441" x2="396" y2="441" stroke="#f0d898"
+            strokeWidth="2.2" strokeDasharray="18,11" opacity="0.55" />
 
-          {/* ── PATH LABELS on the road surface ── */}
-          <text x="90" y={fy - 10} textAnchor="middle"
-            fill={isSuccess ? "#fca5a5" : "#94a3b8"} fontSize="8" fontFamily="monospace" fontWeight="bold">
-            PATH A
-          </text>
-          <text x="310" y={fy - 10} textAnchor="middle"
-            fill={isSuccess ? "#86efac" : "#94a3b8"} fontSize="8" fontFamily="monospace" fontWeight="bold">
-            PATH B
-          </text>
+          {/* ══ FORK JUNCTION (dirt diamond) ══ */}
+          <polygon points="378,414 422,414 432,468 368,468" fill="#c4a050" />
+          <polygon points="378,414 422,414 432,468 368,468" fill="none"
+            stroke="#d4b060" strokeWidth="1.5" opacity="0.5" />
 
-          {/* ── SIGNPOST at fork ── */}
-          <rect x="198" y={fy - 44} width="4" height="46" rx="2" fill="#7a5c35" />
-          <g transform={`translate(200,${fy - 38}) rotate(-25)`}>
-            <rect x="-46" y="-8" width="46" height="16" rx="3"
-              fill={isSuccess ? "#4b0808" : "#2d3748"} opacity="0.95" />
-            <rect x="-46" y="-8" width="46" height="16" rx="3" fill="none"
-              stroke={isSuccess ? "#ef4444" : "#4a5568"} strokeWidth="1.2" opacity="0.85" />
-            <text x="-23" y="3" textAnchor="middle" fill={isSuccess ? "#fca5a5" : "#e2e8f0"}
-              fontSize="7" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathALabel || "⚠ A: 7"}</text>
+          {/* ══ TREES — lining approach road ══ */}
+          {/* Above road */}
+          {[[55,398,17],[128,393,16],[205,399,18],[285,394,16],[355,397,17]].map(([x,y,r],i) => (
+            <MapTree key={`ta${i}`} x={x} y={y} r={r} />
+          ))}
+          {/* Below road */}
+          {[[70,470,15],[148,474,16],[228,468,17],[318,472,15]].map(([x,y,r],i) => (
+            <MapTree key={`tb${i}`} x={x} y={y} r={r} />
+          ))}
+          {/* Trees along top border */}
+          {[[18,28,14],[55,15,13],[100,32,15],[155,18,13],[230,25,14],[310,14,13],
+            [385,28,14],[445,15,13]].map(([x,y,r],i) => (
+            <MapTree key={`tt${i}`} x={x} y={y} r={r} />
+          ))}
+          {/* Trees framing the dangerous forest entrance */}
+          <MapTree x={490} y={298} r={20} />
+          <MapTree x={490} y={335} r={18} />
+          <MapTree x={490} y={372} r={19} />
+          <MapTree x={490} y={410} r={17} />
+
+          {/* ══ SIGNPOST at fork ══ */}
+          <rect x="397" y="362" width="6" height="60" rx="2" fill="#8a6835" />
+          <rect x="394" y="358" width="12" height="6" rx="2" fill="#6a4a20" />
+          {/* Sign A — angled toward danger forest (upper right) */}
+          <g transform="translate(403,380) rotate(-38)">
+            <rect x="-6" y="-10" width="58" height="20" rx="3"
+              fill={isSuccess ? "#4b0808" : "#3a2a14"} opacity="0.96" />
+            <rect x="-6" y="-10" width="58" height="20" rx="3" fill="none"
+              stroke={isSuccess ? "#ef4444" : "#7a5a28"} strokeWidth="1.5" opacity="0.9" />
+            <text x="23" y="5" textAnchor="middle"
+              fill={isSuccess ? "#fca5a5" : "#e8d8a8"} fontSize="8"
+              fontFamily="monospace" fontWeight="bold">{pathALabel}</text>
           </g>
-          <g transform={`translate(202,${fy - 18}) rotate(22)`}>
-            <rect x="0" y="-8" width="46" height="16" rx="3"
-              fill={isSuccess ? "#14532d" : "#2d3748"} opacity="0.95" />
-            <rect x="0" y="-8" width="46" height="16" rx="3" fill="none"
-              stroke={isSuccess ? "#22c55e" : "#4a5568"} strokeWidth="1.2" opacity="0.85" />
-            <text x="23" y="3" textAnchor="middle" fill={isSuccess ? "#86efac" : "#e2e8f0"}
-              fontSize="7" fontFamily="monospace" fontWeight="bold">{sceneConfig?.pathBLabel || "✓ B: 3"}</text>
+          {/* Sign B — pointing right toward village */}
+          <g transform="translate(403,410)">
+            <rect x="-6" y="-10" width="58" height="20" rx="3"
+              fill={isSuccess ? "#14532d" : "#3a2a14"} opacity="0.96" />
+            <rect x="-6" y="-10" width="58" height="20" rx="3" fill="none"
+              stroke={isSuccess ? "#22c55e" : "#7a5a28"} strokeWidth="1.5" opacity="0.9" />
+            <text x="23" y="5" textAnchor="middle"
+              fill={isSuccess ? "#86efac" : "#e8d8a8"} fontSize="8"
+              fontFamily="monospace" fontWeight="bold">{pathBLabel}</text>
           </g>
+
+          {/* ══ FOREGROUND GRASS STRIP ══ */}
+          <rect x="0" y="470" width="800" height="30" fill="#3a7a18" opacity="0.85" />
+          {[18,50,90,135,180,225,265,310,360,410,455,505,555,605,655,705,750,785].map((x,i) => (
+            <g key={i}>
+              <path d={`M${x},500 C${x-2},488 ${x-5},480 ${x-3},470`}
+                stroke="#4ade80" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.55" />
+              <path d={`M${x+5},500 C${x+6},490 ${x+3},482 ${x+5},472`}
+                stroke="#22c55e" strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.45" />
+            </g>
+          ))}
         </svg>
 
         {/* Condition panel */}
         <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
-          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-violet-500/10">
+          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-violet-400 border-violet-500/30 bg-[#0d1117]/85">
             {sceneConfig?.varDisplay || "a=7 · b=3"}
           </div>
-          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
-            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
-            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
-            : "text-gray-400 border-[#484f58]/60"
+          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 bg-[#0d1117]/85 ${
+            isSuccess ? "text-green-400 border-green-500/30"
+            : isFail ? "text-red-400 border-red-500/30"
+            : "text-gray-300 border-[#484f58]/60"
           }`}>
-            {sceneConfig?.conditionLabel || "if a > b:"} {isSuccess ? "✓ True" : isFail ? "✗ False" : "?"}
+            {sceneConfig?.conditionLabel || "if a > b:"}{" "}
+            {isSuccess ? "✓ True" : isFail ? "✗ False" : "?"}
           </div>
           {isSuccess && (
-            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/5">
+            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/10">
               {sceneConfig?.successAction || "→ take path B"}
             </div>
           )}
