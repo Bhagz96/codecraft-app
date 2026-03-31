@@ -74,6 +74,7 @@ const lessons = [
             ],
             options: ['"{heroName}"', "hero_name", "None"],
             correctIndex: 0,
+            hint: "Look at line 1 — what text value is assigned to hero_name?",
             explanation:
               'Variables store values. hero_name = "{heroName}" creates a container called hero_name holding the text "{heroName}". print() displays it.',
           },
@@ -98,6 +99,7 @@ const lessons = [
             ],
             options: ["100", "0", "Error"],
             correctIndex: 0,
+            hint: "hero_hp is assigned twice — when a variable is assigned twice, only the last value counts.",
             explanation:
               "Variables can be reassigned. hero_hp starts as 0, then gets overwritten to 100. The latest assignment wins — Python replaces the old value with the new one.",
           },
@@ -121,6 +123,7 @@ const lessons = [
             ],
             options: ["Mountain Quest then Mountain Quest: The Climb", "Mountain Quest: The Climb twice", "Mountain Quest twice"],
             correctIndex: 0,
+            hint: "The first print() runs while title is still the short name. Then title changes — what does the second print() see?",
             explanation:
               "The first print() runs when title is still \"Mountain Quest\". Then title gets reassigned, so the second print() outputs the new value. Code runs top to bottom, one line at a time.",
           },
@@ -158,6 +161,7 @@ const lessons = [
             ],
             options: ["<class 'int'>", "<class 'str'>", "<class 'bool'>"],
             correctIndex: 0,
+            hint: "hero_hp = 100 — the number 100 has no quotes. Numbers without quotes are integers (int).",
             explanation:
               "100 is an integer (int) — a whole number with no quotes. \"100\" would be a string. Python has several types: int, float, str, bool.",
           },
@@ -181,6 +185,7 @@ const lessons = [
             ],
             options: ["80", "50", "30"],
             correctIndex: 0,
+            hint: "hero_xp starts at 50, then 30 is added to it. What is 50 + 30?",
             explanation:
               "hero_xp starts as 50. Then hero_xp = hero_xp + 30 means 'take current hero_xp (50), add 30, store result back'. So hero_xp becomes 80.",
           },
@@ -203,6 +208,7 @@ const lessons = [
             ],
             options: ['"{heroName} the Brave"', '"{heroName}theBrave"', "Error"],
             correctIndex: 0,
+            hint: "The + operator joins strings. Notice ' the Brave' starts with a space — that space will appear in the result.",
             explanation:
               "When you use + with strings, Python concatenates (joins) them. '{heroName}' + ' the Brave' = '{heroName} the Brave'. Notice the space at the start of ' the Brave'.",
           },
@@ -240,6 +246,7 @@ const lessons = [
             ],
             options: ['"Welcome, {heroName}! Your quest begins."', '"Welcome, {hero}! Your quest begins."', '"Welcome, hero! Your quest begins."'],
             correctIndex: 0,
+            hint: "In an f-string, {hero} gets replaced with whatever value is stored in the hero variable.",
             explanation:
               "f-strings start with f before the quote. Inside curly braces, Python inserts the variable's value. This is how games build dynamic text — every message can be personalized!",
           },
@@ -262,6 +269,7 @@ const lessons = [
             ],
             options: ['{heroName} with character count', "Error", "Just the name"],
             correctIndex: 0,
+            hint: "len() counts the characters in hero's name, then the f-string builds a message showing both the name and the count.",
             explanation:
               "len() counts the number of characters in a string. Games use len() for things like checking if a username is too long or measuring text for the UI.",
           },
@@ -285,6 +293,7 @@ const lessons = [
             ],
             options: ['"CHARGE"', '"Charge"', '"charge"'],
             correctIndex: 0,
+            hint: ".upper() converts every letter to UPPERCASE. What does \"charge\" look like in all caps?",
             explanation:
               ".upper() converts every character to uppercase — perfect for battle cries and alert messages in games! The original variable stays unchanged.",
           },
@@ -322,6 +331,7 @@ const lessons = [
             ],
             options: ['"sword"', '"shield"', '"potion"'],
             correctIndex: 0,
+            hint: "Lists start counting from 0. inventory[0] is the FIRST item in the list.",
             explanation:
               "Lists are zero-indexed — the first item is at position 0. inventory[0] is 'sword'. This catches many beginners — games count from 0!",
           },
@@ -345,6 +355,7 @@ const lessons = [
             ],
             options: ['["sword", "shield", "map"]', '["map", "sword", "shield"]', '["sword", "shield"]'],
             correctIndex: 0,
+            hint: ".append() always adds the new item to the END of the list.",
             explanation:
               ".append() adds an item to the END of a list. The inventory grows by one — just like picking up items in a real game!",
           },
@@ -367,6 +378,7 @@ const lessons = [
             ],
             options: ['["shield", "potion", "map"]', '["sword", "shield", "potion", "map"]', '["shield", "potion"]'],
             correctIndex: 0,
+            hint: "items[1:4] gives indices 1, 2, 3 — the stop number (4) is NOT included.",
             explanation:
               "Slicing with [start:stop] gives elements from index 'start' up to but NOT including 'stop'. items[1:4] gives indices 1, 2, 3. The stop index is always excluded.",
           },
@@ -404,6 +416,7 @@ const lessons = [
             ],
             options: ['"{heroName}"', "100", "Error"],
             correctIndex: 0,
+            hint: 'hero["name"] looks up the value stored under the key "name" in the dictionary.',
             explanation:
               'Dictionaries store key-value pairs. hero["name"] returns "{heroName}". Unlike lists, dictionaries use keys (names) instead of numbered indices. Perfect for game entity data!',
           },
@@ -427,6 +440,7 @@ const lessons = [
             ],
             options: ['{"name": "{heroName}", "hp": 100, "level": 2}', '{"name": "{heroName}", "hp": 100, "level": 1}', "Error"],
             correctIndex: 0,
+            hint: 'hero["level"] = 2 overwrites the old level value. The rest of the dictionary stays unchanged.',
             explanation:
               'You update dictionary values by assigning to their key. hero["level"] = 2 replaces 1 with 2. This is exactly how games track player stats!',
           },
@@ -450,6 +464,7 @@ const lessons = [
             ],
             options: ["4", '"31"', "Error"],
             correctIndex: 0,
+            hint: 'int() converts "3" from text to the number 3. Then 3 + 1 = ?',
             explanation:
               'int() converts a string to an integer. "3" is text, but int("3") becomes the number 3. Then 3 + 1 = 4. Games always need to convert player input from text to numbers!',
           },
@@ -505,6 +520,7 @@ const lessons = [
             ],
             options: ["0, 1, 2", "1, 2, 3", "0, 1, 2, 3"],
             correctIndex: 0,
+            hint: "range(3) starts at 0 and stops BEFORE 3. Count: 0, 1, 2.",
             explanation:
               "range(3) generates 0, 1, 2 — it starts at 0 and stops BEFORE 3. So the loop runs 3 times. This is how games animate step-by-step movement!",
           },
@@ -528,6 +544,7 @@ const lessons = [
             ],
             options: ["2, 4, 6, 8, 10", "1, 2, 3, 4, 5", "2, 4, 6, 8"],
             correctIndex: 0,
+            hint: "range(1, 6) gives 1, 2, 3, 4, 5. For each step, multiply it by 2 to get the XP.",
             explanation:
               "range(1, 6) gives 1, 2, 3, 4, 5. Each step earns step * 2 XP. Loops are powerful — 3 lines of code produced 5 rewards!",
           },
@@ -551,6 +568,7 @@ const lessons = [
             ],
             options: ["10", "4", "6"],
             correctIndex: 0,
+            hint: "Track the running total: 0+1=1, 1+2=3, 3+3=6, 6+4=?",
             explanation:
               "This accumulator pattern sums 1+2+3+4 = 10 gold. Round by round: 0+1=1, 1+2=3, 3+3=6, 6+4=10. Games use this pattern to calculate scores, damage totals, and more.",
           },
@@ -588,6 +606,7 @@ const lessons = [
             ],
             options: ["gem, potion, key", "0, 1, 2", "3"],
             correctIndex: 0,
+            hint: "The loop variable 'item' takes each value from the list in order, from left to right.",
             explanation:
               "Python's for...in loop iterates directly over list items. 'item' takes each value: first 'gem', then 'potion', then 'key'. No index needed — clean and readable.",
           },
@@ -611,6 +630,7 @@ const lessons = [
             ],
             options: ["0 gem, 1 shield, 2 scroll", "gem, shield, scroll", "0, 1, 2"],
             correctIndex: 0,
+            hint: "enumerate() gives (index, item) pairs. The first pair is (0, 'gem'), the second is (1, 'shield').",
             explanation:
               "enumerate() gives you both the index AND the item. It's like a trail map — you know the position and what's there. Very useful for inventory management!",
           },
@@ -634,6 +654,7 @@ const lessons = [
             ],
             options: ["[10, 20, 30]", "[5, 10, 15]", "[15, 30, 45]"],
             correctIndex: 0,
+            hint: "Multiply each number in gem_power by 2: 5×2=10, 10×2=20, 15×2=30.",
             explanation:
               "List comprehensions are Python's elegant one-liner for transforming lists. [g * 2 for g in gem_power] doubles each value. Games use this for batch calculations like power-ups!",
           },
@@ -670,6 +691,7 @@ const lessons = [
             ],
             options: ["6 attacks", "5 attacks", "2 attacks"],
             correctIndex: 0,
+            hint: "Outer loop runs range(2) = 2 times. Inner loop runs range(3) = 3 times each. Multiply them.",
             explanation:
               "Outer loop runs 2 times, inner runs 3 times each. Total: 2 × 3 = 6 attacks. Nested loops multiply — games use them for grids, maps, and enemy formations!",
           },
@@ -692,6 +714,7 @@ const lessons = [
             ],
             options: ["█, ██, ███", "███, ███, ███", "███"],
             correctIndex: 0,
+            hint: "'█' * level copies the block 'level' times. level=1 gives █, level=2 gives ██, level=3 gives ███.",
             explanation:
               "String multiplication: '█' * 3 gives '███'. Each level grows the meter. This is how games draw health bars and progress indicators!",
           },
@@ -714,6 +737,7 @@ const lessons = [
             ],
             options: ["[[0, 1], [1, 2]]", "[[0, 0], [1, 1]]", "[[1, 2], [3, 4]]"],
             correctIndex: 0,
+            hint: "Each cell value = row + col. Row 0: [0+0, 0+1]. Row 1: [1+0, 1+1].",
             explanation:
               "Nested loops build 2D structures. Row 0: 0+0=0, 0+1=1. Row 1: 1+0=1, 1+1=2. This is exactly how game engines generate tile maps and terrain!",
           },
@@ -750,6 +774,7 @@ const lessons = [
             ],
             options: ["10, 7, 4, 1", "10, 7, 4", "10, 7, 4, 1, -2"],
             correctIndex: 0,
+            hint: "Stamina prints BEFORE subtracting: 10, 7, 4, 1. After printing 1, stamina becomes -2 — does -2 > 0 pass?",
             explanation:
               "Stamina goes 10→7→4→1. After printing 1, stamina becomes -2, and -2 > 0 is False so the loop stops. While loops check BEFORE each round — like a game checking if you have enough energy.",
           },
@@ -773,6 +798,7 @@ const lessons = [
             ],
             options: ["rock, stick, then Found!", "rock, stick, gem, then Found!", "All five items"],
             correctIndex: 0,
+            hint: "The loop checks items one by one. It prints each item until it hits 'gem', then break stops the loop — gem itself is never printed.",
             explanation:
               "'break' exits the loop immediately when the gem is found. Only 'rock' and 'stick' are checked before it. Games use break for searches — stop as soon as you find what you need!",
           },
@@ -796,6 +822,7 @@ const lessons = [
             ],
             options: ["sword, shield, potion, key", "sword, shield", "All five items"],
             correctIndex: 0,
+            hint: "continue skips index 2 (broken_gem) but the loop keeps going. All other items are printed.",
             explanation:
               "'continue' skips the current item and moves to the next. The broken_gem at index 2 is skipped, but the loop keeps going. Unlike break, the loop continues running!",
           },
@@ -832,6 +859,7 @@ const lessons = [
             ],
             options: ["[30, 45, 50]", "[10, 25, 15]", "[10, 25, 30, 45, 50, 15]"],
             correctIndex: 0,
+            hint: "Go through each value: 10<30 skip, 25<30 skip, 30>=30 keep, 45>=30 keep, 50>=30 keep, 15<30 skip.",
             explanation:
               "List comprehension with a filter: keeps only values >= 30. One line replaces a loop + if statement. Games use this to filter enemies, items, and more!",
           },
@@ -854,6 +882,7 @@ const lessons = [
             ],
             options: ["100", "35", "3"],
             correctIndex: 0,
+            hint: "sum() adds all values in the list. 25 + 40 + 35 = ?",
             explanation:
               "sum() adds all values: 25 + 40 + 35 = 100. Python has built-in functions like sum(), len(), max(), min() that work on lists. No manual loops needed!",
           },
@@ -876,6 +905,7 @@ const lessons = [
             ],
             options: ["[50, 60, 45]", "[40, 50, 35]", "[25, 50, 35, 60, 45]"],
             correctIndex: 0,
+            hint: "First filter keeps 40, 50, 35 (all >= 30). Then add 10 to each: 40+10=50, 50+10=60, 35+10=45.",
             explanation:
               "Filter (>= 30) keeps 40, 50, 35. Then +10 each: 50, 60, 45. One line filters AND transforms — this is peak Python! Games use this for buff calculations.",
           },
@@ -932,6 +962,7 @@ const lessons = [
             ],
             options: ['"Too hot! Rest in shade."', '"Perfect weather. Keep climbing!"', "Both"],
             correctIndex: 0,
+            hint: "temp = 35. Is 35 > 30? If yes, the if-block runs; if no, the else-block runs.",
             explanation:
               "temp is 35. Is 35 > 30? Yes! So the if-block runs. The else is skipped entirely. Only ONE branch ever runs — your game picks the right response.",
           },
@@ -955,6 +986,7 @@ const lessons = [
             ],
             options: ['"{heroName} needs to rest first."', '"{heroName} charges ahead!"', "Nothing"],
             correctIndex: 0,
+            hint: "energy = 15. Is 15 >= 20? No — so the else branch runs.",
             explanation:
               "energy is 15. Is 15 >= 20? No! So the else-block runs. The >= operator means 'greater than or equal to'. Your game protects the hero from overexertion.",
           },
@@ -978,6 +1010,7 @@ const lessons = [
             ],
             options: ["Path B (safer)", "Path A (safer)", "Error"],
             correctIndex: 0,
+            hint: "path_a_danger = 7, path_b_danger = 3. Is 7 > 3? If yes, which path does the if-block assign to safe_path?",
             explanation:
               "Is 7 > 3? Yes. Path A is more dangerous, so the hero takes Path B. This is a classic pattern for finding the best option — games use it everywhere!",
           },
@@ -1015,6 +1048,7 @@ const lessons = [
             ],
             options: ["True, False", "True, True", "42, 42"],
             correctIndex: 0,
+            hint: "42 == 42 compares two integers (same type, same value). But 42 == \"42\" compares a number to a string — different types.",
             explanation:
               "== checks equality. 42 == 42 is True (match!). But 42 == \"42\" is False — an integer and string are different types. Games must check types carefully!",
           },
@@ -1038,6 +1072,7 @@ const lessons = [
             ],
             options: ["True, False", "False, True", "True, True"],
             correctIndex: 0,
+            hint: "\"rock\" != \"flower\" asks: are these different? They are — True. \"rock\" != \"rock\" asks the same — they're the same, so False.",
             explanation:
               "!= means 'not equal to'. 'rock' != 'flower' is True (different). 'rock' != 'rock' is False (same). Games use != to check if something ISN'T what you expect.",
           },
@@ -1061,6 +1096,7 @@ const lessons = [
             ],
             options: ["Yes — has rope AND enough stamina", "No — one condition fails", "Error"],
             correctIndex: 0,
+            hint: "has_rope = True AND stamina = 80 (which is >= 50). Both sides of 'and' must be True — are they?",
             explanation:
               "'and' means BOTH conditions must be true. has_rope is True AND 80 >= 50 is True. Both pass! The hero crosses. Games use 'and' for multi-requirement checks.",
           },
@@ -1098,6 +1134,7 @@ const lessons = [
             ],
             options: ["False, True", "True, True", "False, False"],
             correctIndex: 0,
+            hint: "'and' only gives True when BOTH sides are True. rune_a=True, rune_b=False — what is True and False?",
             explanation:
               "'and' returns True ONLY when BOTH sides are True. True and False = False (gate stays locked). True and True = True (gate opens). Both runes must glow!",
           },
@@ -1121,6 +1158,7 @@ const lessons = [
             ],
             options: ["True — warm is enough", "False — it's not sunny", "Error"],
             correctIndex: 0,
+            hint: "'or' only needs ONE side to be True. sunny=False but warm=True — does that pass?",
             explanation:
               "'or' returns True when AT LEAST ONE side is True. Not sunny but warm? Still True! Only False or False would block the climb.",
           },
@@ -1144,6 +1182,7 @@ const lessons = [
             ],
             options: ["Yes — not False is True", "No — is_poisoned is False", "Error"],
             correctIndex: 0,
+            hint: "is_poisoned = False. 'not False' flips it to True. So 'if not is_poisoned' → 'if True' → the if-block runs.",
             explanation:
               "'not' flips a boolean. not False = True. The hero is NOT poisoned, so they can fight! Very common pattern: 'if NOT in danger, proceed'.",
           },
@@ -1181,6 +1220,7 @@ const lessons = [
             ],
             options: ['"proceed with caution"', '"retreat"', '"walk confidently"'],
             correctIndex: 0,
+            hint: "danger = 65. Test top to bottom: is 65 >= 80? No. Is 65 >= 50? Yes — that branch runs and the rest are skipped.",
             explanation:
               "65 >= 80? No. 65 >= 50? Yes! So action = 'proceed with caution'. Once a match is found, the rest are skipped. Python uses 'elif' (not 'else if'). Order matters!",
           },
@@ -1204,6 +1244,7 @@ const lessons = [
             ],
             options: ['"{heroName} needs a key!"', '"{heroName} enters the cave!"', '"{heroName} is too low level."'],
             correctIndex: 0,
+            hint: "hero_level = 5 passes the first check (5 >= 3). But has_key = False — what does the inner if do?",
             explanation:
               "First: 5 >= 3? Yes. Second: has_key is False, so the inner else runs. Nested conditions check step by step — like a bouncer checking ID then checking the list.",
           },
@@ -1227,6 +1268,7 @@ const lessons = [
             ],
             options: ['"{heroName} enters the cave!"', '"Access denied."', "Error"],
             correctIndex: 0,
+            hint: "hero_level = 5, has_key = True. Both sides of 'and' need to be True — check each one.",
             explanation:
               "'and' combines both checks. 5 >= 3 is True AND has_key is True. Both pass! Much cleaner than nesting. Flatten when you can!",
           },
@@ -1264,6 +1306,7 @@ const lessons = [
             ],
             options: ["True, False", "True, True", "False, False"],
             correctIndex: 0,
+            hint: "Look at the inventory list — is \"gem\" in it? Is \"shield\" in it? 'in' returns True if found, False if not.",
             explanation:
               "'in' checks if a value exists in a collection. 'gem' is in the list → True. 'shield' is not → False. Games use 'in' to check inventory, permissions, and more!",
           },
@@ -1287,6 +1330,7 @@ const lessons = [
             ],
             options: ['"healthy"', '"wounded"', "80"],
             correctIndex: 0,
+            hint: "hero_hp = 80. Is 80 >= 50? If yes, the value BEFORE 'if' is chosen; if no, the value after 'else' is chosen.",
             explanation:
               "Python's ternary: value_if_true if condition else value_if_false. 80 >= 50 is True, so status = 'healthy'. One-line if/else — clean and game-ready!",
           },
@@ -1310,6 +1354,7 @@ const lessons = [
             ],
             options: ['"Invalid attack value! Using default."', "Game crashes", '"fire"'],
             correctIndex: 0,
+            hint: "int(\"fire\") will raise an error because \"fire\" is not a number. When the try block fails, which block catches it?",
             explanation:
               'int("fire") fails because "fire" isn\'t a number. The except block catches the ValueError and shows a friendly message. Games MUST handle errors — crashing is never acceptable!',
           },

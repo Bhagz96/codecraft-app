@@ -93,12 +93,23 @@ function LessonPage() {
 
   // ── Hint text generator ─────────────────────────────────────────
   const getHintForStep = useCallback((step) => {
+    // Use step-specific hint if provided (preferred)
+    if (step.hint) return step.hint;
     if (step.explanation) {
-      // Extract first sentence as hint
       const firstSentence = step.explanation.split(".")[0] + ".";
       return firstSentence;
     }
     return "Think about what each line of code does, step by step.";
+  }, []);
+
+  // ── Worked example builder ───────────────────────────────────────
+  // If step has a custom workedExample, use it.
+  // Otherwise annotate the codeSnippet with the correct output.
+  const getWorkedExample = useCallback((step) => {
+    if (step.workedExample) return step.workedExample;
+    const code = step.codeSnippet || "";
+    const answer = step.options?.[step.correctIndex] ?? "";
+    return `${code}\n# ↳ Output: ${answer}`;
   }, []);
 
   // ── Support strategy: should hint show initially? ───────────────
@@ -371,7 +382,7 @@ function LessonPage() {
               <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
                 <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
                 <pre className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">
-                  {step.codeSnippet.split("\\n").join("\n")}
+                  {getWorkedExample(step)}
                 </pre>
                 <button
                   onClick={() => setShowWorkedExample(false)}
@@ -382,14 +393,20 @@ function LessonPage() {
               </div>
             )}
 
-            {/* Step-by-step scaffold guidance */}
+            {/* Step-by-step scaffold guidance — concept-aware */}
             {supportStrategy === "step_by_step_scaffold" && feedback === null && (
               <div className="mb-3 bg-violet-500/5 border border-violet-500/20 rounded-lg p-3">
                 <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1">Step-by-Step Guide</p>
                 <p className="text-gray-400 text-xs">
-                  {stepScaffoldPhase === 0 && "Step 1: Read the code carefully. What values are the variables set to?"}
-                  {stepScaffoldPhase === 1 && "Step 2: Look at the condition. Is it True or False with these values?"}
-                  {stepScaffoldPhase === 2 && "Step 3: Which branch runs? Select your answer below."}
+                  {conceptId === "variables" && stepScaffoldPhase === 0 && "Step 1: Read each line top to bottom. What value does each variable end up holding?"}
+                  {conceptId === "variables" && stepScaffoldPhase === 1 && "Step 2: Find the print() call. What variable or expression is inside it?"}
+                  {conceptId === "variables" && stepScaffoldPhase === 2 && "Step 3: What value was stored in that variable when print() ran? Select your answer."}
+                  {conceptId === "loops" && stepScaffoldPhase === 0 && "Step 1: What does range() or the list contain? Count how many times the loop will run."}
+                  {conceptId === "loops" && stepScaffoldPhase === 1 && "Step 2: What happens inside the loop each iteration? Track any variables that change."}
+                  {conceptId === "loops" && stepScaffoldPhase === 2 && "Step 3: Based on all iterations, what is the final output? Select your answer."}
+                  {conceptId === "conditions" && stepScaffoldPhase === 0 && "Step 1: What values are the variables assigned to?"}
+                  {conceptId === "conditions" && stepScaffoldPhase === 1 && "Step 2: Evaluate the condition — is it True or False with those values?"}
+                  {conceptId === "conditions" && stepScaffoldPhase === 2 && "Step 3: Which branch runs (if or else)? Select the correct output."}
                 </p>
                 {stepScaffoldPhase < 2 && (
                   <button
