@@ -946,12 +946,14 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
   const [heroAnim, setHeroAnim] = useState("walk");
   const [heroTransition, setHeroTransition] = useState("none");
   const intervalRef = useRef(null);
+  const timerRef = useRef(null);
 
   const isSuccess = phase === "success";
   const isFail = phase === "fail";
 
   useEffect(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
 
     if (phase === "idle") {
       setHeroAnim("walk");
@@ -963,16 +965,27 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
       }, 60);
     } else if (phase === "success") {
       setCleared(prev => prev + 1);
+      // Weather check: hero walks to the shade tree (not forward past it)
+      const targetX = gameAction === "heroForkPath" ? 72
+        : gameAction === "heroCheckWeather" ? 34
+        : 70;
       setHeroAnim("walk");
-      setHeroTransition("left 0.8s ease-in-out");
-      setHeroX(gameAction === "heroForkPath" ? 72 : 70);
+      setHeroTransition("left 0.9s ease-in-out");
+      setHeroX(targetX);
+      // After arriving at tree, switch to idle (resting) animation
+      if (gameAction === "heroCheckWeather") {
+        timerRef.current = setTimeout(() => setHeroAnim("idle"), 1000);
+      }
     } else if (phase === "fail") {
       setHeroAnim("hurt");
       setHeroTransition("left 0.35s ease-out");
       setHeroX(prev => Math.max(prev - 12, 6));
     }
 
-    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+    return () => {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    };
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const successMsg = {
@@ -1010,98 +1023,229 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
     </div>
   );
 
-  // ── WEATHER CHECK: thermometer + dynamic sky + two outcome zones ──────
+  // ── WEATHER CHECK — redesigned scene ─────────────────────────────
   if (gameAction === "heroCheckWeather") {
-    // Sky: always warm (temp=35 in code), blazing on success, dim red on fail
     const skyBg = isFail
-      ? "linear-gradient(180deg, #3b1a1a 0%, #5a2020 40%, #2a1010 100%)"
+      ? "linear-gradient(180deg, #120404 0%, #2d0808 50%, #1a0505 100%)"
       : isSuccess
-        ? "linear-gradient(180deg, #92400e 0%, #b45309 40%, #78350f 100%)"
-        : "linear-gradient(180deg, #4a2a0a 0%, #7c3d0d 50%, #5a2d0a 100%)";
+        ? "linear-gradient(180deg, #0a1628 0%, #1e3a5c 38%, #c97335 72%, #7c3010 100%)"
+        : "linear-gradient(180deg, #0c1a32 0%, #1a3050 38%, #d4803a 72%, #8a3d10 100%)";
 
     return (
-      <div className="w-full h-full relative overflow-hidden">
-        <div className="absolute inset-0 transition-all duration-700" style={{ background: skyBg }} />
+      <div className="w-full h-full relative overflow-hidden" style={{ background: skyBg, transition: "background 0.8s ease" }}>
 
-        {/* Sun — always visible since temp=35 */}
-        <svg className="absolute top-3 right-10 z-10" width="60" height="60" viewBox="0 0 60 60">
-          <circle cx="30" cy="30" r={isSuccess ? 14 : 11} fill="#fbbf24" opacity={isSuccess ? "0.95" : "0.55"}>
-            {isSuccess && <animate attributeName="r" values="13;17;13" dur="2s" repeatCount="indefinite" />}
+        {/* ── BLAZING SUN ── */}
+        <svg className="absolute z-10" style={{ top: "5%", left: "56%" }} width="92" height="92" viewBox="0 0 92 92">
+          {/* Outer corona */}
+          <circle cx="46" cy="46" r="40" fill="#fb923c" opacity="0.07">
+            <animate attributeName="r" values="36;44;36" dur="3.5s" repeatCount="indefinite" />
           </circle>
-          {[0,45,90,135,180,225,270,315].map((a, i) => (
+          <circle cx="46" cy="46" r="28" fill="#fbbf24" opacity="0.14">
+            <animate attributeName="r" values="26;32;26" dur="2.2s" repeatCount="indefinite" />
+          </circle>
+          {/* Main disc */}
+          <circle cx="46" cy="46" r="18" fill="#fbbf24" />
+          <circle cx="46" cy="46" r="12" fill="#fde68a" />
+          {/* Inner highlight */}
+          <circle cx="41" cy="41" r="5" fill="white" opacity="0.3" />
+          {/* 12 rays — alternating thick/thin */}
+          {Array.from({ length: 12 }, (_, i) => i * 30).map((a, i) => (
             <line key={i}
-              x1={30 + Math.cos(a * Math.PI/180) * 17} y1={30 + Math.sin(a * Math.PI/180) * 17}
-              x2={30 + Math.cos(a * Math.PI/180) * 24} y2={30 + Math.sin(a * Math.PI/180) * 24}
-              stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" opacity={isSuccess ? "0.85" : "0.4"} />
+              x1={46 + Math.cos(a * Math.PI / 180) * 21}
+              y1={46 + Math.sin(a * Math.PI / 180) * 21}
+              x2={46 + Math.cos(a * Math.PI / 180) * (i % 2 === 0 ? 33 : 28)}
+              y2={46 + Math.sin(a * Math.PI / 180) * (i % 2 === 0 ? 33 : 28)}
+              stroke="#fbbf24" strokeWidth={i % 2 === 0 ? "2.5" : "1.5"} strokeLinecap="round" opacity="0.8"
+            />
           ))}
         </svg>
 
-        <Ground variant="rocky" />
-
-        {/* Thermometer — always shows 35° */}
-        <div className="absolute z-20" style={{ right: "30%", bottom: "85px" }}>
-          <svg width="38" height="115" viewBox="0 0 38 115">
-            <circle cx="19" cy="98" r="12" fill="#ef4444" opacity="0.9" />
-            <circle cx="19" cy="98" r="7" fill="#fca5a5" opacity="0.65" />
-            <rect x="15" y="8" width="8" height="90" rx="4" fill="#374151" opacity="0.5" />
-            <rect x="16" y="8" width="6" height="90" rx="3" fill="#1f2937" />
-            <rect x="17" y="35" width="4" height="63" rx="2" fill="#ef4444">
-              <animate attributeName="y" values="35;30;35" dur="2s" repeatCount="indefinite" />
-            </rect>
-            {[18, 32, 46, 60, 74, 88].map((y, i) => (
-              <line key={i} x1="24" y1={y} x2="30" y2={y} stroke="#6b7280" strokeWidth="1" />
+        {/* ── HEAT SHIMMER ── */}
+        {!isFail && (
+          <svg className="absolute z-[6]" style={{ bottom: "34%", left: "8%", width: "84%", height: "10%" }} viewBox="0 0 600 44" preserveAspectRatio="none">
+            {[8, 20, 32].map((y, i) => (
+              <path key={i} d={`M 0,${y} Q 150,${y - 7} 300,${y} Q 450,${y + 7} 600,${y}`}
+                stroke="#fbbf2430" strokeWidth="1.5" fill="none">
+                <animate attributeName="d"
+                  values={`M 0,${y} Q 150,${y-7} 300,${y} Q 450,${y+7} 600,${y};M 0,${y} Q 150,${y+5} 300,${y} Q 450,${y-5} 600,${y};M 0,${y} Q 150,${y-7} 300,${y} Q 450,${y+7} 600,${y}`}
+                  dur={`${1.6 + i * 0.45}s`} repeatCount="indefinite" />
+              </path>
             ))}
-            <text x="19" y="5" textAnchor="middle" fill="#fca5a5" fontSize="8" fontFamily="monospace" fontWeight="bold">
-              35°
-            </text>
+          </svg>
+        )}
+
+        {/* ── DISTANT MOUNTAIN RANGE ── */}
+        <svg className="absolute z-[4]" style={{ bottom: "30%", left: 0, width: "100%" }} viewBox="0 0 800 90" preserveAspectRatio="none">
+          <polygon points="0,90 90,22 190,65 310,8 440,52 560,16 680,42 770,18 800,30 800,90" fill="#1a2d45" opacity="0.45" />
+          <polygon points="0,90 60,48 140,78 250,28 370,62 480,32 600,58 700,28 800,46 800,90" fill="#111e2e" opacity="0.6" />
+        </svg>
+
+        {/* ── GROUND STRIP ── */}
+        <div className="absolute z-[5]" style={{ bottom: 0, left: 0, right: 0, height: "65px" }}>
+          <svg width="100%" height="65" viewBox="0 0 800 65" preserveAspectRatio="none">
+            <rect x="0" y="0" width="800" height="65" fill="#5c3d1e" />
+            {/* Sandy dirt path fork */}
+            <path d="M 260,65 Q 380,20 450,0" stroke="#9b7045" strokeWidth="100" fill="none" opacity="0.45" />
+            <path d="M 540,65 Q 420,20 450,0" stroke="#9b7045" strokeWidth="80" fill="none" opacity="0.3" />
+            {/* Path fork centerlines */}
+            <path d="M 320,65 Q 400,28 450,4" stroke="#c4964a" strokeWidth="2" fill="none" strokeDasharray="8,6" opacity="0.4" />
+            <path d="M 480,65 Q 460,30 450,4" stroke="#c4964a" strokeWidth="2" fill="none" strokeDasharray="8,6" opacity="0.35" />
+            {/* Grass left */}
+            <rect x="0" y="0" width="90" height="65" fill="#2d6a1e" />
+            {/* Grass right */}
+            <rect x="710" y="0" width="90" height="65" fill="#2d6a1e" />
+            {/* Top-edge horizon shadow */}
+            <rect x="0" y="0" width="800" height="5" fill="#0d0807" opacity="0.6" />
+            {/* Pebbles scattered on path */}
+            {[[150,30],[230,42],[360,28],[500,35],[610,25],[680,40]].map(([x,y],i) => (
+              <ellipse key={i} cx={x} cy={y} rx="5" ry="3" fill="#3a2510" opacity="0.55" />
+            ))}
           </svg>
         </div>
 
-        {/* Outcome zones — shade tree (if True: too hot → rest) vs mountain path (else → climb) */}
-        <div className="absolute z-[8]" style={{ left: "50%", bottom: "60px" }}>
-          <svg width="76" height="88" viewBox="0 0 76 88">
-            <rect x="34" y="52" width="7" height="30" rx="2" fill="#5c3d1e" />
-            <ellipse cx="37" cy="44" rx="24" ry="18" fill="#166534" opacity="0.85" />
-            <ellipse cx="37" cy="36" rx="18" ry="14" fill="#15803d" opacity="0.8" />
-            {isSuccess && (
-              <ellipse cx="37" cy="84" rx="28" ry="5" fill="#22c55e" opacity="0.3">
-                <animate attributeName="opacity" values="0.15;0.4;0.15" dur="1.2s" repeatCount="indefinite" />
+        {/* ── GRASS BLADES left edge ── */}
+        <svg className="absolute z-[8]" style={{ bottom: "63px", left: "0", width: "11%" }} viewBox="0 0 80 48" preserveAspectRatio="none">
+          {[6,14,22,30,38,48,58,68].map((x, i) => (
+            <g key={i}>
+              <path d={`M${x},46 C${x-3},${32-i%3*6} ${x-6},${18-i%2*7} ${x-4},${8-i%3*4}`}
+                stroke="#22c55e" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.9">
+                <animate attributeName="d"
+                  values={`M${x},46 C${x-3},${32-i%3*6} ${x-6},${18-i%2*7} ${x-4},${8-i%3*4};M${x},46 C${x},${32-i%3*6} ${x-3},${18-i%2*7} ${x-1},${8-i%3*4};M${x},46 C${x-3},${32-i%3*6} ${x-6},${18-i%2*7} ${x-4},${8-i%3*4}`}
+                  dur={`${1.3+i*0.18}s`} repeatCount="indefinite" />
+              </path>
+              <path d={`M${x+4},46 C${x+5},${35-i%2*6} ${x+3},${20-i%3*5} ${x+5},${11-i%2*4}`}
+                stroke="#16a34a" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.7" />
+            </g>
+          ))}
+        </svg>
+
+        {/* ── GRASS BLADES right edge ── */}
+        <svg className="absolute z-[8]" style={{ bottom: "63px", right: "0", width: "11%" }} viewBox="0 0 80 48" preserveAspectRatio="none">
+          {[6,14,22,30,38,48,58,68].map((x, i) => (
+            <g key={i}>
+              <path d={`M${x},46 C${x+3},${32-i%3*6} ${x+6},${18-i%2*7} ${x+4},${8-i%3*4}`}
+                stroke="#22c55e" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.9" />
+              <path d={`M${x-3},46 C${x-2},${35-i%2*6} ${x+1},${20-i%3*5} ${x-1},${11-i%2*4}`}
+                stroke="#16a34a" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.7" />
+            </g>
+          ))}
+        </svg>
+
+        {/* ── SHADE TREE — if True branch (rest here) ── */}
+        <div className="absolute z-[9]" style={{ left: "40%", bottom: "60px", transform: "translateX(-50%)" }}>
+          <svg width="136" height="185" viewBox="0 0 136 185" overflow="visible">
+            {/* Ground shadow — expands when hero arrives */}
+            <ellipse cx="68" cy="178" rx={isSuccess ? "62" : "46"} ry="10" fill="#00000055" style={{ transition: "rx 0.8s" }}>
+              {isSuccess && <animate attributeName="rx" values="58;68;58" dur="3.2s" repeatCount="indefinite" />}
+            </ellipse>
+            {/* Dappled sunlight spots in shade */}
+            {isSuccess && [[-22,163],[-10,170],[3,165],[16,172],[28,166]].map(([dx,dy],i) => (
+              <ellipse key={i} cx={68+dx} cy={dy} rx="4" ry="2" fill="#fde68a" opacity="0.22">
+                <animate attributeName="opacity" values="0.08;0.32;0.08" dur={`${0.9+i*0.4}s`} repeatCount="indefinite" />
               </ellipse>
-            )}
+            ))}
+            {/* Trunk */}
+            <rect x="59" y="112" width="18" height="66" rx="5" fill="#7c4a1e" />
+            <rect x="63" y="112" width="6" height="66" rx="3" fill="#9b6432" opacity="0.45" />
+            {/* Visible roots */}
+            <path d="M59,172 Q46,180 34,176" stroke="#7c4a1e" strokeWidth="5" fill="none" strokeLinecap="round" />
+            <path d="M77,172 Q90,180 102,176" stroke="#7c4a1e" strokeWidth="5" fill="none" strokeLinecap="round" />
+            {/* Canopy — 5 layers, darkest at back */}
+            <ellipse cx="68" cy="96" rx="52" ry="38" fill="#14532d" />
+            <ellipse cx="66" cy="80" rx="44" ry="32" fill="#166534" />
+            <ellipse cx="70" cy="64" rx="36" ry="28" fill="#15803d">
+              {isSuccess && <animate attributeName="rx" values="36;38;36" dur="2.8s" repeatCount="indefinite" />}
+            </ellipse>
+            <ellipse cx="66" cy="50" rx="27" ry="22" fill="#16a34a" />
+            <ellipse cx="64" cy="36" rx="18" ry="16" fill="#22c55e" opacity="0.85" />
+            {/* Highlight on canopy top */}
+            <ellipse cx="58" cy="30" rx="10" ry="8" fill="#4ade80" opacity="0.28" />
+            {/* Animated leaves rustling on success */}
+            {isSuccess && [[-14,86],[10,90],[-22,70],[22,74],[-6,54],[16,58],[-12,42],[8,38]].map(([dx,dy],i) => (
+              <ellipse key={i} cx={68+dx} cy={dy} rx="5" ry="4" fill="#4ade80" opacity="0.22">
+                <animate attributeName="cy" values={`${dy};${dy-5};${dy}`} dur={`${1.0+i*0.22}s`} repeatCount="indefinite" />
+              </ellipse>
+            ))}
           </svg>
-          <div className={`text-center text-xs font-mono px-2 py-0.5 rounded border transition-all duration-400 ${
-            isSuccess ? "text-green-400 border-green-500/40 bg-green-500/10" : "text-gray-600 border-[#30363d]/40"
+          <div className={`text-center text-xs font-bold font-mono mt-0.5 px-3 py-1 rounded-full border transition-all duration-500 ${
+            isSuccess
+              ? "text-green-300 bg-green-500/20 border-green-400/50 shadow-md shadow-green-500/20"
+              : "text-gray-500 bg-transparent border-gray-600/20"
           }`}>
-            {isSuccess ? "✓ rest in shade" : "rest in shade"}
+            {isSuccess ? "✓ resting in shade" : "🌳 rest in shade"}
           </div>
         </div>
 
-        <div className="absolute z-[8]" style={{ right: "5%", bottom: "60px" }}>
-          <svg width="64" height="78" viewBox="0 0 64 78">
-            <polygon points="32,4 4,74 60,74" fill="#374151" opacity="0.65" />
-            <polygon points="32,4 18,38 46,38" fill="#4b5563" opacity="0.5" />
-            <line x1="32" y1="74" x2="32" y2="28" stroke="#c4a870" strokeWidth="2" strokeDasharray="4,4" opacity="0.4" />
+        {/* ── MOUNTAIN — if False branch (keep climbing) ── */}
+        <div className="absolute z-[7]" style={{ right: "4%", bottom: "60px" }}>
+          <svg width="120" height="152" viewBox="0 0 120 152" overflow="visible">
+            {/* Back peak (silhouette) */}
+            <polygon points="82,10 44,140 120,140" fill="#2d3748" opacity="0.5" />
+            {/* Main peak */}
+            <polygon points="60,14 10,140 110,140" fill="#374151" />
+            {/* Rock face shading */}
+            <polygon points="60,14 10,140 60,140" fill="#1f2937" opacity="0.35" />
+            {/* Snow cap */}
+            <polygon points="60,14 46,50 74,50" fill="white" opacity="0.7" />
+            <polygon points="60,14 52,32 68,32" fill="white" opacity="0.9" />
+            {/* Rock texture lines */}
+            <path d="M32,95 L50,72" stroke="#4b5563" strokeWidth="1.5" fill="none" opacity="0.5" />
+            <path d="M62,88 L76,68" stroke="#4b5563" strokeWidth="1.5" fill="none" opacity="0.5" />
+            <path d="M38,118 L55,100" stroke="#4b5563" strokeWidth="1" fill="none" opacity="0.4" />
+            {/* Boulder detail */}
+            <ellipse cx="24" cy="125" rx="8" ry="5" fill="#4b5563" opacity="0.6" />
+            <ellipse cx="88" cy="118" rx="6" ry="4" fill="#4b5563" opacity="0.5" />
+            {/* Winding trail */}
+            <path d="M 60,140 Q 52,118 56,96 Q 60,74 54,54 Q 57,36 60,14"
+              stroke="#d4a85a" strokeWidth="2.5" fill="none" strokeDasharray="5,5" opacity="0.55" />
+            {/* Distance marker */}
+            <text x="80" y="80" fill="#9ca3af" fontSize="7" fontFamily="monospace" opacity="0.65">2 km</text>
+            <text x="80" y="89" fill="#9ca3af" fontSize="7" fontFamily="monospace" opacity="0.65">ahead</text>
           </svg>
-          <div className="text-center text-xs font-mono px-2 py-0.5 rounded border text-gray-600 border-[#30363d]/40">
-            keep climbing
+          <div className={`text-center text-xs font-mono mt-0.5 px-3 py-1 rounded-full border transition-all duration-500 ${
+            isFail
+              ? "text-orange-400 bg-orange-500/10 border-orange-500/30"
+              : isSuccess
+                ? "text-gray-600 bg-transparent border-transparent opacity-40"
+                : "text-gray-400 bg-transparent border-gray-600/20"
+          }`}>
+            ⛰ keep climbing
           </div>
         </div>
 
-        {/* Code condition panel */}
+        {/* ── THERMOMETER — near sun ── */}
+        <div className="absolute z-20" style={{ left: "57%", top: "20%" }}>
+          <svg width="28" height="86" viewBox="0 0 28 86">
+            <circle cx="14" cy="74" r="9" fill="#ef4444" />
+            <circle cx="14" cy="74" r="5.5" fill="#fca5a5" opacity="0.8" />
+            <rect x="10" y="8" width="8" height="66" rx="4" fill="#374151" />
+            <rect x="11" y="8" width="6" height="66" rx="3" fill="#1f2937" />
+            <rect x="12" y="20" width="4" height="54" rx="2" fill="#ef4444">
+              <animate attributeName="y" values="20;16;20" dur="2.8s" repeatCount="indefinite" />
+            </rect>
+            {[18, 28, 38, 48, 58, 68].map((y, i) => (
+              <line key={i} x1="19" y1={y} x2="24" y2={y} stroke="#6b7280" strokeWidth="1" />
+            ))}
+            <text x="14" y="5" textAnchor="middle" fill="#fca5a5" fontSize="6" fontFamily="monospace" fontWeight="bold">35°</text>
+          </svg>
+        </div>
+
+        {/* ── CODE CONDITION PANEL ── */}
         <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
-          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-orange-400 border-orange-500/30 bg-orange-500/10">
+          <div className="px-2.5 py-1.5 rounded-lg text-xs font-mono border text-orange-400 border-orange-500/30 bg-[#0d1117]/85">
             {sceneConfig?.varDisplay || "temp = 35"}
           </div>
-          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
-            isSuccess ? "text-green-400 border-green-500/30 bg-green-500/10"
-            : isFail ? "text-red-400 border-red-500/30 bg-red-500/10"
-            : "text-gray-400 border-[#484f58]/60"
+          <div className={`px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 bg-[#0d1117]/85 ${
+            isSuccess ? "text-green-400 border-green-500/30"
+            : isFail ? "text-red-400 border-red-500/30"
+            : "text-gray-300 border-[#484f58]/60"
           }`}>
-            {sceneConfig?.conditionLabel || "if temp > 30:"} {isSuccess ? "✓ True" : isFail ? "✗ False" : "?"}
+            {sceneConfig?.conditionLabel || "if temp > 30:"}{" "}
+            {isSuccess ? "✓ True" : isFail ? "✗ False" : "?"}
           </div>
           {isSuccess && (
-            <div className="px-2.5 py-1 rounded text-xs font-mono text-orange-300 border border-orange-500/20 bg-orange-500/5">
-              {sceneConfig?.successAction || "→ Too hot! Rest."}
+            <div className="px-2.5 py-1 rounded text-xs font-mono text-green-300 border border-green-500/20 bg-green-500/10">
+              {sceneConfig?.successAction || "→ Rest in shade!"}
             </div>
           )}
         </div>
