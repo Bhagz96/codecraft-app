@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
+import { workedExamples } from "../data/workedExamples";
 import { completeLevel } from "../data/progress";
 import { getHero, awardXP } from "../data/hero";
 import { injectHeroIntoLevel } from "../data/lessonTemplates";
@@ -103,14 +104,11 @@ function LessonPage() {
   }, []);
 
   // ── Worked example builder ───────────────────────────────────────
-  // If step has a custom workedExample, use it.
-  // Otherwise annotate the codeSnippet with the correct output.
-  const getWorkedExample = useCallback((step) => {
-    if (step.workedExample) return step.workedExample;
-    const code = step.codeSnippet || "";
-    const answer = step.options?.[step.correctIndex] ?? "";
-    return `${code}\n# ↳ Output: ${answer}`;
-  }, []);
+  // Look up the parallel worked example keyed by conceptId_level_stepIndex.
+  const getWorkedExample = useCallback((stepIndex) => {
+    const key = `${conceptId}_${levelNum}_${stepIndex}`;
+    return workedExamples[key] || null;
+  }, [conceptId, levelNum]);
 
   // ── Support strategy: should hint show initially? ───────────────
   const shouldShowHintInitially = supportStrategy === "hint_first";
@@ -378,20 +376,27 @@ function LessonPage() {
           {/* Learning context card */}
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
             {/* Worked Example (shown before question for worked_example_first) */}
-            {showWorkedExample && step.codeSnippet && (
-              <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-                <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
-                <pre className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">
-                  {getWorkedExample(step)}
-                </pre>
-                <button
-                  onClick={() => setShowWorkedExample(false)}
-                  className="mt-2 text-amber-400 text-xs font-mono hover:text-amber-300 transition-colors cursor-pointer"
-                >
-                  Got it, show question →
-                </button>
-              </div>
-            )}
+            {showWorkedExample && (() => {
+              const example = getWorkedExample(currentStep);
+              if (!example) return null;
+              return (
+                <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+                  <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
+                  {example.note && (
+                    <p className="text-amber-200/70 text-xs italic mb-2">{example.note}</p>
+                  )}
+                  <pre className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">
+                    {example.code}
+                  </pre>
+                  <button
+                    onClick={() => setShowWorkedExample(false)}
+                    className="mt-2 text-amber-400 text-xs font-mono hover:text-amber-300 transition-colors cursor-pointer"
+                  >
+                    Got it, show question →
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Step-by-step scaffold guidance — concept-aware */}
             {supportStrategy === "step_by_step_scaffold" && feedback === null && (
