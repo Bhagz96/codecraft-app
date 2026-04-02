@@ -19,7 +19,8 @@ const DEFAULT_HERO = {
   gold: 0,
   xp: 0,
   level: 1,
-  color: "#00d4ff",      // Hero accent color (cyan default)
+  color: "#00d4ff",      // Hero accent/outfit color (cyan default)
+  avatarId: "m01",       // Selected cartoon avatar
   created: false,
 };
 
@@ -49,11 +50,12 @@ export function saveHero(hero) {
  * Create a new hero with the given name.
  * Called during Variables Level 1.
  */
-export function createHero(name, color = "#00d4ff") {
+export function createHero(name, color = "#00d4ff", avatarId = "m01") {
   const hero = {
     ...DEFAULT_HERO,
     name: name || "Hero",
     color,
+    avatarId,
     created: true,
   };
   saveHero(hero);

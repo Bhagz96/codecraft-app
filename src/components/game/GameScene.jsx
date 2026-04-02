@@ -27,7 +27,8 @@ function GameScene({ sceneId = "hero-spawn", result, hero, gameAction, sceneConf
 
   const heroColor = hero?.color || "#00d4ff";
   const heroName = hero?.name || "Hero";
-  const sceneProps = { phase, heroColor, heroName, hero, gameAction, sceneConfig };
+  const heroAvatarId = hero?.avatarId || "m01";
+  const sceneProps = { phase, heroColor, heroName, heroAvatarId, hero, gameAction, sceneConfig };
 
   const sceneLabels = {
     "hero-spawn": "base camp — hero arrives",
@@ -363,14 +364,16 @@ function Chest({ x = 47, open = false }) {
 // =======================================================
 // SCENE 1: BASE CAMP
 // =======================================================
-function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+function BaseCampScene({ phase, heroColor, heroName, heroAvatarId, hero, gameAction, sceneConfig }) {
   const [heroX, setHeroX] = useState(25);
+  const [heroY, setHeroY] = useState(0);   // vertical offset in px for natural path
   const [heroFlip, setHeroFlip] = useState(false);
   const [heroAnim, setHeroAnim] = useState("walk");
   const [heroTransition, setHeroTransition] = useState("none");
   const [chestOpen, setChestOpen] = useState(false);
   const [showItem, setShowItem] = useState(false);
   const goingRight = useRef(true);
+  const stepCount = useRef(0);
   const intervalRef = useRef(null);
   const t1Ref = useRef(null);
   const t2Ref = useRef(null);
@@ -390,13 +393,20 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
       setHeroTransition("none");
       setHeroAnim("walk");
       goingRight.current = true;
+      stepCount.current = 0;
       setHeroFlip(false);
 
       intervalRef.current = setInterval(() => {
+        stepCount.current += 1;
+        // Natural Y-axis wander: gentle sine-like path so hero moves diagonally
+        const yOffset = Math.sin(stepCount.current * 0.06) * 8;
+        setHeroY(yOffset);
+
         setHeroX(prev => {
-          const next = prev + (goingRight.current ? 0.25 : -0.25);
-          if (next >= 37) { goingRight.current = false; setHeroFlip(true); }
-          else if (next <= 18) { goingRight.current = true; setHeroFlip(false); }
+          const speed = 0.22 + Math.abs(Math.cos(stepCount.current * 0.04)) * 0.1; // variable speed
+          const next = prev + (goingRight.current ? speed : -speed);
+          if (next >= 38) { goingRight.current = false; setHeroFlip(true); }
+          else if (next <= 17) { goingRight.current = true; setHeroFlip(false); }
           return next;
         });
       }, 60);
@@ -513,10 +523,10 @@ function BaseCampScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
         </div>
       )}
 
-      {/* Hero — walks around the camp */}
+      {/* Hero — walks around the camp with natural path */}
       <div className="absolute z-10"
-        style={{ left: `${heroX}%`, bottom: "62px", transition: heroTransition }}>
-        <GameHero color={heroColor} size={80} animation={heroAnim} flip={heroFlip} />
+        style={{ left: `${heroX}%`, bottom: `${62 - heroY}px`, transition: heroTransition }}>
+        <GameHero color={heroColor} size={80} animation={heroAnim} flip={heroFlip} avatarId={heroAvatarId} />
       </div>
 
       <StatusMessage phase={phase} successMsg={successMsg}
@@ -698,7 +708,7 @@ function MountainPathPerspective({ scrolling = false }) {
   );
 }
 
-function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+function MountainTrailScene({ phase, heroColor, heroName, heroAvatarId, hero, gameAction, sceneConfig }) {
   const [stepsClimbed, setStepsClimbed] = useState(0);
   const [items, setItems] = useState([]);
   const [heroAnim, setHeroAnim] = useState("idle");
@@ -786,7 +796,7 @@ function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, scen
       {/* Hero — stays at base, treadmill gives movement illusion */}
       <div className="absolute z-10"
         style={{ left: "50%", bottom: heroPos.bottom, transform: "translateX(-50%)" }}>
-        <GameHero color={heroColor} size={heroPos.size} animation={heroAnim} />
+        <GameHero color={heroColor} size={heroPos.size} animation={heroAnim} avatarId={heroAvatarId} />
       </div>
 
       <StatusMessage phase={phase} successMsg={successMsg}
@@ -799,7 +809,7 @@ function MountainTrailScene({ phase, heroColor, heroName, hero, gameAction, scen
 // =======================================================
 // SCENE 3: BATTLE
 // =======================================================
-function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+function BattleScene({ phase, heroColor, heroName, heroAvatarId, hero, gameAction, sceneConfig }) {
   const [defeated, setDefeated] = useState(0);
   const [showSlash, setShowSlash] = useState(false);
   const [heroAnim, setHeroAnim] = useState("idle");
@@ -838,7 +848,7 @@ function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig
       <div className={`absolute z-10 transition-all duration-250 ${
         phase === "success" ? "translate-x-14" : phase === "fail" ? "-translate-x-5" : ""
       }`} style={{ left: "10%", bottom: "60px" }}>
-        <GameHero color={heroColor} size={85} animation={heroAnim} />
+        <GameHero color={heroColor} size={85} animation={heroAnim} avatarId={heroAvatarId} />
       </div>
 
       {/* Sword slash impact lines */}
@@ -940,7 +950,7 @@ function BattleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig
 // =======================================================
 // SCENE 4: OBSTACLE — context-aware if/else visuals
 // =======================================================
-function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConfig }) {
+function ObstacleScene({ phase, heroColor, heroName, heroAvatarId, hero, gameAction, sceneConfig }) {
   const [cleared, setCleared] = useState(0);
   const [heroX, setHeroX] = useState(12);
   const [heroAnim, setHeroAnim] = useState("walk");
@@ -1011,7 +1021,7 @@ function ObstacleScene({ phase, heroColor, heroName, hero, gameAction, sceneConf
 
   const heroEl = (
     <div className="absolute z-10" style={{ left: `${heroX}%`, bottom: "60px", transition: heroTransition }}>
-      <GameHero color={heroColor} size={82} animation={heroAnim} />
+      <GameHero color={heroColor} size={82} animation={heroAnim} avatarId={heroAvatarId} />
     </div>
   );
 

@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { getAllProgress, isLevelUnlocked, getProgress } from "../data/progress";
 import { getHero, hasHero, createHero } from "../data/hero";
+import { getAvatar } from "../data/avatars";
 import GameHero from "../components/game/GameHero";
+import AvatarFace from "../components/game/AvatarFace";
+import AvatarPicker from "../components/AvatarPicker";
 
 /**
  * HOME PAGE — with Story Landing + Hero Creation
@@ -12,14 +15,14 @@ import GameHero from "../components/game/GameHero";
  * Returning users go straight to the concept picker.
  */
 
-// Available hero colors
+// Available outfit/armor colors
 const HERO_COLORS = [
-  { name: "Cyan", value: "#00d4ff" },
-  { name: "Green", value: "#00ff88" },
+  { name: "Cyan",   value: "#00d4ff" },
+  { name: "Green",  value: "#00ff88" },
   { name: "Purple", value: "#a855f7" },
   { name: "Orange", value: "#ff6b35" },
-  { name: "Pink", value: "#ec4899" },
-  { name: "Gold", value: "#f59e0b" },
+  { name: "Pink",   value: "#ec4899" },
+  { name: "Gold",   value: "#f59e0b" },
 ];
 
 // ===========================
@@ -119,6 +122,7 @@ function HomePage() {
   const [heroExists, setHeroExists] = useState(hasHero());
   const [heroName, setHeroName] = useState("");
   const [selectedColor, setSelectedColor] = useState(HERO_COLORS[0].value);
+  const [selectedAvatarId, setSelectedAvatarId] = useState("m01");
   const [showCreateHero, setShowCreateHero] = useState(false);
   const hero = heroExists ? getHero() : null;
   const progress = getAllProgress();
@@ -126,7 +130,7 @@ function HomePage() {
   // Handle hero creation
   const handleCreateHero = () => {
     if (heroName.trim().length === 0) return;
-    createHero(heroName.trim(), selectedColor);
+    createHero(heroName.trim(), selectedColor, selectedAvatarId);
     setHeroExists(true);
   };
 
@@ -218,102 +222,124 @@ function HomePage() {
   // HERO CREATION SCREEN
   // ===========================
   if (!heroExists && showCreateHero) {
+    const previewAvatar = getAvatar(selectedAvatarId);
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+      <div className="min-h-screen flex flex-col items-center px-4 py-8">
         {/* Back button */}
         <button
           onClick={() => setShowCreateHero(false)}
-          className="self-start ml-4 md:ml-16 mb-6 text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors cursor-pointer"
+          className="self-start mb-5 text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors cursor-pointer"
         >
           &larr; Back
         </button>
 
-        <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-2">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-1">
           Create Your Crafter
         </h1>
-        <p className="text-gray-400 text-sm font-mono mb-10">
-          Choose a name and color for your hero
+        <p className="text-gray-400 text-sm font-mono mb-6">
+          Pick a hero, choose your name and outfit colour
         </p>
 
-        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-md w-full">
-          {/* Hero preview — mini game scene */}
-          <div className="relative rounded-xl overflow-hidden border border-[#30363d] mb-6" style={{ height: 160 }}>
-            {/* Sky */}
-            <div className="absolute inset-0"
-              style={{ background: "linear-gradient(180deg, #1a3a5c 0%, #2d5a7b 50%, #3d6a5a 100%)" }} />
-            {/* Mountains */}
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 160" preserveAspectRatio="none">
-              <polygon points="0,160 60,70 120,100 180,60 240,90 300,50 360,75 400,65 400,160" fill="#1f3f4f" opacity="0.7" />
-              <polygon points="0,160 0,110 80,85 160,105 220,80 300,95 360,75 400,85 400,160" fill="#254535" />
-            </svg>
-            {/* Ground */}
-            <div className="absolute bottom-0 left-0 right-0 h-10"
-              style={{ background: "linear-gradient(180deg, #2d5530 0%, #152a18 100%)" }} />
-            {/* Ground texture dots */}
-            <svg className="absolute bottom-0 left-0 right-0 h-10 w-full" viewBox="0 0 400 40" preserveAspectRatio="none">
-              {[...Array(12)].map((_, i) => (
-                <circle key={i} cx={20 + i * 32} cy={8 + (i * 7) % 20} r={1} fill="white" opacity="0.04" />
-              ))}
-            </svg>
-            {/* Hero centered on ground */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-              <GameHero color={selectedColor} size={88} animation="idle" />
-            </div>
-          </div>
+        <div className="flex flex-col md:flex-row gap-6 max-w-3xl w-full">
 
-          {/* Name input */}
-          <div className="mb-6">
-            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
-              Crafter Name
+          {/* ── Left: avatar picker ── */}
+          <div className="flex-1 bg-[#161b22] border border-[#30363d] rounded-2xl p-5">
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">
+              Choose Your Hero
             </label>
-            <input
-              type="text"
-              value={heroName}
-              onChange={(e) => setHeroName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateHero()}
-              placeholder="Enter a name..."
-              maxLength={20}
-              className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-gray-100 font-mono text-lg focus:outline-none focus:border-cyan-500/50 placeholder-gray-600 transition-colors"
-              autoFocus
+            <AvatarPicker
+              selectedId={selectedAvatarId}
+              onSelect={setSelectedAvatarId}
             />
           </div>
 
-          {/* Color picker */}
-          <div className="mb-8">
-            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
-              Crafter Color
-            </label>
-            <div className="flex gap-3 flex-wrap">
-              {HERO_COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  onClick={() => setSelectedColor(c.value)}
-                  className={`w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
-                    selectedColor === c.value
-                      ? "border-white scale-110 shadow-lg"
-                      : "border-[#30363d] hover:border-[#484f58]"
-                  }`}
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-          </div>
+          {/* ── Right: name + colour + preview ── */}
+          <div className="flex flex-col gap-4 w-full md:w-64">
 
-          {/* Create button */}
-          <button
-            onClick={handleCreateHero}
-            disabled={heroName.trim().length === 0}
-            className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
-              heroName.trim().length > 0
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
-                : "bg-[#0d1117] border border-[#30363d] text-gray-600 cursor-not-allowed"
-            }`}
-          >
-            {heroName.trim().length > 0
-              ? `Start as ${heroName.trim()}`
-              : "Enter a name first..."}
-          </button>
+            {/* Hero preview */}
+            <div className="relative rounded-xl overflow-hidden border border-[#30363d]" style={{ height: 180 }}>
+              <div className="absolute inset-0"
+                style={{ background: "linear-gradient(180deg, #1a3a5c 0%, #2d5a7b 50%, #3d6a5a 100%)" }} />
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 180" preserveAspectRatio="none">
+                <polygon points="0,180 50,80 110,110 160,60 220,90 280,55 300,65 300,180" fill="#1f3f4f" opacity="0.7" />
+                <polygon points="0,180 0,120 80,95 160,115 220,85 300,100 300,180" fill="#254535" />
+              </svg>
+              <div className="absolute bottom-0 left-0 right-0 h-12"
+                style={{ background: "linear-gradient(180deg, #2d5530 0%, #152a18 100%)" }} />
+              <div className="absolute bottom-10 left-1/2 -translate-x-1/2">
+                <GameHero
+                  color={selectedColor}
+                  size={92}
+                  animation="idle"
+                  avatarId={selectedAvatarId}
+                />
+              </div>
+              {/* Name badge */}
+              {heroName.trim() && (
+                <div className="absolute top-2 left-0 right-0 text-center">
+                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-black/40"
+                    style={{ color: selectedColor }}>
+                    {heroName.trim()}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Name input */}
+            <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+              <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
+                Crafter Name
+              </label>
+              <input
+                type="text"
+                value={heroName}
+                onChange={(e) => setHeroName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateHero()}
+                placeholder="Enter a name..."
+                maxLength={20}
+                className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2.5 text-gray-100 font-mono text-base focus:outline-none focus:border-cyan-500/50 placeholder-gray-600 transition-colors"
+                autoFocus
+              />
+            </div>
+
+            {/* Outfit colour */}
+            <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+              <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
+                Outfit Colour
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {HERO_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => setSelectedColor(c.value)}
+                    className={`w-8 h-8 rounded-lg border-2 transition-all duration-150 cursor-pointer ${
+                      selectedColor === c.value
+                        ? "border-white scale-110 shadow-lg"
+                        : "border-[#30363d] hover:border-[#484f58]"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                    title={c.name}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Create button */}
+            <button
+              onClick={handleCreateHero}
+              disabled={heroName.trim().length === 0}
+              className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
+                heroName.trim().length > 0
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+                  : "bg-[#0d1117] border border-[#30363d] text-gray-600 cursor-not-allowed"
+              }`}
+            >
+              {heroName.trim().length > 0
+                ? `Start as ${heroName.trim()}`
+                : "Enter a name first..."}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -338,8 +364,8 @@ function HomePage() {
       {hero && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-4 mb-8 max-w-md w-full">
           <div className="flex items-center gap-4">
-            <div className="bg-[#0d1117] rounded-lg p-2 border border-[#30363d]">
-              <GameHero color={hero.color} size={48} animation="idle" />
+            <div className="rounded-xl overflow-hidden flex-shrink-0">
+              <AvatarFace avatar={getAvatar(hero.avatarId)} size={64} />
             </div>
             <div className="flex-1">
               <h2 className="font-bold text-gray-100" style={{ color: hero.color }}>
