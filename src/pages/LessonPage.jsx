@@ -416,6 +416,21 @@ function LessonPage() {
                 return (
                   <div className="mb-3">
                     <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
+
+                    {/* Concept intro block — shown only when the example provides one */}
+                    {example.intro && (
+                      <div className="mb-3 bg-indigo-950/50 border border-indigo-700/30 rounded-lg p-3 space-y-1.5">
+                        {example.intro.map((line, i) =>
+                          line === "" ? <div key={i} className="h-1" /> :
+                          line.startsWith("•") ? (
+                            <p key={i} className="text-indigo-200 text-xs leading-relaxed pl-2">{line}</p>
+                          ) : (
+                            <p key={i} className="text-indigo-100 text-xs font-semibold leading-relaxed">{line}</p>
+                          )
+                        )}
+                      </div>
+                    )}
+
                     {example.note && (
                       <p className="text-amber-200/70 text-xs italic mb-2">{example.note}</p>
                     )}

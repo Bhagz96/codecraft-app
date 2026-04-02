@@ -88,6 +88,18 @@ export const workedExamples = {
 
   // L1 — Climbing the Mountain
   loops_1_0: {
+    intro: [
+      "What is a for loop?",
+      "Imagine your hero needs to take 5 steps up the mountain trail. Without a loop, you'd have to write the same \"take a step\" instruction 5 times — once for each step. That gets messy fast.",
+      "",
+      "A for loop lets you say: \"repeat this block of code a set number of times\" — in one clean instruction.",
+      "",
+      "The structure looks like this:",
+      "• for variable in sequence:  ← the loop header (ends with a colon)",
+      "• ····code to repeat          ← indented — this runs once per item",
+      "",
+      "Each time the loop runs is called an iteration. The variable (like i) automatically takes the next value from the sequence on each iteration.",
+    ],
     note: "range(n) produces 0, 1, 2, ..., n-1. It always starts at 0 and stops BEFORE n.",
     code: "for i in range(4):\n    print(i)\n# Output: 0\n#         1\n#         2\n#         3",
   },
