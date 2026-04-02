@@ -56,6 +56,10 @@ function LessonPage() {
 
   const [showIntro, setShowIntro] = useState(true);
   const [showAdminInfo, setShowAdminInfo] = useState(false);
+  // Step intro — shown before step 0 when the worked example has an intro[] field.
+  // Only on level 1 (first time a learner encounters the concept).
+  const stepIntroExample = levelNum === 1 ? workedExamples[`${conceptId}_1_0`] : null;
+  const [showStepIntro, setShowStepIntro] = useState(!!(stepIntroExample?.intro));
 
   // ── MAB arm selection ────────────────────────────────────────────
   // Support strategy: MAB-optimised (learning signal)
@@ -284,6 +288,44 @@ function LessonPage() {
     );
   }
 
+  // Step intro — concept explainer before the first question
+  if (showStepIntro && stepIntroExample?.intro) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="max-w-xl w-full">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <span className={`text-4xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r ${concept.color}`}>
+              {concept.icon}
+            </span>
+            <h2 className="text-xl font-bold text-gray-200 mt-1">{concept.title}</h2>
+            <p className="text-xs text-gray-500 font-mono mt-1">Level {levelNum} — {levelData.title}</p>
+          </div>
+
+          {/* Intro content card */}
+          <div className="bg-[#111827] border border-indigo-700/40 rounded-2xl p-6 space-y-2 mb-6">
+            {stepIntroExample.intro.map((line, i) =>
+              line === "" ? <div key={i} className="h-1" /> :
+              line.startsWith("•") ? (
+                <p key={i} className="text-indigo-200 text-sm leading-relaxed pl-3">{line}</p>
+              ) : (
+                <p key={i} className="text-white text-sm font-semibold leading-relaxed">{line}</p>
+              )
+            )}
+          </div>
+
+          {/* Start button */}
+          <button
+            onClick={() => setShowStepIntro(false)}
+            className={`w-full bg-gradient-to-r ${concept.color} text-white font-bold py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer text-base`}
+          >
+            Start Learning →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const rawStep = levelData.steps[currentStep];
   const step = {
     ...rawStep,
@@ -416,21 +458,6 @@ function LessonPage() {
                 return (
                   <div className="mb-3">
                     <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
-
-                    {/* Concept intro block — shown only when the example provides one */}
-                    {example.intro && (
-                      <div className="mb-3 bg-indigo-950/50 border border-indigo-700/30 rounded-lg p-3 space-y-1.5">
-                        {example.intro.map((line, i) =>
-                          line === "" ? <div key={i} className="h-1" /> :
-                          line.startsWith("•") ? (
-                            <p key={i} className="text-indigo-200 text-xs leading-relaxed pl-2">{line}</p>
-                          ) : (
-                            <p key={i} className="text-indigo-100 text-xs font-semibold leading-relaxed">{line}</p>
-                          )
-                        )}
-                      </div>
-                    )}
-
                     {example.note && (
                       <p className="text-amber-200/70 text-xs italic mb-2">{example.note}</p>
                     )}
