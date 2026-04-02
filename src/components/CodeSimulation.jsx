@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { shuffleOptions } from "../utils/shuffleOptions";
 
 /**
  * Simple syntax highlighter — applies colour classes to code keywords.
@@ -92,6 +93,15 @@ function CodeSimulation({ step, onAnswer, feedback }) {
   const [currentLine, setCurrentLine] = useState(0);
   const lines = step.codeSnippet ? step.codeSnippet.split("\n") : [];
 
+  // Shuffle options, keyed to question text so it's stable across re-renders
+  const [shuffled, setShuffled] = useState(
+    () => shuffleOptions(step.options, step.correctIndex)
+  );
+  useEffect(() => {
+    setShuffled(shuffleOptions(step.options, step.correctIndex));
+  }, [step.instruction]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { shuffledOptions, newCorrectIndex, indexMap } = shuffled;
+
   // Animate through code lines
   useEffect(() => {
     if (feedback !== null) return;
@@ -112,16 +122,8 @@ function CodeSimulation({ step, onAnswer, feedback }) {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Mode badge */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-cyan-400 font-mono font-bold text-lg">&gt;_</span>
-        <span className="bg-cyan-500/20 text-cyan-400 font-semibold px-3 py-1 rounded-full text-sm border border-cyan-500/30">
-          CODE SIMULATION
-        </span>
-      </div>
-
       {/* Code display with line numbers */}
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-xl overflow-hidden mb-6">
+      <div className="bg-[#0d1117] border border-[#30363d] rounded-xl overflow-hidden mb-5">
         {/* Title bar */}
         <div className="flex items-center gap-2 px-4 py-2 bg-[#161b22] border-b border-[#30363d]">
           <div className="w-3 h-3 rounded-full bg-red-500/70"></div>
@@ -156,20 +158,20 @@ function CodeSimulation({ step, onAnswer, feedback }) {
       </div>
 
       {/* Trace question */}
-      <div className="bg-[#161b22] border border-cyan-500/30 rounded-xl p-5 mb-6">
-        <p className="text-cyan-300 font-semibold text-lg text-center">
+      <div className="mb-4 px-1">
+        <p className="text-cyan-300 font-semibold text-base">
           {step.traceQuestion || step.instruction}
         </p>
       </div>
 
       {/* Answer options */}
       <div className="space-y-3">
-        {step.options.map((option, index) => {
+        {shuffledOptions.map((option, index) => {
           let buttonStyle =
             "bg-[#161b22] hover:bg-[#1c2333] border border-[#30363d] hover:border-cyan-500/50 text-gray-200";
 
           if (feedback !== null) {
-            if (index === step.correctIndex) {
+            if (index === newCorrectIndex) {
               buttonStyle =
                 "bg-green-500/10 border border-green-500/50 text-green-400 glow-green";
             } else {
@@ -181,7 +183,7 @@ function CodeSimulation({ step, onAnswer, feedback }) {
           return (
             <button
               key={index}
-              onClick={() => feedback === null && onAnswer(index)}
+              onClick={() => feedback === null && onAnswer(indexMap[index])}
               disabled={feedback !== null}
               className={`
                 w-full p-4 rounded-xl text-left font-mono text-sm

@@ -373,109 +373,111 @@ function LessonPage() {
 
         {/* RIGHT: Learning Description + Code Challenge */}
         <div className="lg:w-[45%] flex flex-col gap-4">
-          {/* Learning context card */}
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-            {/* Worked Example (shown before question for worked_example_first) */}
-            {showWorkedExample && (() => {
-              const example = getWorkedExample(currentStep);
-              if (!example) return null;
-              return (
-                <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-                  <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
-                  {example.note && (
-                    <p className="text-amber-200/70 text-xs italic mb-2">{example.note}</p>
-                  )}
-                  <pre className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">
-                    {example.code}
-                  </pre>
-                  <button
-                    onClick={() => setShowWorkedExample(false)}
-                    className="mt-2 text-amber-400 text-xs font-mono hover:text-amber-300 transition-colors cursor-pointer"
-                  >
-                    Now try it yourself →
-                  </button>
-                </div>
-              );
-            })()}
+          {/* ── Mission brief card ── */}
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
 
-            {/* Step-by-step scaffold guidance — concept-aware */}
-            {supportStrategy === "step_by_step_scaffold" && feedback === null && (
-              <div className="mb-3 bg-violet-500/5 border border-violet-500/20 rounded-lg p-3">
-                <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1">Step-by-Step Guide</p>
-                <p className="text-gray-400 text-xs">
-                  {conceptId === "variables" && stepScaffoldPhase === 0 && "Step 1: Read each line top to bottom. What value does each variable end up holding?"}
-                  {conceptId === "variables" && stepScaffoldPhase === 1 && "Step 2: Find the print() call. What variable or expression is inside it?"}
-                  {conceptId === "variables" && stepScaffoldPhase === 2 && "Step 3: What value was stored in that variable when print() ran? Select your answer."}
-                  {conceptId === "loops" && stepScaffoldPhase === 0 && "Step 1: What does range() or the list contain? Count how many times the loop will run."}
-                  {conceptId === "loops" && stepScaffoldPhase === 1 && "Step 2: What happens inside the loop each iteration? Track any variables that change."}
-                  {conceptId === "loops" && stepScaffoldPhase === 2 && "Step 3: Based on all iterations, what is the final output? Select your answer."}
-                  {conceptId === "conditions" && stepScaffoldPhase === 0 && "Step 1: What values are the variables assigned to?"}
-                  {conceptId === "conditions" && stepScaffoldPhase === 1 && "Step 2: Evaluate the condition — is it True or False with those values?"}
-                  {conceptId === "conditions" && stepScaffoldPhase === 2 && "Step 3: Which branch runs (if or else)? Select the correct output."}
-                </p>
-                {stepScaffoldPhase < 2 && (
-                  <button
-                    onClick={() => setStepScaffoldPhase((p) => p + 1)}
-                    className="mt-1 text-violet-400 text-xs font-mono hover:text-violet-300 transition-colors cursor-pointer"
-                  >
-                    Next step →
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Explanation after error */}
-            {showExplanation && step.explanation && (
-              <div className="mb-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-                <p className="text-emerald-400 text-[10px] font-mono uppercase tracking-wider mb-1">Let&apos;s Review</p>
-                <p className="text-gray-300 text-xs leading-relaxed">{step.explanation}</p>
-                <p className="text-emerald-400 text-xs font-mono mt-2">Try again with this in mind ↓</p>
-              </div>
-            )}
-
-            {/* Story context */}
-            {step.storyContext && !showWorkedExample && (
-              <p className="text-gray-300 text-sm mb-3 leading-relaxed">
-                {step.storyContext}
-              </p>
-            )}
-            {/* Instruction */}
-            {!step.storyContext && !showWorkedExample && (
-              <p className="text-gray-300 text-sm mb-3 leading-relaxed">
-                {step.instruction}
-              </p>
-            )}
-
-            {/* Hint box (visible based on strategy or user request) */}
-            {(hintVisible || shouldShowHintInitially) && !showWorkedExample && (
-              <div className="mb-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-2.5">
-                <p className="text-yellow-400 text-[10px] font-mono uppercase tracking-wider mb-1">Hint</p>
-                <p className="text-gray-400 text-xs">{getHintForStep(step)}</p>
-              </div>
-            )}
-
-            {/* Badges: modality + strategy */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Meta strip — modality + strategy badges, very compact */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-[#30363d] bg-[#0d1117]/60">
               <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 {modalityLabel}
               </span>
               <span className={`text-[10px] font-mono ${strategyBadgeColor} border px-2 py-0.5 rounded-full uppercase tracking-wider`}>
                 {strategyShortLabel}
               </span>
-              {step.storyContext && (
-                <span className="text-gray-500 text-xs">{step.instruction}</span>
-              )}
             </div>
 
-            {/* Hint request button (for try_first strategies) */}
-            {!hintVisible && !shouldShowHintInitially && feedback === null && !showWorkedExample && (
-              <button
-                onClick={() => { requestHint(); setTotalHints((p) => p + 1); }}
-                className="mt-2 text-yellow-500/60 text-xs font-mono hover:text-yellow-400 transition-colors cursor-pointer"
-              >
-                Need a hint?
-              </button>
-            )}
+            <div className="p-4">
+              {/* Worked Example */}
+              {showWorkedExample && (() => {
+                const example = getWorkedExample(currentStep);
+                if (!example) return null;
+                return (
+                  <div className="mb-3">
+                    <p className="text-amber-400 text-[10px] font-mono uppercase tracking-wider mb-2">Worked Example</p>
+                    {example.note && (
+                      <p className="text-amber-200/70 text-xs italic mb-2">{example.note}</p>
+                    )}
+                    <pre className="text-gray-300 text-xs font-mono whitespace-pre-wrap leading-relaxed bg-[#0d1117] rounded-lg p-3 border border-[#30363d]">
+                      {example.code}
+                    </pre>
+                    <button
+                      onClick={() => setShowWorkedExample(false)}
+                      className="mt-2 text-amber-400 text-xs font-mono hover:text-amber-300 transition-colors cursor-pointer"
+                    >
+                      Now try it yourself →
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {/* Explanation after error */}
+              {showExplanation && step.explanation && (
+                <div className="mb-3 flex gap-2.5 items-start bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                  <span className="text-emerald-400 text-base flex-shrink-0">↩</span>
+                  <div>
+                    <p className="text-emerald-400 text-[10px] font-mono uppercase tracking-wider mb-1">Let&apos;s Review</p>
+                    <p className="text-gray-300 text-xs leading-relaxed">{step.explanation}</p>
+                    <p className="text-emerald-400 text-xs font-mono mt-1.5">Try again with this in mind ↓</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Narrative / instruction — the primary content */}
+              {!showWorkedExample && (
+                <p className="text-gray-200 text-sm leading-relaxed font-medium">
+                  {step.storyContext || step.instruction}
+                </p>
+              )}
+
+              {/* If storyContext is shown, the instruction is the actual task prompt */}
+              {!showWorkedExample && step.storyContext && (
+                <p className="text-gray-400 text-xs font-mono mt-1.5">{step.instruction}</p>
+              )}
+
+              {/* Step-by-step scaffold — shown inline, no heavy box */}
+              {supportStrategy === "step_by_step_scaffold" && feedback === null && !showWorkedExample && (
+                <div className="mt-3 pt-3 border-t border-[#30363d]">
+                  <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1">Guide</p>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                    {conceptId === "variables" && stepScaffoldPhase === 0 && "Step 1: Read each line top to bottom. What value does each variable end up holding?"}
+                    {conceptId === "variables" && stepScaffoldPhase === 1 && "Step 2: Find the print() call. What variable or expression is inside it?"}
+                    {conceptId === "variables" && stepScaffoldPhase === 2 && "Step 3: What value was stored in that variable when print() ran? Select your answer."}
+                    {conceptId === "loops" && stepScaffoldPhase === 0 && "Step 1: What does range() or the list contain? Count how many times the loop will run."}
+                    {conceptId === "loops" && stepScaffoldPhase === 1 && "Step 2: What happens inside the loop each iteration? Track any variables that change."}
+                    {conceptId === "loops" && stepScaffoldPhase === 2 && "Step 3: Based on all iterations, what is the final output? Select your answer."}
+                    {conceptId === "conditions" && stepScaffoldPhase === 0 && "Step 1: What values are the variables assigned to?"}
+                    {conceptId === "conditions" && stepScaffoldPhase === 1 && "Step 2: Evaluate the condition — is it True or False with those values?"}
+                    {conceptId === "conditions" && stepScaffoldPhase === 2 && "Step 3: Which branch runs (if or else)? Select the correct output."}
+                  </p>
+                  {stepScaffoldPhase < 2 && (
+                    <button
+                      onClick={() => setStepScaffoldPhase((p) => p + 1)}
+                      className="mt-1 text-violet-400 text-xs font-mono hover:text-violet-300 transition-colors cursor-pointer"
+                    >
+                      Next step →
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Hint — slim inline strip, not a heavy box */}
+              {(hintVisible || shouldShowHintInitially) && !showWorkedExample && (
+                <div className="mt-3 pt-3 border-t border-[#30363d] flex gap-2 items-start">
+                  <span className="text-yellow-400 text-[10px] font-mono uppercase tracking-wider flex-shrink-0 mt-0.5">Hint</span>
+                  <p className="text-gray-400 text-xs leading-relaxed">{getHintForStep(step)}</p>
+                </div>
+              )}
+
+              {/* Hint request button */}
+              {!hintVisible && !shouldShowHintInitially && feedback === null && !showWorkedExample && (
+                <button
+                  onClick={() => { requestHint(); setTotalHints((p) => p + 1); }}
+                  className="mt-3 text-yellow-500/50 text-xs font-mono hover:text-yellow-400 transition-colors cursor-pointer"
+                >
+                  Need a hint?
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Code challenge — hidden while worked example is showing */}

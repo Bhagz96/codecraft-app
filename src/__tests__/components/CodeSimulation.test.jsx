@@ -11,11 +11,6 @@ const baseStep = {
 };
 
 describe('CodeSimulation', () => {
-  it('renders the CODE SIMULATION badge', () => {
-    render(<CodeSimulation step={baseStep} onAnswer={() => {}} feedback={null} />);
-    expect(screen.getByText('CODE SIMULATION')).toBeInTheDocument();
-  });
-
   it('renders the trace question', () => {
     render(<CodeSimulation step={baseStep} onAnswer={() => {}} feedback={null} />);
     expect(screen.getByText('What does this print?')).toBeInTheDocument();
@@ -31,12 +26,14 @@ describe('CodeSimulation', () => {
     expect(buttonTexts.some((t) => t.includes('None'))).toBe(true);
   });
 
-  it('calls onAnswer with the clicked index', () => {
+  it('calls onAnswer with the original correctIndex when the correct option is clicked', () => {
     const onAnswer = vi.fn();
     render(<CodeSimulation step={baseStep} onAnswer={onAnswer} feedback={null} />);
     const buttons = screen.getAllByRole('button');
+    // Find whichever button contains "Aria" (correct answer, shuffled to any position)
     const ariaBtn = buttons.find((b) => b.textContent.includes('"Aria"'));
     fireEvent.click(ariaBtn);
+    // Should translate back to the original correctIndex (0)
     expect(onAnswer).toHaveBeenCalledWith(0);
   });
 
