@@ -172,6 +172,27 @@ export const workedExamples = {
 
   // L1 — Weather Check
   conditions_1_0: {
+    intro: [
+      "What is an if condition?",
+      "Your hero is climbing a mountain. The weather changes fast — sometimes it's too hot to keep going, sometimes it's fine. Your code needs to make a decision based on what's happening right now.",
+      "",
+      "An if condition lets your program ask a yes/no question and do different things depending on the answer.",
+      "",
+      "The structure looks like this:",
+      "• if condition:      ← ask the question (ends with a colon)",
+      "• ····code if True   ← runs only when the answer is yes",
+      "• else:              ← optional — what to do when the answer is no",
+      "• ····code if False  ← runs only when the answer is no",
+      "",
+      "The condition is always either True or False — never both. Exactly ONE branch runs, never both at the same time.",
+      "",
+      "Common comparisons you can use in conditions:",
+      "• >  greater than       e.g. temp > 30",
+      "• <  less than          e.g. hp < 10",
+      "• == equals             e.g. name == \"Hero\"",
+      "• != not equal          e.g. coins != 0",
+      "• >= greater or equal   e.g. level >= 5",
+    ],
     note: "The condition is True or False — only ONE branch (if or else) ever runs.",
     code: 'speed = 80\nif speed > 60:\n    print("Speeding!")\nelse:\n    print("Safe speed.")\n# Output: Speeding!  (80 > 60 is True)',
   },
