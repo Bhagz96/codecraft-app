@@ -12,7 +12,8 @@
  *   feedback   – null, "correct", or "incorrect"
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { shuffleOptions } from "../utils/shuffleOptions";
 
 const TIME_LIMIT = 20; // seconds per question
 
@@ -26,6 +27,16 @@ function SpeedCoding({ step, onAnswer, feedback }) {
   // Get blanks from step data, or fall back to simple mode
   const blanks = step.blanks || [];
   const hasBlankMode = blanks.length > 0 && step.codeTemplate;
+
+  // Shuffle once per step — blanks each shuffled independently
+  const shuffledBlanks = useMemo(
+    () => blanks.map((b) => shuffleOptions(b.options, b.correctIndex)),
+    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const { shuffledOptions, newCorrectIndex, indexMap } = useMemo(
+    () => shuffleOptions(step.options || [], step.correctIndex ?? 0),
+    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Countdown timer
   useEffect(() => {
@@ -71,9 +82,9 @@ function SpeedCoding({ step, onAnswer, feedback }) {
     if (feedback !== null) return;
 
     if (hasBlankMode) {
-      // Check all blanks are filled and correct
+      // Check all blanks are filled and correct (compare against shuffled positions)
       const allCorrect = blanks.every(
-        (blank, i) => selectedBlanks[i] === blank.correctIndex
+        (_, i) => selectedBlanks[i] === shuffledBlanks[i].newCorrectIndex
       );
       const allFilled = blanks.every((_, i) => selectedBlanks[i] !== undefined);
 
@@ -195,7 +206,7 @@ function SpeedCoding({ step, onAnswer, feedback }) {
               <span className="text-gray-500 text-xs font-mono w-16 flex-shrink-0">
                 Blank {blankIndex + 1}:
               </span>
-              {blank.options.map((option, optIndex) => (
+              {shuffledBlanks[blankIndex].shuffledOptions.map((option, optIndex) => (
                 <button
                   key={optIndex}
                   onClick={() => handleBlankSelect(blankIndex, optIndex)}
@@ -229,12 +240,12 @@ function SpeedCoding({ step, onAnswer, feedback }) {
       {/* Standard options (fallback if no blanks) */}
       {!hasBlankMode && (
         <div className="space-y-3">
-          {step.options.map((option, index) => {
+          {shuffledOptions.map((option, index) => {
             let buttonStyle =
               "bg-[#161b22] hover:bg-[#1c2333] border border-[#30363d] hover:border-orange-500/50 text-gray-200";
 
             if (feedback !== null) {
-              if (index === step.correctIndex) {
+              if (index === newCorrectIndex) {
                 buttonStyle =
                   "bg-green-500/10 border border-green-500/50 text-green-400 glow-green";
               } else {
@@ -246,7 +257,7 @@ function SpeedCoding({ step, onAnswer, feedback }) {
             return (
               <button
                 key={index}
-                onClick={() => handleOptionClick(index)}
+                onClick={() => handleOptionClick(indexMap[index])}
                 disabled={feedback !== null}
                 className={`
                   w-full p-4 rounded-xl text-left font-mono text-sm

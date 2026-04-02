@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import { shuffleOptions } from "../utils/shuffleOptions";
+
 /**
  * PUZZLE MODE COMPONENT
  * =====================
@@ -19,6 +22,11 @@ const OPTION_COLORS = [
 ];
 
 function PuzzleMode({ step, onAnswer, feedback }) {
+  const { shuffledOptions, newCorrectIndex, indexMap } = useMemo(
+    () => shuffleOptions(step.options, step.correctIndex),
+    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   return (
     <div className="max-w-2xl mx-auto">
       {/* Puzzle icon header */}
@@ -38,13 +46,13 @@ function PuzzleMode({ step, onAnswer, feedback }) {
 
       {/* Option buttons — big, colourful, easy to tap */}
       <div className="space-y-4">
-        {step.options.map((option, index) => {
+        {shuffledOptions.map((option, index) => {
           const colors = OPTION_COLORS[index % OPTION_COLORS.length];
 
           let buttonStyle = `${colors.bg} border-3 ${colors.border} ${colors.hover} ${colors.text}`;
 
           if (feedback !== null) {
-            if (index === step.correctIndex) {
+            if (index === newCorrectIndex) {
               buttonStyle = "bg-green-200 border-3 border-green-500 text-green-800";
             } else {
               buttonStyle = "bg-gray-100 border-3 border-gray-200 text-gray-400";
@@ -54,7 +62,7 @@ function PuzzleMode({ step, onAnswer, feedback }) {
           return (
             <button
               key={index}
-              onClick={() => feedback === null && onAnswer(index)}
+              onClick={() => feedback === null && onAnswer(indexMap[index])}
               disabled={feedback !== null}
               className={`
                 w-full p-5 rounded-2xl text-lg md:text-xl font-bold

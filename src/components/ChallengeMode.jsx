@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { shuffleOptions } from "../utils/shuffleOptions";
 
 /**
  * CHALLENGE MODE COMPONENT
@@ -18,6 +19,12 @@ const TIME_LIMIT = 15; // seconds per question
 function ChallengeMode({ step, onAnswer, feedback }) {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [score, setScore] = useState(0);
+
+  // Shuffle once per step so the correct answer isn't always option 1
+  const { shuffledOptions, newCorrectIndex, indexMap } = useMemo(
+    () => shuffleOptions(step.options, step.correctIndex),
+    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Countdown timer — runs when feedback is null (question is active)
   useEffect(() => {
@@ -96,12 +103,12 @@ function ChallengeMode({ step, onAnswer, feedback }) {
 
       {/* Options — styled like game buttons */}
       <div className="grid grid-cols-1 gap-3">
-        {step.options.map((option, index) => {
+        {shuffledOptions.map((option, index) => {
           let buttonStyle =
             "bg-white hover:bg-orange-50 border-2 border-orange-300 hover:border-orange-500 text-gray-800";
 
           if (feedback !== null) {
-            if (index === step.correctIndex) {
+            if (index === newCorrectIndex) {
               buttonStyle = "bg-green-200 border-2 border-green-500 text-green-800";
             } else {
               buttonStyle = "bg-gray-100 border-2 border-gray-200 text-gray-400";
@@ -111,7 +118,7 @@ function ChallengeMode({ step, onAnswer, feedback }) {
           return (
             <button
               key={index}
-              onClick={() => feedback === null && onAnswer(index)}
+              onClick={() => feedback === null && onAnswer(indexMap[index])}
               disabled={feedback !== null}
               className={`
                 w-full p-4 rounded-xl text-lg font-bold
