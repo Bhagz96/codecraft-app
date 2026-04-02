@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { shuffleOptions } from "../utils/shuffleOptions";
 
 /**
@@ -22,10 +22,13 @@ const OPTION_COLORS = [
 ];
 
 function PuzzleMode({ step, onAnswer, feedback }) {
-  const { shuffledOptions, newCorrectIndex, indexMap } = useMemo(
-    () => shuffleOptions(step.options, step.correctIndex),
-    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  const [shuffled, setShuffled] = useState(
+    () => shuffleOptions(step.options, step.correctIndex)
   );
+  useEffect(() => {
+    setShuffled(shuffleOptions(step.options, step.correctIndex));
+  }, [step.instruction]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { shuffledOptions, newCorrectIndex, indexMap } = shuffled;
 
   return (
     <div className="max-w-2xl mx-auto">

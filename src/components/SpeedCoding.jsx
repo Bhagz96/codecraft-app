@@ -12,7 +12,7 @@
  *   feedback   – null, "correct", or "incorrect"
  */
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { shuffleOptions } from "../utils/shuffleOptions";
 
 const TIME_LIMIT = 20; // seconds per question
@@ -29,14 +29,18 @@ function SpeedCoding({ step, onAnswer, feedback }) {
   const hasBlankMode = blanks.length > 0 && step.codeTemplate;
 
   // Shuffle once per step — blanks each shuffled independently
-  const shuffledBlanks = useMemo(
-    () => blanks.map((b) => shuffleOptions(b.options, b.correctIndex)),
-    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  // useState + useEffect so shuffles persist across parent re-renders
+  const [shuffledBlanks, setShuffledBlanks] = useState(
+    () => blanks.map((b) => shuffleOptions(b.options, b.correctIndex))
   );
-  const { shuffledOptions, newCorrectIndex, indexMap } = useMemo(
-    () => shuffleOptions(step.options || [], step.correctIndex ?? 0),
-    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  const [shuffled, setShuffled] = useState(
+    () => shuffleOptions(step.options || [], step.correctIndex ?? 0)
   );
+  useEffect(() => {
+    setShuffledBlanks(blanks.map((b) => shuffleOptions(b.options, b.correctIndex)));
+    setShuffled(shuffleOptions(step.options || [], step.correctIndex ?? 0));
+  }, [step.instruction]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { shuffledOptions, newCorrectIndex, indexMap } = shuffled;
 
   // Countdown timer
   useEffect(() => {

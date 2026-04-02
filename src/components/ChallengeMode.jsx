@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { shuffleOptions } from "../utils/shuffleOptions";
 
 /**
@@ -21,10 +21,14 @@ function ChallengeMode({ step, onAnswer, feedback }) {
   const [score, setScore] = useState(0);
 
   // Shuffle once per step so the correct answer isn't always option 1
-  const { shuffledOptions, newCorrectIndex, indexMap } = useMemo(
-    () => shuffleOptions(step.options, step.correctIndex),
-    [step] // eslint-disable-line react-hooks/exhaustive-deps
+  // useState + useEffect (not useMemo) so the shuffle persists across parent re-renders
+  const [shuffled, setShuffled] = useState(
+    () => shuffleOptions(step.options, step.correctIndex)
   );
+  useEffect(() => {
+    setShuffled(shuffleOptions(step.options, step.correctIndex));
+  }, [step.instruction]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { shuffledOptions, newCorrectIndex, indexMap } = shuffled;
 
   // Countdown timer — runs when feedback is null (question is active)
   useEffect(() => {
