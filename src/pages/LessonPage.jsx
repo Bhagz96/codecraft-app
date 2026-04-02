@@ -55,6 +55,7 @@ function LessonPage() {
   );
 
   const [showIntro, setShowIntro] = useState(true);
+  const [showAdminInfo, setShowAdminInfo] = useState(false);
 
   // ── MAB arm selection ────────────────────────────────────────────
   // Support strategy: MAB-optimised (learning signal)
@@ -96,12 +97,12 @@ function LessonPage() {
   const getHintForStep = useCallback((step) => {
     // Use step-specific hint if provided (preferred)
     if (step.hint) return step.hint;
-    if (step.explanation) {
-      const firstSentence = step.explanation.split(".")[0] + ".";
-      return firstSentence;
-    }
-    return "Think about what each line of code does, step by step.";
-  }, []);
+    // Concept-specific process hints — guide thinking, don't give the answer
+    if (conceptId === "variables") return "Read each line top to bottom and track what value is stored in each variable as you go.";
+    if (conceptId === "loops") return "Count how many times the loop body runs, then trace what changes on each pass.";
+    if (conceptId === "conditions") return "First work out whether the condition is True or False, then decide which branch executes.";
+    return "Read each line carefully and trace what the code does step by step.";
+  }, [conceptId]);
 
   // ── Worked example builder ───────────────────────────────────────
   // Look up the parallel worked example keyed by conceptId_level_stepIndex.
@@ -344,9 +345,40 @@ function LessonPage() {
               Level {levelNum} — {levelData.title}
             </p>
           </div>
-          <span className="text-sm text-gray-500 font-mono">
-            {currentStep + 1}/{levelData.steps.length}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500 font-mono">
+              {currentStep + 1}/{levelData.steps.length}
+            </span>
+            {/* Admin info toggle — hidden from learners, accessible to instructors */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAdminInfo((p) => !p)}
+                className="text-gray-700 hover:text-gray-500 text-sm font-mono p-1 rounded transition-colors cursor-pointer"
+                title="Session info"
+              >
+                ⚙
+              </button>
+              {showAdminInfo && (
+                <div className="absolute right-0 top-7 bg-[#161b22] border border-[#30363d] rounded-lg p-3 text-xs font-mono w-52 z-50 shadow-2xl">
+                  <p className="text-gray-600 uppercase tracking-wider text-[9px] mb-2 border-b border-[#30363d] pb-1">Session Info</p>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Mode</span>
+                      <span className="text-cyan-400">{modalityLabel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Strategy</span>
+                      <span className={strategyBadgeColor.split(" ")[0]}>{strategyShortLabel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Reward</span>
+                      <span className="text-purple-400">{rewardType}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Progress bar */}
@@ -373,18 +405,8 @@ function LessonPage() {
 
         {/* RIGHT: Learning Description + Code Challenge */}
         <div className="lg:w-[45%] flex flex-col gap-4">
-          {/* ── Mission brief card ── */}
-          <div className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
-
-            {/* Meta strip — modality + strategy badges, very compact */}
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-[#30363d] bg-[#0d1117]/60">
-              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                {modalityLabel}
-              </span>
-              <span className={`text-[10px] font-mono ${strategyBadgeColor} border px-2 py-0.5 rounded-full uppercase tracking-wider`}>
-                {strategyShortLabel}
-              </span>
-            </div>
+          {/* ── Mission brief card — distinct indigo tint so it reads as "teaching moment" ── */}
+          <div className="bg-[#111827] border border-indigo-900/60 rounded-xl overflow-hidden">
 
             <div className="p-4">
               {/* Worked Example */}
