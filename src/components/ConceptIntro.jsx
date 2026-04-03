@@ -159,7 +159,7 @@ function ConceptIntro({ concept, levelData, heroName, heroColor, onStart }) {
                 {codePreview.split("\n").map((line, i) => (
                   <div key={i} className="flex">
                     <span className="text-gray-600 w-6 text-right mr-4 select-none">{i + 1}</span>
-                    <span className="text-gray-300">{line}</span>
+                    <span className="text-gray-300 whitespace-pre">{line}</span>
                   </div>
                 ))}
               </div>
