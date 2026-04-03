@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect } from "react";
-import PixelHero from "./game/PixelHero";
+import GameHero from "./game/GameHero";
 
 // Concept-specific intro content
 const INTRO_CONTENT = {
@@ -46,7 +46,7 @@ const LEVEL_INTROS = {
   5: "The ultimate challenge awaits",
 };
 
-function ConceptIntro({ concept, levelData, heroName, heroColor, onStart }) {
+function ConceptIntro({ concept, levelData, heroName, heroColor, heroAvatarId, onStart }) {
   const [slide, setSlide] = useState(0);
   const [visible, setVisible] = useState(false);
 
@@ -167,7 +167,7 @@ function ConceptIntro({ concept, levelData, heroName, heroColor, onStart }) {
 
             {/* Hero mini-display */}
             <div className="flex items-center justify-center gap-3 mb-4">
-              <PixelHero color={heroColor || "#00d4ff"} size={40} animation="idle" />
+              <GameHero color={heroColor || "#00d4ff"} size={40} animation="idle" avatarId={heroAvatarId} />
               <span className="text-sm text-gray-400 font-mono">
                 {heroName || "Hero"} is ready to learn!
               </span>
@@ -190,7 +190,7 @@ function ConceptIntro({ concept, levelData, heroName, heroColor, onStart }) {
         {slide === 3 && (
           <div className="text-center animate-fade-in">
             <div className="mb-6">
-              <PixelHero color={heroColor || "#00d4ff"} size={80} animation="victory" />
+              <GameHero color={heroColor || "#00d4ff"} size={80} animation="victory" avatarId={heroAvatarId} />
             </div>
 
             <h2 className="text-2xl font-bold text-gray-100 mb-2">

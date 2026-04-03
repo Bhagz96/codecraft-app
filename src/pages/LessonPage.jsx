@@ -283,6 +283,7 @@ function LessonPage() {
         levelData={levelData}
         heroName={hero?.name}
         heroColor={hero?.color}
+        heroAvatarId={hero?.avatarId}
         onStart={() => setShowIntro(false)}
       />
     );
