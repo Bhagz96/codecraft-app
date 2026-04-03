@@ -69,15 +69,13 @@ function RewardPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Play victory fanfare then switch to adventure music
+  // Victory fanfare SFX + bring theme back to full volume
   useEffect(() => {
+    startMusic('adventure');
     if (isMuted) return;
-    const t = setTimeout(() => {
-      playVictory();
-      setTimeout(() => startMusic('adventure'), 1200);
-    }, 400);
-    return () => { clearTimeout(t); stopMusic(); };
-  }, [isMuted, playVictory, startMusic, stopMusic]);
+    const t = setTimeout(() => playVictory(), 400);
+    return () => clearTimeout(t);
+  }, [isMuted, playVictory, startMusic]);
 
   // No state — redirect home
   if (!rewardType) {

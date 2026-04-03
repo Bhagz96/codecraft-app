@@ -85,11 +85,10 @@ function LessonPage() {
   // ── Audio ──────────────────────────────────────────────────────────
   const { playCorrect, playIncorrect, startMusic, stopMusic, isMuted, toggleMute } = useAudio();
 
-  // Start mysterious lesson music; re-run when muted state changes
+  // Duck music to quiet level for lessons; re-apply when muted toggles off
   useEffect(() => {
     startMusic('mystery');
-    return () => stopMusic();
-  }, [isMuted, startMusic, stopMusic]);
+  }, [isMuted, startMusic]);
 
   // Sound effect on answer feedback
   useEffect(() => {

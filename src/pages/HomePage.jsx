@@ -131,10 +131,10 @@ function HomePage() {
   // ── Audio ──────────────────────────────────────────────────────────
   const { startMusic, stopMusic, isMuted, toggleMute } = useAudio();
 
+  // Full-volume theme on home screens; re-apply when muted toggles off
   useEffect(() => {
     startMusic('adventure');
-    return () => stopMusic();
-  }, [isMuted, startMusic, stopMusic]);
+  }, [isMuted, startMusic]);
 
   const muteBtn = (
     <button
