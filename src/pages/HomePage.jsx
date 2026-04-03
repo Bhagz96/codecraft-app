@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { getAllProgress, isLevelUnlocked, getProgress } from "../data/progress";
@@ -7,6 +7,7 @@ import { getAvatar } from "../data/avatars";
 import GameHero from "../components/game/GameHero";
 import AvatarFace from "../components/game/AvatarFace";
 import AvatarPicker from "../components/AvatarPicker";
+import { useAudio } from "../hooks/useAudio";
 
 /**
  * HOME PAGE — with Story Landing + Hero Creation
@@ -127,6 +128,24 @@ function HomePage() {
   const hero = heroExists ? getHero() : null;
   const progress = getAllProgress();
 
+  // ── Audio ──────────────────────────────────────────────────────────
+  const { startMusic, stopMusic, isMuted, toggleMute } = useAudio();
+
+  useEffect(() => {
+    startMusic('adventure');
+    return () => stopMusic();
+  }, [isMuted, startMusic, stopMusic]);
+
+  const muteBtn = (
+    <button
+      onClick={toggleMute}
+      title={isMuted ? "Unmute sound" : "Mute sound"}
+      className="fixed top-3 right-3 z-50 w-9 h-9 rounded-full bg-[#161b22]/80 border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm backdrop-blur-sm cursor-pointer"
+    >
+      {isMuted ? '🔇' : '🔊'}
+    </button>
+  );
+
   // Handle hero creation
   const handleCreateHero = () => {
     if (heroName.trim().length === 0) return;
@@ -139,6 +158,8 @@ function HomePage() {
   // ===========================
   if (!heroExists && !showCreateHero) {
     return (
+      <>
+      {muteBtn}
       <div className="min-h-screen flex flex-col items-center px-4 py-8 overflow-hidden">
         {/* Title */}
         <div className="text-center mb-6 animate-fade-in">
@@ -215,6 +236,7 @@ function HomePage() {
           No account needed &middot; Your progress saves automatically
         </p>
       </div>
+      </>
     );
   }
 
@@ -225,6 +247,8 @@ function HomePage() {
     const previewAvatar = getAvatar(selectedAvatarId);
 
     return (
+      <>
+      {muteBtn}
       <div className="min-h-screen flex flex-col items-center px-4 py-8">
         {/* Back button */}
         <button
@@ -342,6 +366,7 @@ function HomePage() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -349,6 +374,8 @@ function HomePage() {
   // MAIN HOME PAGE
   // ===========================
   return (
+    <>
+    {muteBtn}
     <div className="min-h-screen flex flex-col items-center px-4 py-10">
       {/* Header */}
       <header className="text-center mb-8">
@@ -495,6 +522,7 @@ function HomePage() {
         /admin →
       </Link>
     </div>
+    </>
   );
 }
 

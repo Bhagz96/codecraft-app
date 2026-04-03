@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { workedExamples } from "../data/workedExamples";
@@ -20,6 +20,7 @@ import {
   SUPPORT_STRATEGIES,
 } from "../mab/engine";
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
+import { useAudio } from "../hooks/useAudio";
 
 /**
  * LESSON PAGE — v5 Single-MAB (Support Strategy only)
@@ -80,6 +81,21 @@ function LessonPage() {
   const [correctCount, setCorrectCount] = useState(0);
   const [session] = useState(() => startSession(conceptId, levelNum, modality, rewardType, supportStrategy));
   const [sceneResult, setSceneResult] = useState(null);
+
+  // ── Audio ──────────────────────────────────────────────────────────
+  const { playCorrect, playIncorrect, startMusic, stopMusic, isMuted, toggleMute } = useAudio();
+
+  // Start mysterious lesson music; re-run when muted state changes
+  useEffect(() => {
+    startMusic('mystery');
+    return () => stopMusic();
+  }, [isMuted, startMusic, stopMusic]);
+
+  // Sound effect on answer feedback
+  useEffect(() => {
+    if (feedback === 'correct') playCorrect();
+    else if (feedback === 'incorrect') playIncorrect();
+  }, [feedback, playCorrect, playIncorrect]);
 
   // ── Per-question tracking state ─────────────────────────────────
   const [attempts, setAttempts] = useState(0);       // attempts on current question
@@ -392,6 +408,14 @@ function LessonPage() {
             <span className="text-sm text-gray-500 font-mono">
               {currentStep + 1}/{levelData.steps.length}
             </span>
+            {/* Mute toggle */}
+            <button
+              onClick={toggleMute}
+              title={isMuted ? "Unmute sound" : "Mute sound"}
+              className="w-8 h-8 rounded-full bg-[#161b22] border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm cursor-pointer"
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
             {/* Admin info toggle — hidden from learners, accessible to instructors */}
             <div className="relative">
               <button

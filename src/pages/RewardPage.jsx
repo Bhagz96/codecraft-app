@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { useAudio } from "../hooks/useAudio";
 
 /**
  * REWARD PAGE — Version 2.1 (Per-Level Completion Content)
@@ -50,6 +51,7 @@ function RewardPage() {
     completion,
   } = location.state || {};
 
+  const { playVictory, startMusic, stopMusic, isMuted, toggleMute } = useAudio();
   const [revealed, setRevealed] = useState(false);
   const [animating, setAnimating] = useState(true);
 
@@ -66,6 +68,16 @@ function RewardPage() {
     const timer = setTimeout(() => setAnimating(false), 600);
     return () => clearTimeout(timer);
   }, []);
+
+  // Play victory fanfare then switch to adventure music
+  useEffect(() => {
+    if (isMuted) return;
+    const t = setTimeout(() => {
+      playVictory();
+      setTimeout(() => startMusic('adventure'), 1200);
+    }, 400);
+    return () => { clearTimeout(t); stopMusic(); };
+  }, [isMuted, playVictory, startMusic, stopMusic]);
 
   // No state — redirect home
   if (!rewardType) {
@@ -96,6 +108,14 @@ function RewardPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+      {/* Mute toggle */}
+      <button
+        onClick={toggleMute}
+        title={isMuted ? "Unmute sound" : "Mute sound"}
+        className="fixed top-3 right-3 z-50 w-9 h-9 rounded-full bg-[#161b22]/80 border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm backdrop-blur-sm cursor-pointer"
+      >
+        {isMuted ? '🔇' : '🔊'}
+      </button>
       {/* Header */}
       <div
         className={`text-center mb-6 transition-all duration-500 ${
