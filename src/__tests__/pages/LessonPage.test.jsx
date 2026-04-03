@@ -97,8 +97,11 @@ describe('LessonPage — lesson view (after intro)', () => {
     expect(screen.getByTestId('game-scene')).toBeInTheDocument();
   });
 
-  it('shows a modality badge', () => {
+  it('shows a modality label in the admin info popover', () => {
     renderAndSkipIntro();
+    // Modality is now shown inside the admin ⚙ popover — open it first
+    const gearBtn = screen.getByTitle('Session info');
+    fireEvent.click(gearBtn);
     const badges = screen.queryAllByText(/CODE SIMULATION|DRAG & DROP|SPEED CODING/i);
     expect(badges.length).toBeGreaterThan(0);
   });
