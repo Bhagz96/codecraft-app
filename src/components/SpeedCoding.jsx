@@ -144,7 +144,7 @@ function SpeedCoding({ step, onAnswer, feedback }) {
                   }`}
                 >
                   {selectedBlanks[i] !== undefined
-                    ? blanks[i].options[selectedBlanks[i]]
+                    ? shuffledBlanks[i].shuffledOptions[selectedBlanks[i]]
                     : "???"}
                 </span>
               )}
