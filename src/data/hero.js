@@ -56,16 +56,11 @@ export function saveHero(hero) {
   if (_currentUserId && supabase) {
     supabase.from("heroes").upsert({
       user_id: _currentUserId,
-      name: hero.name,
-      color: hero.color,
+      name:      hero.name,
+      color:     hero.color,
       avatar_id: hero.avatarId,
-      level: hero.level,
-      xp: hero.xp,
-      health: hero.health,
-      max_health: hero.maxHealth,
-      attack: hero.attack,
-      defense: hero.defense,
-      gold: hero.gold,
+      level:     hero.level,
+      xp:        hero.xp,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" }).catch(() => {});
   }

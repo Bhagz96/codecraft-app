@@ -66,9 +66,8 @@ export function completeLevel(conceptId, level) {
       supabase.from("user_progress").upsert({
         user_id: _currentUserId,
         concept_id: conceptId,
-        highest_level: level,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,concept_id" }).catch(() => {});
+        level,
+      }, { onConflict: "user_id,concept_id,level" }).catch(() => {});
     }
   }
 }
@@ -94,7 +93,10 @@ export async function loadProgressFromCloud(userId) {
   if (data && data.length > 0) {
     const progress = {};
     data.forEach((row) => {
-      progress[row.concept_id] = row.highest_level;
+      // Keep the highest completed level per concept
+      if (!progress[row.concept_id] || row.level > progress[row.concept_id]) {
+        progress[row.concept_id] = row.level;
+      }
     });
     localStorage.setItem(`kidcode_progress_${userId}`, JSON.stringify(progress));
   }

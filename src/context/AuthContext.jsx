@@ -51,7 +51,9 @@ export function AuthProvider({ children }) {
       .maybeSingle();
 
     setIsAdmin(profile?.role === "admin");
-    setSkillLevel(profile?.skill_level ?? null);
+    // Preserve skill level already set this session — prevents token refresh
+    // from wiping a skill level the user just chose (if DB save is still pending)
+    setSkillLevel((prev) => profile?.skill_level ?? prev);
   }
 
   useEffect(() => {
