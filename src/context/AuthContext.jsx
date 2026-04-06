@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { setCurrentUser as setHeroUser, loadHeroFromCloud } from "../data/hero";
 import { setCurrentUser as setProgressUser, loadProgressFromCloud } from "../data/progress";
@@ -12,11 +12,6 @@ export function AuthProvider({ children }) {
   const [isGuest, setIsGuest] = useState(false);
   const [skillLevel, setSkillLevel] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Track whether we've completed the first initUser so subsequent SIGNED_IN
-  // events (fired by Supabase on tab focus / session restore) don't re-trigger
-  // the full loading screen.
-  const hasInitialized = useRef(false);
-  const initializedUserIdRef = useRef(null);
 
   async function initUser(supabaseUser) {
     if (!supabaseUser) {
@@ -72,13 +67,12 @@ export function AuthProvider({ children }) {
     // Fallback: force loading off after 6s if Supabase hangs
     const fallback = setTimeout(() => setLoading(false), 6000);
 
+    // Initial session check — the ONLY place we show the loading screen.
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
         clearTimeout(fallback);
         try {
           await initUser(session?.user ?? null);
-          hasInitialized.current = true;
-          initializedUserIdRef.current = session?.user?.id ?? null;
         } catch (err) {
           console.error("initUser error:", err);
         } finally {
@@ -91,39 +85,19 @@ export function AuthProvider({ children }) {
         setLoading(false);
       });
 
+    // Auth state changes after initial load.
+    // NEVER set loading=true here — that causes blank screens on tab focus.
+    // Just update state silently. Navigation is handled by ProtectedRoute
+    // reacting to user/skillLevel changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Silent background events — no loading screen needed
+        // Background token rotation — nothing to do
         if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") return;
 
-        // SIGNED_IN for the *same* user after first init = tab focus / session
-        // restore by Supabase. Silently refresh skill level; no loading screen.
-        // If it's a different (or new) user, fall through to full initUser.
-        if (event === "SIGNED_IN" && hasInitialized.current && session?.user?.id === initializedUserIdRef.current) {
-          if (session?.user) {
-            supabase.from("profiles")
-              .select("role, skill_level")
-              .eq("id", session.user.id)
-              .maybeSingle()
-              .then(({ data: profile }) => {
-                setIsAdmin(profile?.role === "admin");
-                setSkillLevel((prev) => profile?.skill_level ?? prev);
-              })
-              .catch(() => {});
-          }
-          return;
-        }
-
-        // Actual sign-in / sign-out — show loading while we initialise
-        setLoading(true);
         try {
           await initUser(session?.user ?? null);
-          hasInitialized.current = true;
-          initializedUserIdRef.current = session?.user?.id ?? null;
         } catch (err) {
           console.error("initUser error:", err);
-        } finally {
-          setLoading(false);
         }
       }
     );
@@ -158,7 +132,7 @@ export function AuthProvider({ children }) {
       .from("profiles")
       .upsert({ id: user.id, skill_level: level }, { onConflict: "id" });
     if (error) console.error("updateSkillLevel error:", error);
-    // Update local state regardless — DB will sync on next login once RLS is correct
+    // Always update local state so the current session is never blocked
     setSkillLevel(level);
   };
 

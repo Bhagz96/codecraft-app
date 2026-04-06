@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -33,8 +33,13 @@ export default function LoginPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { signIn, signUp, continueAsGuest } = useAuth();
+  const { signIn, signUp, continueAsGuest, user, isAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Navigate once auth state confirms the user is logged in
+  useEffect(() => {
+    if (user) navigate(isAdmin ? "/admin" : "/", { replace: true });
+  }, [user, isAdmin, navigate]);
 
   function switchMode(m) {
     setMode(m);
@@ -83,9 +88,8 @@ export default function LoginPage() {
               ? "Incorrect NUS ID or password."
               : err.message
           );
-        } else {
-          navigate(isAdminLogin ? "/admin" : "/");
         }
+        // Navigation happens via useEffect above once user state is set
       } else {
         const { error: err } = await signUp(
           email, password,
