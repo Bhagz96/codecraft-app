@@ -133,6 +133,11 @@ function HomePage() {
   // ── Auth ───────────────────────────────────────────────────────────
   const { user, isAdmin, signOut } = useAuth();
 
+  // Re-check hero existence after auth loads (cloud hero may arrive after mount)
+  useEffect(() => {
+    setHeroExists(hasHero());
+  }, [user]);
+
   // ── Audio ──────────────────────────────────────────────────────────
   const { startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
 
