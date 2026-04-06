@@ -66,13 +66,12 @@ export function AuthProvider({ children }) {
     }
 
     // Fetch role + skill level from profiles table
-    const { data: profile, error: profileErr } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("role, skill_level")
       .eq("id", supabaseUser.id)
       .maybeSingle();
 
-    console.log("[Auth] profile →", profile, "err →", profileErr);
     setIsAdmin(profile?.role === "admin");
 
     // Use DB value if present; otherwise keep whatever is already in state/cache
