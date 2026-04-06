@@ -55,12 +55,17 @@ export function saveHero(hero) {
   // Fire-and-forget cloud sync when logged in
   if (_currentUserId && supabase) {
     supabase.from("heroes").upsert({
-      user_id: _currentUserId,
-      name:      hero.name,
-      color:     hero.color,
-      avatar_id: hero.avatarId,
-      level:     hero.level,
-      xp:        hero.xp,
+      user_id:    _currentUserId,
+      name:       hero.name,
+      color:      hero.color,
+      avatar_id:  hero.avatarId,
+      level:      hero.level,
+      xp:         hero.xp,
+      health:     hero.health,
+      max_health: hero.maxHealth,
+      attack:     hero.attack,
+      defense:    hero.defense,
+      gold:       hero.gold,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" }).then(() => {}, () => {});
   }

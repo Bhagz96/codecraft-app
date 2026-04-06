@@ -87,13 +87,12 @@ export async function loadProgressFromCloud(userId) {
   if (!supabase) return;
   const { data } = await supabase
     .from("user_progress")
-    .select("concept_id, highest_level")
+    .select("concept_id, level")
     .eq("user_id", userId);
 
   if (data && data.length > 0) {
     const progress = {};
     data.forEach((row) => {
-      // Keep the highest completed level per concept
       if (!progress[row.concept_id] || row.level > progress[row.concept_id]) {
         progress[row.concept_id] = row.level;
       }
