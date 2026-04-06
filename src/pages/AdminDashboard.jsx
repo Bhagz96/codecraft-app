@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   createMAB,
   updateMAB,
@@ -779,6 +780,13 @@ function SessionsTab() {
 
 function AdminDashboard() {
   const [tab, setTab] = useState("users");
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/login", { replace: true });
+  }
 
   return (
     <div className="min-h-screen px-4 py-8">
@@ -788,9 +796,17 @@ function AdminDashboard() {
             <h1 className="text-2xl font-bold text-gray-100 font-mono">/admin</h1>
             <p className="text-gray-500 text-sm">CodeCraft Admin Dashboard</p>
           </div>
-          <Link to="/" className="bg-[#161b22] border border-[#30363d] text-gray-300 font-medium px-4 py-2 rounded-lg hover:border-[#484f58] transition-colors text-sm">
-            ← Back
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/" className="bg-[#161b22] border border-[#30363d] text-gray-300 font-medium px-4 py-2 rounded-lg hover:border-[#484f58] transition-colors text-sm">
+              ← Back
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="bg-[#161b22] border border-[#30363d] text-gray-400 font-medium px-4 py-2 rounded-lg hover:border-red-500/40 hover:text-red-400 transition-colors text-sm cursor-pointer"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
