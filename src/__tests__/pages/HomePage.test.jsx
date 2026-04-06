@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import HomePage from '../../pages/HomePage';
 import { createHero, resetHero } from '../../data/hero';
@@ -87,13 +87,18 @@ describe('HomePage — hero creation screen', () => {
     expect(colorButtons.length).toBeGreaterThanOrEqual(6);
   });
 
-  it('submitting a valid name transitions to the main home page', () => {
+  it('submitting a valid name transitions to the main home page', async () => {
+    vi.useFakeTimers();
     renderHomePage();
     fireEvent.click(screen.getByRole('button', { name: /Begin Your Quest/i }));
     fireEvent.change(screen.getByPlaceholderText('Enter a name...'), { target: { value: 'TestHero' } });
     fireEvent.click(screen.getByRole('button', { name: /Start as TestHero/i }));
-    // Should now show the concept picker
+    // Button shows success state during the 900ms delay
+    expect(screen.getByRole('button', { name: /Hero created/i })).toBeInTheDocument();
+    // Advance past the delay to trigger the concept picker transition
+    await act(async () => { vi.advanceTimersByTime(1000); });
     expect(screen.getByText('Variables')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
 
