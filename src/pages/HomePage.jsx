@@ -134,9 +134,11 @@ function HomePage() {
   // ── Auth ───────────────────────────────────────────────────────────
   const { user, isAdmin, signOut } = useAuth();
 
-  // Re-check hero existence after auth loads (cloud hero may arrive after mount)
+  // Re-check hero existence after auth loads (cloud hero may arrive after mount).
+  // Only promote to true — never reset to false — so a just-created hero isn't
+  // wiped out by a background auth re-init that briefly clears _currentUserId.
   useEffect(() => {
-    setHeroExists(hasHero());
+    if (hasHero()) setHeroExists(true);
   }, [user]);
 
   // ── Audio ──────────────────────────────────────────────────────────
