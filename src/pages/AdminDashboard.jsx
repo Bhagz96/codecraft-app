@@ -45,7 +45,6 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedUser, setExpandedUser] = useState(null);
-  const [deleting, setDeleting] = useState(null); // userId currently being deleted
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -246,31 +245,9 @@ function UsersTab() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-[#21262d] flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap gap-4 text-xs font-mono text-gray-600">
-                    <span>Skill: <span className="text-gray-400 capitalize">{u.skill_level || "not set"}</span></span>
-                    <span>ID: <span className="text-gray-700">{u.id.slice(0, 8)}…</span></span>
-                  </div>
-                  {u.role !== "admin" && (
-                    <button
-                      disabled={deleting === u.id}
-                      onClick={async () => {
-                        if (!window.confirm(`Delete all session data for ${[u.first_name, u.last_name].filter(Boolean).join(" ") || u.nus_id || "this user"}? This cannot be undone.`)) return;
-                        setDeleting(u.id);
-                        const client = supabaseAdmin || supabase;
-                        try {
-                          await client.from("sessions").delete().eq("user_id", u.id);
-                          await client.from("user_progress").delete().eq("user_id", u.id);
-                          await client.from("heroes").delete().eq("user_id", u.id);
-                        } catch {}
-                        setDeleting(null);
-                        fetchUsers();
-                      }}
-                      className="text-xs font-mono px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/15 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {deleting === u.id ? "Deleting…" : "Delete session data"}
-                    </button>
-                  )}
+                <div className="mt-4 pt-4 border-t border-[#21262d] flex flex-wrap gap-4 text-xs font-mono text-gray-600">
+                  <span>Skill: <span className="text-gray-400 capitalize">{u.skill_level || "not set"}</span></span>
+                  <span>ID: <span className="text-gray-700">{u.id.slice(0, 8)}…</span></span>
                 </div>
               </div>
             )}
@@ -593,6 +570,17 @@ function SessionsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  async function deleteSession(sessionId) {
+    const client = supabaseAdmin || supabase;
+    setDeletingId(sessionId);
+    try {
+      await client.from("sessions").delete().eq("id", sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    } catch {}
+    setDeletingId(null);
+  }
 
   useEffect(() => { fetchSessions(); }, []);
 
@@ -739,6 +727,17 @@ function SessionsTab() {
                     </div>
                   </div>
                 )}
+
+                {/* Delete */}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => deleteSession(s.id)}
+                    disabled={deletingId === s.id}
+                    className="text-xs font-mono px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {deletingId === s.id ? "Deleting…" : "Delete this session"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
