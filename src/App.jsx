@@ -82,7 +82,7 @@ function AppRoutes() {
       <Route
         path="/lesson/:conceptId/:level"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiresSkillLevel={false}>
             <LessonPage />
           </ProtectedRoute>
         }
@@ -90,7 +90,7 @@ function AppRoutes() {
       <Route
         path="/reward"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiresSkillLevel={false}>
             <RewardPage />
           </ProtectedRoute>
         }
