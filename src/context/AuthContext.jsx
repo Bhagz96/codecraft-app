@@ -54,12 +54,16 @@ export function AuthProvider({ children }) {
 
     // Insert profile on first login only — never overwrite existing data
     const meta = supabaseUser.user_metadata || {};
-    await supabase.from("profiles").upsert({
-      id: supabaseUser.id,
-      nus_id: meta.nus_id ?? null,
-      first_name: meta.first_name ?? null,
-      last_name: meta.last_name ?? null,
-    }, { onConflict: "id", ignoreDuplicates: true }).catch(() => {});
+    try {
+      await supabase.from("profiles").upsert({
+        id: supabaseUser.id,
+        nus_id: meta.nus_id ?? null,
+        first_name: meta.first_name ?? null,
+        last_name: meta.last_name ?? null,
+      }, { onConflict: "id", ignoreDuplicates: true });
+    } catch {
+      // non-critical — profile may already exist
+    }
 
     // Fetch role + skill level from profiles table
     const { data: profile } = await supabase
