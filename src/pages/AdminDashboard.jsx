@@ -476,6 +476,74 @@ function MABTab() {
         </div>
       )}
 
+      {/* ── Best strategy per skill level (Supabase) ── */}
+      {!dbLoading && sessions.length > 0 && (
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">
+            Best Strategy per Skill Level
+            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
+          </h2>
+          <p className="text-xs text-gray-500 mb-5">
+            Which instructional strategy works best for each learner group — the key insight for deploying personalised MAB variants.
+          </p>
+          <div className="space-y-6">
+            {SKILL_LEVELS.map((lvl) => {
+              const userIds = profiles.filter((p) => p.skill_level === lvl).map((p) => p.id);
+              const lvlSessions = sessions.filter((s) => userIds.includes(s.user_id));
+              if (lvlSessions.length === 0) return (
+                <div key={lvl}>
+                  <p className={`text-sm font-semibold capitalize mb-2 ${skillColors[lvl]}`}>{lvl}</p>
+                  <p className="text-gray-700 text-xs font-mono">// no sessions yet for this group</p>
+                </div>
+              );
+              const byStrategy = SUPPORT_STRATEGIES.map((s) => {
+                const rows = lvlSessions.filter((r) => r.support_strategy === s);
+                const correctPct = rows.length === 0 ? null
+                  : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+                const avgReward = rows.length === 0 ? null
+                  : rows.reduce((sum, r) => sum + (r.reward_score ?? 0), 0) / rows.length;
+                return { arm: s, count: rows.length, correctPct, avgReward };
+              }).filter((s) => s.count > 0).sort((a, b) => (b.avgReward ?? 0) - (a.avgReward ?? 0));
+
+              const best = byStrategy[0];
+              return (
+                <div key={lvl}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <p className={`text-sm font-semibold capitalize ${skillColors[lvl]}`}>{lvl}</p>
+                    {best && (
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${strategyTextColors[best.arm]} bg-current/5 border-current/20`}>
+                        Best: {strategyShortLabels[best.arm]} — {best.correctPct}% correct
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {byStrategy.map(({ arm, count, correctPct, avgReward }) => {
+                      const maxR = Math.max(...byStrategy.map((s) => s.avgReward ?? 0), 0.01);
+                      return (
+                        <div key={arm} className="flex items-center gap-3">
+                          <span className={`text-[10px] font-mono w-36 shrink-0 ${strategyTextColors[arm]}`}>
+                            {strategyShortLabels[arm]}
+                          </span>
+                          <div className="flex-1 bg-[#0d1117] rounded-full h-2 overflow-hidden border border-[#30363d]">
+                            <div
+                              className={`h-full bg-gradient-to-r ${strategyBarColors[arm]} rounded-full transition-all duration-500`}
+                              style={{ width: `${((avgReward ?? 0) / maxR) * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-gray-500 text-[10px] font-mono w-28 text-right shrink-0">
+                            {count} sess · {correctPct}% correct
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Strategy effectiveness (Supabase) ── */}
       {!dbLoading && sessions.length > 0 && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
