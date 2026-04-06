@@ -12,7 +12,7 @@ import {
 import { getAllSessions, clearSessions } from "../mab/sessionTracker";
 import { resetProgress } from "../data/progress";
 import { resetHero } from "../data/hero";
-import { supabase } from "../lib/supabase";
+import { supabase, supabaseAdmin } from "../lib/supabase";
 
 const CONCEPTS = ["variables", "loops", "conditions"];
 
@@ -49,7 +49,9 @@ function UsersTab() {
   useEffect(() => { fetchUsers(); }, []);
 
   async function fetchUsers() {
-    if (!supabase) {
+    // Prefer the service-role client (bypasses RLS) — fall back to anon client
+    const client = supabaseAdmin || supabase;
+    if (!client) {
       setError("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
       setLoading(false);
       return;
@@ -57,18 +59,18 @@ function UsersTab() {
     setLoading(true);
     setError(null);
     try {
-      const { data: profiles, error: pErr } = await supabase
+      const { data: profiles, error: pErr } = await client
         .from("profiles")
         .select("id, nus_id, first_name, last_name, skill_level, role");
       if (pErr) throw pErr;
 
-      const { data: heroes } = await supabase
+      const { data: heroes } = await client
         .from("heroes")
-        .select("user_id, name, level, xp, health, attack, defense, gold, color");
+        .select("user_id, name, level, xp, color");
 
-      const { data: progress } = await supabase
+      const { data: progress } = await client
         .from("user_progress")
-        .select("user_id, concept_id, highest_level");
+        .select("user_id, concept_id, level");
 
       const heroMap = {};
       (heroes || []).forEach((h) => { heroMap[h.user_id] = h; });
@@ -76,7 +78,9 @@ function UsersTab() {
       const progressMap = {};
       (progress || []).forEach((p) => {
         if (!progressMap[p.user_id]) progressMap[p.user_id] = {};
-        progressMap[p.user_id][p.concept_id] = p.highest_level;
+        // group by concept: store highest completed level
+        const cur = progressMap[p.user_id][p.concept_id] || 0;
+        if (p.level > cur) progressMap[p.user_id][p.concept_id] = p.level;
       });
 
       setUsers((profiles || []).map((p) => ({
@@ -489,6 +493,149 @@ function MABTab() {
   );
 }
 
+// ─── SESSIONS TAB ────────────────────────────────────────────────────────────
+
+function SessionsTab() {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => { fetchSessions(); }, []);
+
+  async function fetchSessions() {
+    const client = supabaseAdmin || supabase;
+    if (!client) {
+      setError("Supabase is not configured.");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: err } = await client
+        .from("sessions")
+        .select(
+          "id, session_id, user_id, concept_id, level, modality, support_strategy, " +
+          "completed, time_spent, score, correct_count, total_steps, first_try_count, " +
+          "total_attempts, total_hints, scaffold_used, reward_score, step_details, timestamp"
+        )
+        .order("timestamp", { ascending: false })
+        .limit(200);
+      if (err) throw err;
+      setSessions(data || []);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  }
+
+  if (loading) return (
+    <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading sessions...</div>
+  );
+
+  if (error) return (
+    <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono">
+      <p className="font-semibold mb-1">Error loading sessions</p>
+      <p className="text-red-400/70 text-xs">{error}</p>
+    </div>
+  );
+
+  if (sessions.length === 0) return (
+    <div className="text-center py-16 text-gray-600 font-mono text-sm">// no sessions recorded yet</div>
+  );
+
+  const strategyColor = {
+    worked_example_first:  "text-amber-400",
+    hint_first:            "text-yellow-400",
+    try_first_then_hint:   "text-cyan-400",
+    step_by_step_scaffold: "text-violet-400",
+    explain_after_error:   "text-emerald-400",
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-gray-500 text-xs font-mono">{sessions.length} sessions (most recent first)</p>
+        <button onClick={fetchSessions} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh</button>
+      </div>
+
+      {sessions.map((s) => {
+        const isOpen = expanded === s.id;
+        const pct = s.total_steps > 0 ? Math.round((s.correct_count / s.total_steps) * 100) : 0;
+        const date = new Date(s.timestamp).toLocaleString();
+
+        return (
+          <div key={s.id} className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
+            {/* Row header */}
+            <button
+              onClick={() => setExpanded(isOpen ? null : s.id)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#1c2330] transition-colors cursor-pointer"
+            >
+              <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${s.completed ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-gray-500 border-gray-600/30"}`}>
+                {s.completed ? "✓" : "⏸"}
+              </span>
+              <span className="text-gray-300 text-xs font-mono flex-1 truncate">
+                {s.concept_id} L{s.level} — {s.modality}
+              </span>
+              <span className={`text-xs font-mono ${strategyColor[s.support_strategy] || "text-gray-400"}`}>
+                {s.support_strategy?.replace(/_/g, " ")}
+              </span>
+              <span className="text-gray-400 text-xs font-mono w-16 text-right">{pct}% correct</span>
+              <span className="text-gray-600 text-xs font-mono hidden md:block w-36 text-right">{date}</span>
+              <span className="text-gray-600 text-xs ml-1">{isOpen ? "▲" : "▼"}</span>
+            </button>
+
+            {/* Expanded detail */}
+            {isOpen && (
+              <div className="px-4 pb-4 border-t border-[#30363d] pt-3 space-y-3">
+                {/* Aggregate metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                  {[
+                    ["User",           s.user_id?.slice(0, 8) + "…"],
+                    ["Time",           s.time_spent + "s"],
+                    ["Score",          s.reward_score?.toFixed(2)],
+                    ["First-try",      `${s.first_try_count}/${s.total_steps}`],
+                    ["Attempts",       s.total_attempts],
+                    ["Hints",          s.total_hints],
+                    ["Scaffold",       s.scaffold_used ? "yes" : "no"],
+                    ["Reward type",    s.modality],
+                  ].map(([k, v]) => (
+                    <div key={k} className="bg-[#0d1117] rounded-lg p-2">
+                      <p className="text-gray-600 text-[10px] uppercase tracking-wider">{k}</p>
+                      <p className="text-gray-300 mt-0.5 truncate">{v ?? "—"}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Step-level breakdown */}
+                {s.step_details && s.step_details.length > 0 && (
+                  <div>
+                    <p className="text-gray-500 text-[10px] font-mono uppercase tracking-wider mb-2">Per-step detail</p>
+                    <div className="space-y-1">
+                      {s.step_details.map((step, i) => (
+                        <div key={i} className="flex items-center gap-3 text-xs font-mono bg-[#0d1117] rounded-lg px-3 py-1.5">
+                          <span className="text-gray-600 w-6">#{step.stepIndex + 1}</span>
+                          <span className={step.correct ? "text-green-400" : "text-red-400"}>
+                            {step.correct ? "✓ correct" : "✗ wrong"}
+                          </span>
+                          <span className="text-gray-500">{step.firstTry ? "first try" : `${step.attempts} attempts`}</span>
+                          <span className="text-gray-500">{step.hintCount > 0 ? `${step.hintCount} hint${step.hintCount > 1 ? "s" : ""}` : "no hints"}</span>
+                          <span className="ml-auto text-cyan-400">{step.rewardScore?.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────────────────
 
 function AdminDashboard() {
@@ -510,8 +657,9 @@ function AdminDashboard() {
         {/* Tabs */}
         <div className="flex bg-[#0d1117] rounded-xl p-1 mb-6 border border-[#30363d] w-fit gap-1">
           {[
-            { id: "users", label: "👥 Users" },
-            { id: "mab",   label: "📊 MAB Analytics" },
+            { id: "users",    label: "👥 Users" },
+            { id: "sessions", label: "📋 Sessions" },
+            { id: "mab",      label: "📊 MAB Analytics" },
           ].map((t) => (
             <button
               key={t.id}
@@ -527,8 +675,9 @@ function AdminDashboard() {
           ))}
         </div>
 
-        {tab === "users" && <UsersTab />}
-        {tab === "mab"   && <MABTab />}
+        {tab === "users"    && <UsersTab />}
+        {tab === "sessions" && <SessionsTab />}
+        {tab === "mab"      && <MABTab />}
       </div>
     </div>
   );
