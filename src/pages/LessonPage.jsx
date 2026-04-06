@@ -255,41 +255,49 @@ function LessonPage() {
       setStepScaffoldPhase(0);
     } else {
       // ── Lesson complete: finalize session ──
-      const avgReward = stepDetails.length > 0
-        ? stepDetails.reduce((sum, d) => sum + d.rewardScore, 0) / stepDetails.length
-        : 0;
-
-      // Update session with final metrics
-      session.correctCount = correctCount;
-      session.totalSteps = levelData.steps.length;
-      session.firstTryCount = firstTryCount;
-      session.totalAttempts = totalAttempts;
-      session.totalHints = totalHints;
-      session.scaffoldUsed = supportStrategy === "step_by_step_scaffold";
-      session.rewardScore = Math.round(avgReward * 100) / 100;
-      session.stepDetails = stepDetails;
-
-      const finalSession = endSession(session, true);
-      saveSession(finalSession);
-
-      completeLevel(conceptId, levelNum);
+      // Calculate reward data BEFORE any side-effects so navigate() always
+      // has the values it needs, even if localStorage writes throw.
       const xpAmount = correctCount * 20 + levelNum * 10;
-      const updatedHero = awardXP(xpAmount);
-      setHero(updatedHero);
+      const rewardState = {
+        rewardType,
+        conceptTitle: concept.title,
+        levelTitle: levelData.title,
+        levelNum,
+        correctCount,
+        totalSteps: levelData.steps.length,
+        conceptId,
+        xpEarned: xpAmount,
+        completion: levelData.completion || null,
+      };
 
-      navigate("/reward", {
-        state: {
-          rewardType,
-          conceptTitle: concept.title,
-          levelTitle: levelData.title,
-          levelNum,
-          correctCount,
-          totalSteps: levelData.steps.length,
-          conceptId,
-          xpEarned: xpAmount,
-          completion: levelData.completion || null,
-        },
-      });
+      // Best-effort persistence — wrapped in try/catch so a localStorage
+      // quota error (or any other exception) can never block navigation.
+      try {
+        const avgReward = stepDetails.length > 0
+          ? stepDetails.reduce((sum, d) => sum + d.rewardScore, 0) / stepDetails.length
+          : 0;
+
+        session.correctCount = correctCount;
+        session.totalSteps = levelData.steps.length;
+        session.firstTryCount = firstTryCount;
+        session.totalAttempts = totalAttempts;
+        session.totalHints = totalHints;
+        session.scaffoldUsed = supportStrategy === "step_by_step_scaffold";
+        session.rewardScore = Math.round(avgReward * 100) / 100;
+        session.stepDetails = stepDetails;
+
+        const finalSession = endSession(session, true);
+        saveSession(finalSession);
+        completeLevel(conceptId, levelNum);
+        const updatedHero = awardXP(xpAmount);
+        setHero(updatedHero);
+      } catch (err) {
+        // Persistence failed (e.g. localStorage full) — log but don't block
+        console.error("LessonPage: error saving session/progress:", err);
+      }
+
+      // ALWAYS navigate to /reward — this must never be skipped.
+      navigate("/reward", { state: rewardState });
     }
   };
 
