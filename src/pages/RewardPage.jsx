@@ -114,6 +114,7 @@ function RewardPage() {
           toggleMute={toggleMute}
           musicVolume={musicVolume}
           setMusicVolume={setMusicVolume}
+          startMusic={startMusic}
         />
       </div>
       {/* Header */}

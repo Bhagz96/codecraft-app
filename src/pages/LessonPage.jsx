@@ -436,6 +436,7 @@ function LessonPage() {
               toggleMute={toggleMute}
               musicVolume={musicVolume}
               setMusicVolume={setMusicVolume}
+              startMusic={startMusic}
             />
             {/* Admin info toggle — hidden from learners, accessible to instructors */}
             <div className="relative">

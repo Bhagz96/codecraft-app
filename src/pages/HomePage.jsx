@@ -156,6 +156,7 @@ function HomePage() {
         toggleMute={toggleMute}
         musicVolume={musicVolume}
         setMusicVolume={setMusicVolume}
+        startMusic={startMusic}
       />
     </div>
   );

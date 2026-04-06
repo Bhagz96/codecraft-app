@@ -123,7 +123,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-[#0d1117]">
       <div className="fixed top-3 right-3 z-50">
-        <AudioControl isMuted={isMuted} toggleMute={toggleMute} musicVolume={musicVolume} setMusicVolume={setMusicVolume} />
+        <AudioControl isMuted={isMuted} toggleMute={toggleMute} musicVolume={musicVolume} setMusicVolume={setMusicVolume} startMusic={startMusic} />
       </div>
       {/* Logo */}
       <div className="text-center mb-8">
