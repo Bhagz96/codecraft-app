@@ -120,10 +120,13 @@ export function AuthProvider({ children }) {
           event === "SIGNED_OUT"
         ) return;
 
+        setLoading(true);
         try {
           await initUser(session?.user ?? null);
         } catch (err) {
           console.error("initUser error:", err);
+        } finally {
+          setLoading(false);
         }
       }
     );
