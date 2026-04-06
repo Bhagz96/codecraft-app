@@ -393,6 +393,19 @@ function MABTab() {
 
   return (
     <div className="space-y-6">
+      {/* Design note */}
+      <div className="bg-[#161b22] border border-violet-500/30 rounded-xl px-5 py-4 text-xs font-mono space-y-1">
+        <p className="text-violet-400 font-semibold uppercase tracking-wider text-[10px] mb-2">How the algorithm works</p>
+        <p className="text-gray-300">
+          <span className="text-cyan-400">Support strategy</span> — selected by the <span className="text-cyan-400">ε-greedy MAB</span> (ε = 0.3).
+          The bandit learns which scaffolding method (e.g. "Try First → Hint", "Worked Example") produces the highest correctness score and exploits it over time.
+        </p>
+        <p className="text-gray-300">
+          <span className="text-violet-400">Teaching modality</span> — assigned <span className="text-violet-400">randomly</span> each session (Code Simulation, Drag &amp; Drop, Speed Coding).
+          Modality is <em>not</em> controlled by the MAB; it is rotated uniformly so each format gets equal exposure.
+        </p>
+      </div>
+
       <div className="flex gap-3 flex-wrap">
         <button onClick={() => loadDbData()} className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:bg-cyan-500/20 transition-colors text-sm cursor-pointer">
           ↺ Refresh from Supabase
