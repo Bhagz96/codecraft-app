@@ -34,14 +34,14 @@ export function AuthProvider({ children }) {
     await loadHeroFromCloud(supabaseUser.id);
     await loadProgressFromCloud(supabaseUser.id);
 
-    // Upsert profile on every login (keeps names/IDs in sync)
+    // Insert profile on first login only — never overwrite existing data
     const meta = supabaseUser.user_metadata || {};
     await supabase.from("profiles").upsert({
       id: supabaseUser.id,
       nus_id: meta.nus_id ?? null,
       first_name: meta.first_name ?? null,
       last_name: meta.last_name ?? null,
-    }, { onConflict: "id" }).catch(() => {});
+    }, { onConflict: "id", ignoreDuplicates: true }).catch(() => {});
 
     // Fetch role + skill level from profiles table
     const { data: profile } = await supabase
@@ -121,11 +121,11 @@ export function AuthProvider({ children }) {
 
   const updateSkillLevel = async (level) => {
     if (!user || !supabase) return;
-    await supabase.from("profiles").upsert(
-      { id: user.id, skill_level: level },
-      { onConflict: "id" }
-    );
-    setSkillLevel(level);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ skill_level: level })
+      .eq("id", user.id);
+    if (!error) setSkillLevel(level);
   };
 
   const continueAsGuest = () => {
