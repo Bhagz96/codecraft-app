@@ -6,6 +6,21 @@ import { setCurrentUser as setSessionUser } from "../mab/sessionTracker";
 
 const AuthContext = createContext(null);
 
+// ─── Skill-level localStorage helpers (keyed by userId so users don't share) ──
+function skillLevelKey(userId) {
+  return userId ? `kidcode_skill_level_${userId}` : null;
+}
+function readCachedSkillLevel(userId) {
+  const key = skillLevelKey(userId);
+  return key ? localStorage.getItem(key) : null;
+}
+function writeCachedSkillLevel(userId, level) {
+  const key = skillLevelKey(userId);
+  if (!key) return;
+  if (level) localStorage.setItem(key, level);
+  else localStorage.removeItem(key);
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -24,13 +39,16 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    // Set user immediately so downstream hooks get the user ID right away
     setUser(supabaseUser);
     setHeroUser(supabaseUser.id);
     setProgressUser(supabaseUser.id);
     setSessionUser(supabaseUser.id);
 
-    // Load this user's saved data from cloud into localStorage
+    // Restore skill level from localStorage immediately (fast, no network wait)
+    const cached = readCachedSkillLevel(supabaseUser.id);
+    if (cached) setSkillLevel(cached);
+
+    // Load cloud data into localStorage
     await loadHeroFromCloud(supabaseUser.id);
     await loadProgressFromCloud(supabaseUser.id);
 
@@ -51,23 +69,25 @@ export function AuthProvider({ children }) {
       .maybeSingle();
 
     setIsAdmin(profile?.role === "admin");
-    // Preserve skill level already set this session — prevents token refresh
-    // from wiping a skill level the user just chose (if DB save is still pending)
-    setSkillLevel((prev) => profile?.skill_level ?? prev);
+
+    // Use DB value if present; otherwise keep whatever is already in state/cache
+    const dbLevel = profile?.skill_level ?? null;
+    const resolved = dbLevel || cached || null;
+    if (resolved) {
+      setSkillLevel(resolved);
+      writeCachedSkillLevel(supabaseUser.id, resolved);
+    }
   }
 
   useEffect(() => {
-    // When Supabase isn't configured, run as guest automatically
     if (!supabase) {
       setIsGuest(true);
       setLoading(false);
       return;
     }
 
-    // Fallback: force loading off after 6s if Supabase hangs
     const fallback = setTimeout(() => setLoading(false), 6000);
 
-    // Initial session check — the ONLY place we show the loading screen.
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
         clearTimeout(fallback);
@@ -85,17 +105,11 @@ export function AuthProvider({ children }) {
         setLoading(false);
       });
 
-    // Auth state changes after initial load.
-    // NEVER set loading=true here — that causes blank screens on tab focus.
-    // Just update state silently. Navigation is handled by ProtectedRoute
-    // reacting to user/skillLevel changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Skip all background/spurious events.
         // TOKEN_REFRESHED — silent JWT rotation, nothing changed.
         // INITIAL_SESSION — handled by getSession() above.
-        // SIGNED_OUT     — can fire spuriously during token refresh gaps;
-        //                  explicit sign-out is handled directly in signOut().
+        // SIGNED_OUT     — can fire spuriously; explicit logout handled in signOut().
         if (
           event === "TOKEN_REFRESHED" ||
           event === "INITIAL_SESSION" ||
@@ -136,12 +150,14 @@ export function AuthProvider({ children }) {
 
   const updateSkillLevel = async (level) => {
     if (!user || !supabase) return;
+    // Persist to localStorage immediately so it survives any React state reset
+    writeCachedSkillLevel(user.id, level);
+    setSkillLevel(level);
+    // Sync to DB (best-effort)
     const { error } = await supabase
       .from("profiles")
       .upsert({ id: user.id, skill_level: level }, { onConflict: "id" });
     if (error) console.error("updateSkillLevel error:", error);
-    // Always update local state so the current session is never blocked
-    setSkillLevel(level);
   };
 
   const continueAsGuest = () => {
@@ -152,9 +168,9 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
-    // Clear all auth state immediately so ProtectedRoute redirects to /login.
-    // We do this here (not in onAuthStateChange) because SIGNED_OUT is skipped
-    // in the listener to prevent spurious mid-session logouts.
+    // Clear localStorage cache for this user's skill level
+    if (user) writeCachedSkillLevel(user.id, null);
+    // Clear all auth state so ProtectedRoute redirects to /login
     setUser(null);
     setIsAdmin(false);
     setSkillLevel(null);
@@ -176,10 +192,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-/**
- * Safe hook — returns guest defaults when used outside an AuthProvider
- * (e.g. in tests that don't wrap with AuthProvider).
- */
 export function useAuth() {
   return useContext(AuthContext) ?? {
     user: null, isAdmin: false, isGuest: true, skillLevel: null, loading: false,
