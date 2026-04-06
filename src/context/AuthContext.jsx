@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { setCurrentUser as setHeroUser, loadHeroFromCloud } from "../data/hero";
 import { setCurrentUser as setProgressUser, loadProgressFromCloud } from "../data/progress";
@@ -12,6 +12,10 @@ export function AuthProvider({ children }) {
   const [isGuest, setIsGuest] = useState(false);
   const [skillLevel, setSkillLevel] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Track whether we've completed the first initUser so subsequent SIGNED_IN
+  // events (fired by Supabase on tab focus / session restore) don't re-trigger
+  // the full loading screen.
+  const hasInitialized = useRef(false);
 
   async function initUser(supabaseUser) {
     if (!supabaseUser) {
@@ -72,6 +76,7 @@ export function AuthProvider({ children }) {
         clearTimeout(fallback);
         try {
           await initUser(session?.user ?? null);
+          hasInitialized.current = true;
         } catch (err) {
           console.error("initUser error:", err);
         } finally {
@@ -86,12 +91,31 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // TOKEN_REFRESHED is a silent background JWT rotation — user/profile
-        // haven't changed, no need to re-fetch data or show a loading screen.
-        if (event === "TOKEN_REFRESHED") return;
+        // Silent background events — no loading screen needed
+        if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") return;
+
+        // SIGNED_IN after first init = tab focus / session restore by Supabase.
+        // Silently refresh skill level only; no loading screen.
+        if (event === "SIGNED_IN" && hasInitialized.current) {
+          if (session?.user) {
+            supabase.from("profiles")
+              .select("role, skill_level")
+              .eq("id", session.user.id)
+              .maybeSingle()
+              .then(({ data: profile }) => {
+                setIsAdmin(profile?.role === "admin");
+                setSkillLevel((prev) => profile?.skill_level ?? prev);
+              })
+              .catch(() => {});
+          }
+          return;
+        }
+
+        // Actual sign-in / sign-out — show loading while we initialise
         setLoading(true);
         try {
           await initUser(session?.user ?? null);
+          hasInitialized.current = !!session?.user;
         } catch (err) {
           console.error("initUser error:", err);
         } finally {
