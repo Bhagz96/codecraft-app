@@ -67,7 +67,7 @@ export function completeLevel(conceptId, level) {
         user_id: _currentUserId,
         concept_id: conceptId,
         level,
-      }, { onConflict: "user_id,concept_id,level" }).catch(() => {});
+      }, { onConflict: "user_id,concept_id,level" }).then(() => {}, () => {});
     }
   }
 }

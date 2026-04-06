@@ -62,7 +62,7 @@ export function saveHero(hero) {
       level:     hero.level,
       xp:        hero.xp,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" }).catch(() => {});
+    }, { onConflict: "user_id" }).then(() => {}, () => {});
   }
 }
 
