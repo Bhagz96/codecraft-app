@@ -127,6 +127,7 @@ function HomePage() {
   const [selectedColor, setSelectedColor] = useState(HERO_COLORS[0].value);
   const [selectedAvatarId, setSelectedAvatarId] = useState("m01");
   const [showCreateHero, setShowCreateHero] = useState(false);
+  const [heroCreating, setHeroCreating] = useState(false);
   const hero = heroExists ? getHero() : null;
   const progress = getAllProgress();
 
@@ -157,11 +158,14 @@ function HomePage() {
     </div>
   );
 
-  // Handle hero creation
-  const handleCreateHero = () => {
-    if (heroName.trim().length === 0) return;
+  // Handle hero creation — brief success state so the user sees it worked
+  const handleCreateHero = async () => {
+    if (heroName.trim().length === 0 || heroCreating) return;
+    setHeroCreating(true);
     createHero(heroName.trim(), selectedColor, selectedAvatarId);
+    await new Promise((resolve) => setTimeout(resolve, 900));
     setHeroExists(true);
+    setHeroCreating(false);
   };
 
   // ===========================
@@ -363,14 +367,18 @@ function HomePage() {
             {/* Create button */}
             <button
               onClick={handleCreateHero}
-              disabled={heroName.trim().length === 0}
+              disabled={heroName.trim().length === 0 || heroCreating}
               className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
-                heroName.trim().length > 0
+                heroCreating
+                  ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white scale-[1.02] shadow-lg cursor-not-allowed"
+                  : heroName.trim().length > 0
                   ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
                   : "bg-[#0d1117] border border-[#30363d] text-gray-600 cursor-not-allowed"
               }`}
             >
-              {heroName.trim().length > 0
+              {heroCreating
+                ? `✓ Hero created! Loading...`
+                : heroName.trim().length > 0
                 ? `Start as ${heroName.trim()}`
                 : "Enter a name first..."}
             </button>
