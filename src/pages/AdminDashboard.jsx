@@ -45,6 +45,23 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedUser, setExpandedUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
+
+  async function deleteUser(u) {
+    const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.nus_id || "this user";
+    if (!window.confirm(`Delete ALL data for ${name}? This removes their sessions, progress, hero, and profile. Cannot be undone.`)) return;
+    const client = supabaseAdmin || supabase;
+    setDeletingUser(u.id);
+    try {
+      await client.from("sessions").delete().eq("user_id", u.id);
+      await client.from("user_progress").delete().eq("user_id", u.id);
+      await client.from("heroes").delete().eq("user_id", u.id);
+      await client.from("profiles").delete().eq("id", u.id);
+      setUsers((prev) => prev.filter((p) => p.id !== u.id));
+      setExpandedUser(null);
+    } catch {}
+    setDeletingUser(null);
+  }
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -245,9 +262,20 @@ function UsersTab() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-[#21262d] flex flex-wrap gap-4 text-xs font-mono text-gray-600">
-                  <span>Skill: <span className="text-gray-400 capitalize">{u.skill_level || "not set"}</span></span>
-                  <span>ID: <span className="text-gray-700">{u.id.slice(0, 8)}…</span></span>
+                <div className="mt-4 pt-4 border-t border-[#21262d] flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-wrap gap-4 text-xs font-mono text-gray-600">
+                    <span>Skill: <span className="text-gray-400 capitalize">{u.skill_level || "not set"}</span></span>
+                    <span>ID: <span className="text-gray-700">{u.id.slice(0, 8)}…</span></span>
+                  </div>
+                  {u.role !== "admin" && (
+                    <button
+                      disabled={deletingUser === u.id}
+                      onClick={() => deleteUser(u)}
+                      className="text-xs font-mono px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {deletingUser === u.id ? "Deleting…" : "Delete user data"}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
