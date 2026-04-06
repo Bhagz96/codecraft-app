@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { useAudio } from "../hooks/useAudio";
+import { AudioControl } from "../components/AudioControl";
 
 /**
  * REWARD PAGE — Version 2.1 (Per-Level Completion Content)
@@ -51,7 +52,7 @@ function RewardPage() {
     completion,
   } = location.state || {};
 
-  const { playVictory, startMusic, stopMusic, isMuted, toggleMute } = useAudio();
+  const { playVictory, startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
   const [revealed, setRevealed] = useState(false);
   const [animating, setAnimating] = useState(true);
 
@@ -106,14 +107,15 @@ function RewardPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
-      {/* Mute toggle */}
-      <button
-        onClick={toggleMute}
-        title={isMuted ? "Unmute sound" : "Mute sound"}
-        className="fixed top-3 right-3 z-50 w-9 h-9 rounded-full bg-[#161b22]/80 border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm backdrop-blur-sm cursor-pointer"
-      >
-        {isMuted ? '🔇' : '🔊'}
-      </button>
+      {/* Audio control */}
+      <div className="fixed top-3 right-3 z-50">
+        <AudioControl
+          isMuted={isMuted}
+          toggleMute={toggleMute}
+          musicVolume={musicVolume}
+          setMusicVolume={setMusicVolume}
+        />
+      </div>
       {/* Header */}
       <div
         className={`text-center mb-6 transition-all duration-500 ${

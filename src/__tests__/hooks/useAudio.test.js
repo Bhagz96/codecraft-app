@@ -137,4 +137,57 @@ describe('useAudio', () => {
 
     expect(correctCalls).toBeGreaterThan(incorrectCalls);
   });
+
+  // ── Volume control ────────────────────────────────────────────────
+
+  it('returns musicVolume (number) and setMusicVolume (function)', () => {
+    const { result } = renderHook(() => useAudio());
+    expect(typeof result.current.musicVolume).toBe('number');
+    expect(typeof result.current.setMusicVolume).toBe('function');
+  });
+
+  it('musicVolume defaults to 0.55 when localStorage is empty', () => {
+    const { result } = renderHook(() => useAudio());
+    expect(result.current.musicVolume).toBeCloseTo(0.55);
+  });
+
+  it('reads musicVolume from localStorage on init', () => {
+    localStorage.setItem('kidcode_volume', '0.3');
+    const { result } = renderHook(() => useAudio());
+    expect(result.current.musicVolume).toBeCloseTo(0.3);
+  });
+
+  it('setMusicVolume persists value to localStorage', () => {
+    const { result } = renderHook(() => useAudio());
+    act(() => result.current.setMusicVolume(0.4));
+    expect(localStorage.getItem('kidcode_volume')).toBe('0.4');
+  });
+
+  it('setMusicVolume updates musicVolume state', () => {
+    const { result } = renderHook(() => useAudio());
+    act(() => result.current.setMusicVolume(0.4));
+    expect(result.current.musicVolume).toBeCloseTo(0.4);
+  });
+
+  it('setMusicVolume updates audio element volume when unmuted', () => {
+    const { result } = renderHook(() => useAudio());
+    act(() => result.current.startMusic('adventure'));
+    act(() => result.current.setMusicVolume(0.3));
+    expect(mockAudio.volume).toBeCloseTo(0.3);
+  });
+
+  it('setMusicVolume does not change audio volume when muted', () => {
+    localStorage.setItem('kidcode_muted', 'true');
+    const { result } = renderHook(() => useAudio());
+    act(() => result.current.setMusicVolume(0.8));
+    expect(mockAudio.play).not.toHaveBeenCalled();
+  });
+
+  it('setMusicVolume clamps value between 0 and 1', () => {
+    const { result } = renderHook(() => useAudio());
+    act(() => result.current.setMusicVolume(2.5));
+    expect(result.current.musicVolume).toBe(1);
+    act(() => result.current.setMusicVolume(-0.5));
+    expect(result.current.musicVolume).toBe(0);
+  });
 });

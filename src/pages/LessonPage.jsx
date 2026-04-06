@@ -21,6 +21,7 @@ import {
 } from "../mab/engine";
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
 import { useAudio } from "../hooks/useAudio";
+import { AudioControl } from "../components/AudioControl";
 
 /**
  * LESSON PAGE — v5 Single-MAB (Support Strategy only)
@@ -83,7 +84,7 @@ function LessonPage() {
   const [sceneResult, setSceneResult] = useState(null);
 
   // ── Audio ──────────────────────────────────────────────────────────
-  const { playCorrect, playIncorrect, startMusic, stopMusic, isMuted, toggleMute } = useAudio();
+  const { playCorrect, playIncorrect, startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
 
   // Duck music to quiet level for lessons; re-apply when muted toggles off
   useEffect(() => {
@@ -407,14 +408,13 @@ function LessonPage() {
             <span className="text-sm text-gray-500 font-mono">
               {currentStep + 1}/{levelData.steps.length}
             </span>
-            {/* Mute toggle */}
-            <button
-              onClick={toggleMute}
-              title={isMuted ? "Unmute sound" : "Mute sound"}
-              className="w-8 h-8 rounded-full bg-[#161b22] border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm cursor-pointer"
-            >
-              {isMuted ? '🔇' : '🔊'}
-            </button>
+            {/* Audio control */}
+            <AudioControl
+              isMuted={isMuted}
+              toggleMute={toggleMute}
+              musicVolume={musicVolume}
+              setMusicVolume={setMusicVolume}
+            />
             {/* Admin info toggle — hidden from learners, accessible to instructors */}
             <div className="relative">
               <button

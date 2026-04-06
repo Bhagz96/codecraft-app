@@ -8,6 +8,7 @@ import GameHero from "../components/game/GameHero";
 import AvatarFace from "../components/game/AvatarFace";
 import AvatarPicker from "../components/AvatarPicker";
 import { useAudio } from "../hooks/useAudio";
+import { AudioControl } from "../components/AudioControl";
 
 /**
  * HOME PAGE — with Story Landing + Hero Creation
@@ -129,7 +130,7 @@ function HomePage() {
   const progress = getAllProgress();
 
   // ── Audio ──────────────────────────────────────────────────────────
-  const { startMusic, stopMusic, isMuted, toggleMute } = useAudio();
+  const { startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
 
   // Full-volume theme on home screens; re-apply when muted toggles off
   useEffect(() => {
@@ -137,13 +138,14 @@ function HomePage() {
   }, [isMuted, startMusic]);
 
   const muteBtn = (
-    <button
-      onClick={toggleMute}
-      title={isMuted ? "Unmute sound" : "Mute sound"}
-      className="fixed top-3 right-3 z-50 w-9 h-9 rounded-full bg-[#161b22]/80 border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm backdrop-blur-sm cursor-pointer"
-    >
-      {isMuted ? '🔇' : '🔊'}
-    </button>
+    <div className="fixed top-3 right-3 z-50">
+      <AudioControl
+        isMuted={isMuted}
+        toggleMute={toggleMute}
+        musicVolume={musicVolume}
+        setMusicVolume={setMusicVolume}
+      />
+    </div>
   );
 
   // Handle hero creation

@@ -7,19 +7,26 @@ const F = {
   C4: 261.63, E4: 329.63, G4: 392.00,
 };
 
+const DEFAULT_VOLUME = 0.55;
+// mystery (lesson) mode plays at 35% of the user's master volume
+const MYSTERY_RATIO = 0.35;
+
+function targetVolume(type, base) {
+  return type === 'mystery' ? base * MYSTERY_RATIO : base;
+}
+
 // ── Singleton HTML Audio element (persists across page navigation) ──
 // Using a module-level object so music never restarts mid-song when
 // the user moves between pages.
 const theme = {
   audio: null,
-  volume: 0.8, // last-set target volume
+  type: 'adventure', // last requested music type
 };
 
 function getAudio() {
   if (!theme.audio && typeof window !== 'undefined') {
     theme.audio = new Audio('/audio/theme.mp3');
     theme.audio.loop = true;
-    theme.audio.volume = theme.volume;
   }
   return theme.audio;
 }
@@ -55,6 +62,13 @@ export function useAudio() {
   const mutedRef = useRef(isMuted);
   useEffect(() => { mutedRef.current = isMuted; }, [isMuted]);
 
+  const [musicVolume, setMusicVolumeState] = useState(() => {
+    const stored = parseFloat(localStorage.getItem('kidcode_volume'));
+    return isNaN(stored) ? DEFAULT_VOLUME : stored;
+  });
+  const volumeRef = useRef(musicVolume);
+  useEffect(() => { volumeRef.current = musicVolume; }, [musicVolume]);
+
   // SFX AudioContext (created on first user gesture)
   const ctxRef = useRef(null);
   const sfxDestRef = useRef(null);
@@ -73,13 +87,13 @@ export function useAudio() {
   // ── Background music ───────────────────────────────────────────
 
   /**
-   * startMusic('adventure') → full volume (home / reward screens)
+   * startMusic('adventure') → full user volume (home / reward screens)
    * startMusic('mystery')   → quiet volume (lesson screens)
    * Harmless to call when already playing — just adjusts volume.
    */
   const startMusic = useCallback((type) => {
-    const vol = type === 'mystery' ? 0.28 : 0.8;
-    theme.volume = vol;
+    theme.type = type;
+    const vol = targetVolume(type, volumeRef.current);
     if (mutedRef.current) return;
     const audio = getAudio();
     if (!audio) return;
@@ -97,6 +111,21 @@ export function useAudio() {
     if (audio && !audio.paused) audio.pause();
   }, []);
 
+  /**
+   * setMusicVolume — update the master volume (0–1).
+   * Persists to localStorage; applies immediately to the audio element.
+   */
+  const setMusicVolume = useCallback((val) => {
+    const v = Math.max(0, Math.min(1, val));
+    volumeRef.current = v;
+    setMusicVolumeState(v);
+    localStorage.setItem('kidcode_volume', String(v));
+    if (!mutedRef.current) {
+      const audio = getAudio();
+      if (audio) audio.volume = targetVolume(theme.type, v);
+    }
+  }, []);
+
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const next = !prev;
@@ -107,7 +136,7 @@ export function useAudio() {
         if (next) {
           audio.pause();
         } else {
-          audio.volume = theme.volume;
+          audio.volume = targetVolume(theme.type, volumeRef.current);
           audio.play().catch(() => {});
         }
       }
@@ -160,5 +189,10 @@ export function useAudio() {
     }
   }, []);
 
-  return { playCorrect, playIncorrect, playVictory, startMusic, stopMusic, isMuted, toggleMute };
+  return {
+    playCorrect, playIncorrect, playVictory,
+    startMusic, stopMusic,
+    isMuted, toggleMute,
+    musicVolume, setMusicVolume,
+  };
 }
