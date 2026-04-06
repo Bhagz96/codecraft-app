@@ -263,17 +263,36 @@ function UsersTab() {
 function MABTab() {
   const [supportStats, setSupportStats] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [dbLoading, setDbLoading] = useState(true);
 
-  const loadData = () => {
+  const loadLocalData = () => {
     const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
     const supportMAB = savedSupportMAB
       ? JSON.parse(savedSupportMAB)
       : createMAB(SUPPORT_STRATEGIES, 0.3);
     setSupportStats(getArmStats(supportMAB));
-    setSessions(getAllSessions());
   };
 
-  useEffect(() => { loadData(); }, []);
+  const loadDbData = async () => {
+    const client = supabaseAdmin || supabase;
+    if (!client) { setDbLoading(false); return; }
+    setDbLoading(true);
+    try {
+      const [{ data: sess }, { data: prof }] = await Promise.all([
+        client.from("sessions").select(
+          "user_id, concept_id, level, modality, support_strategy, completed, " +
+          "correct_count, total_steps, first_try_count, total_hints, reward_score, time_spent, timestamp"
+        ).limit(500),
+        client.from("profiles").select("id, skill_level"),
+      ]);
+      setSessions(sess || []);
+      setProfiles(prof || []);
+    } catch {}
+    setDbLoading(false);
+  };
+
+  useEffect(() => { loadLocalData(); loadDbData(); }, []);
 
   const simulateData = () => {
     const supportMAB = createMAB(SUPPORT_STRATEGIES, 0.3);
@@ -312,7 +331,7 @@ function MABTab() {
     }
     localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
     localStorage.setItem("kidcode_sessions", JSON.stringify(fakeSessions));
-    loadData();
+    loadLocalData();
   };
 
   const resetData = () => {
@@ -322,44 +341,165 @@ function MABTab() {
     clearSessions();
     resetProgress();
     resetHero();
-    loadData();
+    loadLocalData();
   };
 
   const getBestArm = (stats) =>
     stats.length === 0 ? null : stats.reduce((b, c) => c.averageReward > b.averageReward ? c : b);
 
   const bestSupport = getBestArm(supportStats);
-  const modalityDistribution = MODALITIES.map((m) => ({
-    key: m,
-    label: { codeSimulation: ">_ Code Simulation", dragDrop: "{ } Drag & Drop", speedCoding: "⚡ Speed Coding" }[m],
-    count: sessions.filter((s) => s.modality === m).length,
-  }));
-  const rewardDistribution = REWARD_TYPES.map((r) => ({
-    key: r,
-    label: { badge: "🛡️ Badge", coins: "⚡ XP Credits", mysteryBox: "$ Mystery Drop" }[r],
-    count: sessions.filter((s) => s.rewardType === r).length,
-  }));
+
+  // ── Compute stats from Supabase sessions ──────────────────────────────────
+  const skillMap = {};
+  profiles.forEach((p) => { skillMap[p.id] = p.skill_level; });
+
+  // Strategy stats from real sessions
+  const strategyDbStats = SUPPORT_STRATEGIES.map((s) => {
+    const rows = sessions.filter((r) => r.support_strategy === s);
+    const avg = rows.length === 0 ? 0
+      : rows.reduce((sum, r) => sum + (r.reward_score ?? 0), 0) / rows.length;
+    const correctPct = rows.length === 0 ? 0
+      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+    return { arm: s, count: rows.length, avgReward: avg, correctPct };
+  }).sort((a, b) => b.avgReward - a.avgReward);
+
+  // Modality stats from real sessions
+  const modalityDbStats = MODALITIES.map((m) => {
+    const rows = sessions.filter((r) => r.modality === m);
+    const correctPct = rows.length === 0 ? 0
+      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+    return { key: m, count: rows.length, correctPct };
+  });
+
+  // Skill-level breakdown
+  const SKILL_LEVELS = ["beginner", "intermediate", "expert"];
+  const skillStats = SKILL_LEVELS.map((level) => {
+    const userIds = profiles.filter((p) => p.skill_level === level).map((p) => p.id);
+    const rows = sessions.filter((r) => userIds.includes(r.user_id));
+    const avgCorrect = rows.length === 0 ? null
+      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+    const avgHints = rows.length === 0 ? null
+      : (rows.reduce((sum, r) => sum + (r.total_hints ?? 0), 0) / rows.length).toFixed(1);
+    const avgTime = rows.length === 0 ? null
+      : Math.round(rows.reduce((sum, r) => sum + (r.time_spent ?? 0), 0) / rows.length);
+    const completionRate = rows.length === 0 ? null
+      : Math.round(rows.filter((r) => r.completed).length / rows.length * 100);
+    return { level, userCount: userIds.length, sessionCount: rows.length, avgCorrect, avgHints, avgTime, completionRate };
+  });
+
+  const skillColors = {
+    beginner: "text-green-400", intermediate: "text-yellow-400", expert: "text-orange-400",
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-3">
-        <button onClick={simulateData} className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:bg-cyan-500/20 transition-colors text-sm cursor-pointer">
-          Simulate 50 Sessions
+      <div className="flex gap-3 flex-wrap">
+        <button onClick={() => loadDbData()} className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:bg-cyan-500/20 transition-colors text-sm cursor-pointer">
+          ↺ Refresh from Supabase
+        </button>
+        <button onClick={simulateData} className="bg-violet-500/10 border border-violet-500/30 text-violet-400 font-medium px-4 py-2 rounded-lg hover:bg-violet-500/20 transition-colors text-sm cursor-pointer">
+          Simulate 50 Sessions (local)
         </button>
         <button onClick={resetData} className="bg-red-500/10 border border-red-500/30 text-red-400 font-medium px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors text-sm cursor-pointer">
-          Reset All Data
+          Reset Local Data
         </button>
       </div>
 
-      {/* Support Strategy MAB */}
+      {dbLoading && (
+        <p className="text-cyan-400 font-mono text-sm animate-pulse">Loading live data from Supabase…</p>
+      )}
+
+      {/* ── Performance by Skill Level (Supabase) ── */}
+      {!dbLoading && (
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">
+            Performance by Skill Level
+            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
+          </h2>
+          <p className="text-xs text-gray-500 mb-5">How beginners, intermediates, and experts compare across all sessions.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {skillStats.map(({ level, userCount, sessionCount, avgCorrect, avgHints, avgTime, completionRate }) => (
+              <div key={level} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d]">
+                <p className={`font-semibold capitalize text-sm mb-3 ${skillColors[level]}`}>{level}</p>
+                <div className="space-y-2 text-xs font-mono">
+                  <div className="flex justify-between"><span className="text-gray-500">Users</span><span className="text-gray-300">{userCount}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Sessions</span><span className="text-gray-300">{sessionCount}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Avg correct</span><span className={avgCorrect == null ? "text-gray-600" : avgCorrect >= 70 ? "text-green-400" : avgCorrect >= 40 ? "text-yellow-400" : "text-red-400"}>{avgCorrect == null ? "—" : `${avgCorrect}%`}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Completion</span><span className="text-gray-300">{completionRate == null ? "—" : `${completionRate}%`}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Avg hints</span><span className="text-gray-300">{avgHints ?? "—"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Avg time</span><span className="text-gray-300">{avgTime == null ? "—" : `${avgTime}s`}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Strategy effectiveness (Supabase) ── */}
+      {!dbLoading && sessions.length > 0 && (
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">
+            Strategy Effectiveness
+            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
+          </h2>
+          <p className="text-xs text-gray-500 mb-5">Avg correctness rate per instructional strategy across all real sessions.</p>
+          <div className="space-y-3">
+            {strategyDbStats.map(({ arm, count, avgReward, correctPct }) => {
+              const maxReward = Math.max(...strategyDbStats.map((s) => s.avgReward), 0.01);
+              return (
+                <div key={arm}>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <span className={`text-xs font-mono font-medium ${strategyTextColors[arm] || "text-gray-400"}`}>
+                      {strategyShortLabels[arm] || arm}
+                    </span>
+                    <span className="text-gray-500 text-xs">{count} sessions · {correctPct}% correct · {(avgReward * 100).toFixed(0)}% reward</span>
+                  </div>
+                  <div className="bg-[#0d1117] rounded-full h-2.5 overflow-hidden border border-[#30363d]">
+                    <div
+                      className={`h-full bg-gradient-to-r ${strategyBarColors[arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
+                      style={{ width: count === 0 ? "0%" : `${(avgReward / maxReward) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modality effectiveness (Supabase) ── */}
+      {!dbLoading && sessions.length > 0 && (
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">
+            Modality Effectiveness
+            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">Which teaching format produces the highest correctness rate.</p>
+          <div className="grid grid-cols-3 gap-4">
+            {modalityDbStats.map(({ key, count, correctPct }) => (
+              <div key={key} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d] text-center">
+                <p className="text-gray-300 font-mono text-xs mb-2">
+                  {{ codeSimulation: ">_ Code", dragDrop: "{ } Drag", speedCoding: "⚡ Speed" }[key]}
+                </p>
+                <p className={`text-2xl font-bold font-mono ${correctPct >= 70 ? "text-green-400" : correctPct >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                  {count === 0 ? "—" : `${correctPct}%`}
+                </p>
+                <p className="text-gray-600 text-[10px] mt-1">{count} sessions</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── MAB Algorithm State (local) ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-gray-100">
-              Instructional Support Strategy
-              <span className="ml-2 text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">primary mab</span>
+              MAB Algorithm State
+              <span className="ml-2 text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">local browser</span>
             </h2>
-            <p className="text-xs text-gray-500 mt-1">Which scaffolding method produces the highest first-try correctness?</p>
+            <p className="text-xs text-gray-500 mt-1">ε-greedy bandit state for this browser session. Reflects the algorithm&apos;s current arm preferences.</p>
           </div>
         </div>
         {bestSupport && bestSupport.count > 0 && (
@@ -367,125 +507,41 @@ function MABTab() {
             <p className="text-green-400 font-medium text-sm">
               Current leader: <strong>{strategyShortLabels[bestSupport.arm]}</strong>
               {" — "}avg learning score <strong>{(bestSupport.averageReward * 100).toFixed(0)}%</strong>
-              <span className="text-green-500/60 text-xs ml-2">({bestSupport.count} questions)</span>
+              <span className="text-green-500/60 text-xs ml-2">({bestSupport.count} pulls)</span>
             </p>
           </div>
         )}
-        <div className="space-y-4">
-          {supportStats.map((stat) => {
-            const maxCount = Math.max(...supportStats.map((s) => s.count), 1);
-            const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
-            return (
-              <div key={stat.arm}>
-                <div className="flex justify-between items-baseline mb-1.5">
-                  <div className="flex items-baseline gap-2 min-w-0 pr-4">
-                    <span className={`font-mono text-xs font-medium shrink-0 ${strategyTextColors[stat.arm] || "text-gray-400"}`}>
-                      {strategyShortLabels[stat.arm] || stat.arm}
-                    </span>
-                    <span className="text-gray-600 text-[10px] truncate hidden sm:inline">
-                      {SUPPORT_DESCRIPTIONS[stat.arm]}
+        {supportStats.length === 0 || supportStats.every((s) => s.count === 0) ? (
+          <p className="text-gray-600 text-sm font-mono">// no local MAB data — play some levels or simulate</p>
+        ) : (
+          <div className="space-y-4">
+            {supportStats.map((stat) => {
+              const maxCount = Math.max(...supportStats.map((s) => s.count), 1);
+              const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
+              return (
+                <div key={stat.arm}>
+                  <div className="flex justify-between items-baseline mb-1.5">
+                    <div className="flex items-baseline gap-2 min-w-0 pr-4">
+                      <span className={`font-mono text-xs font-medium shrink-0 ${strategyTextColors[stat.arm] || "text-gray-400"}`}>
+                        {strategyShortLabels[stat.arm] || stat.arm}
+                      </span>
+                      <span className="text-gray-600 text-[10px] truncate hidden sm:inline">
+                        {SUPPORT_DESCRIPTIONS[stat.arm]}
+                      </span>
+                    </div>
+                    <span className="text-gray-500 text-xs shrink-0">
+                      {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}% avg
                     </span>
                   </div>
-                  <span className="text-gray-500 text-xs shrink-0">
-                    {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}% avg
-                  </span>
+                  <div className="bg-[#0d1117] rounded-full h-3 overflow-hidden border border-[#30363d]">
+                    <div
+                      className={`h-full bg-gradient-to-r ${strategyBarColors[stat.arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="bg-[#0d1117] rounded-full h-3 overflow-hidden border border-[#30363d]">
-                  <div
-                    className={`h-full bg-gradient-to-r ${strategyBarColors[stat.arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
-                    style={{ width: `${barWidth}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Session Distribution */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-gray-100 mb-1">
-          Session Distribution
-          <span className="ml-2 text-[10px] font-mono text-gray-500 bg-gray-500/10 border border-gray-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">context only</span>
-        </h2>
-        <p className="text-xs text-gray-500 mb-5">Modality and reward type are randomly assigned each session.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Teaching Modality</p>
-            <div className="space-y-2">
-              {modalityDistribution.map(({ key, label, count }) => (
-                <div key={key} className="flex items-center justify-between">
-                  <span className="text-gray-300 font-mono text-xs">{label}</span>
-                  <span className="text-gray-500 text-xs">
-                    {count} session{count !== 1 ? "s" : ""}
-                    {sessions.length > 0 && <span className="text-gray-600 ml-1">({Math.round((count / sessions.length) * 100)}%)</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Reward Type</p>
-            <div className="space-y-2">
-              {rewardDistribution.map(({ key, label, count }) => (
-                <div key={key} className="flex items-center justify-between">
-                  <span className="text-gray-300 text-xs">{label}</span>
-                  <span className="text-gray-500 text-xs">
-                    {count} session{count !== 1 ? "s" : ""}
-                    {sessions.length > 0 && <span className="text-gray-600 ml-1">({Math.round((count / sessions.length) * 100)}%)</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Session Log */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-gray-100 mb-4">
-          Session Log <span className="text-gray-500 text-sm font-normal">({sessions.length} sessions)</span>
-        </h2>
-        {sessions.length === 0 ? (
-          <p className="text-gray-600 text-center py-8 font-mono text-sm">// no sessions yet — play a level or simulate data</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#30363d] text-left">
-                  {["Strategy","Concept","Lvl","Score","Correct","1st Try","Done","Time","When"].map(h => (
-                    <th key={h} className="pb-2 pr-4 text-gray-500 font-mono text-xs">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.slice(-20).reverse().map((s, i) => (
-                  <tr key={i} className="border-b border-[#21262d]">
-                    <td className="py-2 pr-4">
-                      <span className={`text-[10px] font-mono ${strategyTextColors[s.supportStrategy] || "text-gray-500"}`}>
-                        {strategyShortLabels[s.supportStrategy] || s.supportStrategy || "—"}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4 text-gray-300 font-mono text-xs">{s.conceptId || s.lessonId}</td>
-                    <td className="py-2 pr-4 text-gray-400 text-xs">{s.level || "—"}</td>
-                    <td className="py-2 pr-4 text-xs font-mono">
-                      {s.rewardScore != null ? (
-                        <span className={s.rewardScore >= 0.7 ? "text-green-400" : s.rewardScore >= 0.4 ? "text-yellow-400" : "text-red-400"}>
-                          {(s.rewardScore * 100).toFixed(0)}%
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-gray-400 text-xs font-mono">
-                      {s.correctCount != null && s.totalSteps != null ? `${s.correctCount}/${s.totalSteps}` : "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-gray-400 text-xs font-mono">{s.firstTryCount != null ? s.firstTryCount : "—"}</td>
-                    <td className="py-2 pr-4">{s.completed ? <span className="text-green-400 text-xs">✓</span> : <span className="text-red-400 text-xs">✗</span>}</td>
-                    <td className="py-2 pr-4 text-gray-500 text-xs font-mono">{s.timeSpent}s</td>
-                    <td className="py-2 text-gray-600 text-xs">{new Date(s.timestamp).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              );
+            })}
           </div>
         )}
       </div>
@@ -497,6 +553,7 @@ function MABTab() {
 
 function SessionsTab() {
   const [sessions, setSessions] = useState([]);
+  const [userMap, setUserMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
@@ -513,16 +570,22 @@ function SessionsTab() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await client
-        .from("sessions")
-        .select(
-          "id, session_id, user_id, concept_id, level, modality, support_strategy, " +
-          "completed, time_spent, score, correct_count, total_steps, first_try_count, " +
-          "total_attempts, total_hints, scaffold_used, reward_score, step_details, timestamp"
-        )
-        .order("timestamp", { ascending: false })
-        .limit(200);
+      const [{ data, error: err }, { data: profiles }] = await Promise.all([
+        client
+          .from("sessions")
+          .select(
+            "id, session_id, user_id, concept_id, level, modality, support_strategy, " +
+            "completed, time_spent, score, correct_count, total_steps, first_try_count, " +
+            "total_attempts, total_hints, scaffold_used, reward_score, step_details, timestamp"
+          )
+          .order("timestamp", { ascending: false })
+          .limit(200),
+        client.from("profiles").select("id, first_name, last_name, nus_id, skill_level"),
+      ]);
       if (err) throw err;
+      const map = {};
+      (profiles || []).forEach((p) => { map[p.id] = p; });
+      setUserMap(map);
       setSessions(data || []);
     } catch (err) {
       setError(err.message);
@@ -564,6 +627,15 @@ function SessionsTab() {
         const isOpen = expanded === s.id;
         const pct = s.total_steps > 0 ? Math.round((s.correct_count / s.total_steps) * 100) : 0;
         const date = new Date(s.timestamp).toLocaleString();
+        const profile = userMap[s.user_id];
+        const userName = profile
+          ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.nus_id || "—"
+          : s.user_id?.slice(0, 8) + "…";
+        const skillBadgeColor = {
+          beginner: "text-green-400 bg-green-500/10 border-green-500/20",
+          intermediate: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+          expert: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+        }[profile?.skill_level] || "text-gray-500 bg-gray-500/10 border-gray-500/20";
 
         return (
           <div key={s.id} className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
@@ -582,7 +654,11 @@ function SessionsTab() {
                 {s.support_strategy?.replace(/_/g, " ")}
               </span>
               <span className="text-gray-400 text-xs font-mono w-16 text-right">{pct}% correct</span>
-              <span className="text-gray-600 text-xs font-mono hidden md:block w-36 text-right">{date}</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border hidden sm:inline ${skillBadgeColor}`}>
+                {profile?.skill_level || "?"}
+              </span>
+              <span className="text-gray-400 text-xs font-mono hidden md:block max-w-[120px] truncate">{userName}</span>
+              <span className="text-gray-600 text-xs font-mono hidden lg:block w-36 text-right">{date}</span>
               <span className="text-gray-600 text-xs ml-1">{isOpen ? "▲" : "▼"}</span>
             </button>
 
