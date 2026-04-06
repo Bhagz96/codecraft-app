@@ -1,10 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   getAllProgress,
   getProgress,
   isLevelUnlocked,
   completeLevel,
   resetProgress,
+  setCurrentUser,
+  loadProgressFromCloud,
 } from '../../data/progress';
 
 describe('getAllProgress', () => {
@@ -125,5 +127,48 @@ describe('resetProgress', () => {
     completeLevel('variables', 1);
     resetProgress();
     expect(isLevelUnlocked('variables', 2)).toBe(false);
+  });
+});
+
+describe('setCurrentUser — per-user storage namespacing', () => {
+  afterEach(() => {
+    setCurrentUser(null);
+  });
+
+  it('setCurrentUser is exported as a function', () => {
+    expect(typeof setCurrentUser).toBe('function');
+  });
+
+  it('loadProgressFromCloud is exported as a function', () => {
+    expect(typeof loadProgressFromCloud).toBe('function');
+  });
+
+  it('when userId is set, completeLevel saves to namespaced key', () => {
+    setCurrentUser('user_abc');
+    completeLevel('variables', 2);
+    const raw = localStorage.getItem('kidcode_progress_user_abc');
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw).variables).toBe(2);
+  });
+
+  it('when userId is null, falls back to default key', () => {
+    setCurrentUser(null);
+    completeLevel('loops', 1);
+    const raw = localStorage.getItem('kidcode_progress');
+    expect(raw).not.toBeNull();
+  });
+
+  it('two users have separate progress', () => {
+    setCurrentUser('user_1');
+    completeLevel('variables', 3);
+
+    setCurrentUser('user_2');
+    completeLevel('variables', 1);
+
+    setCurrentUser('user_1');
+    expect(getProgress('variables')).toBe(3);
+
+    setCurrentUser('user_2');
+    expect(getProgress('variables')).toBe(1);
   });
 });

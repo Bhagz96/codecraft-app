@@ -9,6 +9,7 @@ import AvatarFace from "../components/game/AvatarFace";
 import AvatarPicker from "../components/AvatarPicker";
 import { useAudio } from "../hooks/useAudio";
 import { AudioControl } from "../components/AudioControl";
+import { useAuth } from "../context/AuthContext";
 
 /**
  * HOME PAGE — with Story Landing + Hero Creation
@@ -129,6 +130,9 @@ function HomePage() {
   const hero = heroExists ? getHero() : null;
   const progress = getAllProgress();
 
+  // ── Auth ───────────────────────────────────────────────────────────
+  const { user, isAdmin, signOut } = useAuth();
+
   // ── Audio ──────────────────────────────────────────────────────────
   const { startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
 
@@ -235,7 +239,7 @@ function HomePage() {
 
         {/* Subtle footer */}
         <p className="text-gray-600 text-xs font-mono mt-12 animate-fade-in" style={{ animationDelay: "1000ms" }}>
-          No account needed &middot; Your progress saves automatically
+          {user ? `Signed in as ${user.user_metadata?.first_name || user.email} · Progress syncs to cloud` : "Guest mode · Progress saves locally"}
         </p>
       </div>
       </>
@@ -516,13 +520,34 @@ function HomePage() {
         })}
       </div>
 
-      {/* Admin link */}
-      <Link
-        to="/admin"
-        className="text-sm text-gray-600 hover:text-gray-400 font-mono transition-colors"
-      >
-        /admin →
-      </Link>
+      {/* Footer: account info + admin shortcut */}
+      <div className="flex items-center gap-4 mt-2">
+        {user && (
+          <span className="text-xs text-gray-600 font-mono">
+            {user.user_metadata?.first_name
+              ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ""}`.trim()
+              : user.email}
+          </span>
+        )}
+        {isAdmin && (
+          <Link to="/admin" className="text-sm text-orange-500 hover:text-orange-400 font-mono transition-colors">
+            /admin →
+          </Link>
+        )}
+        {user && (
+          <button
+            onClick={signOut}
+            className="text-xs text-gray-600 hover:text-gray-400 font-mono transition-colors cursor-pointer"
+          >
+            sign out
+          </button>
+        )}
+        {!user && !isAdmin && (
+          <Link to="/admin" className="text-sm text-gray-700 hover:text-gray-500 font-mono transition-colors">
+            /admin →
+          </Link>
+        )}
+      </div>
     </div>
     </>
   );

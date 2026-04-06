@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   createHero,
   getHero,
@@ -7,6 +7,8 @@ import {
   awardXP,
   hasHero,
   resetHero,
+  setCurrentUser,
+  loadHeroFromCloud,
 } from '../../data/hero';
 
 describe('createHero', () => {
@@ -217,5 +219,57 @@ describe('resetHero', () => {
     createHero('ToReset');
     resetHero();
     expect(getHero().created).toBe(false);
+  });
+});
+
+describe('setCurrentUser — per-user storage namespacing', () => {
+  afterEach(() => {
+    // Always reset to avoid cross-test pollution
+    setCurrentUser(null);
+  });
+
+  it('setCurrentUser is exported as a function', () => {
+    expect(typeof setCurrentUser).toBe('function');
+  });
+
+  it('loadHeroFromCloud is exported as a function', () => {
+    expect(typeof loadHeroFromCloud).toBe('function');
+  });
+
+  it('when userId is set, createHero saves to namespaced key', () => {
+    setCurrentUser('user_abc');
+    createHero('NamespacedHero');
+    const raw = localStorage.getItem('kidcode_hero_user_abc');
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw).name).toBe('NamespacedHero');
+  });
+
+  it('when userId is set, getHero reads from namespaced key', () => {
+    setCurrentUser('user_abc');
+    createHero('CloudHero');
+    const hero = getHero();
+    expect(hero.name).toBe('CloudHero');
+  });
+
+  it('when userId is null, falls back to default kidcode_hero key', () => {
+    setCurrentUser(null);
+    createHero('GuestHero');
+    const raw = localStorage.getItem('kidcode_hero');
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw).name).toBe('GuestHero');
+  });
+
+  it('two different users have separate hero data', () => {
+    setCurrentUser('user_1');
+    createHero('HeroOne');
+
+    setCurrentUser('user_2');
+    createHero('HeroTwo');
+
+    setCurrentUser('user_1');
+    expect(getHero().name).toBe('HeroOne');
+
+    setCurrentUser('user_2');
+    expect(getHero().name).toBe('HeroTwo');
   });
 });

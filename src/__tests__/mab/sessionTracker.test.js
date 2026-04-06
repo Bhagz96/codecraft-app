@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   getUserId,
   startSession,
@@ -6,6 +6,7 @@ import {
   saveSession,
   getAllSessions,
   clearSessions,
+  setCurrentUser,
 } from '../../mab/sessionTracker';
 
 describe('getUserId', () => {
@@ -210,5 +211,27 @@ describe('clearSessions', () => {
   it('clears the kidcode_sessions key', () => {
     clearSessions();
     expect(localStorage.getItem('kidcode_sessions')).toBeNull();
+  });
+});
+
+describe('setCurrentUser — authenticated user sessions', () => {
+  afterEach(() => {
+    setCurrentUser(null);
+  });
+
+  it('setCurrentUser is exported as a function', () => {
+    expect(typeof setCurrentUser).toBe('function');
+  });
+
+  it('when userId is set, startSession uses the auth userId', () => {
+    setCurrentUser('supabase_user_123');
+    const session = startSession('variables', 1, 'codeSimulation', 'badge');
+    expect(session.userId).toBe('supabase_user_123');
+  });
+
+  it('when userId is null, startSession falls back to anonymous ID', () => {
+    setCurrentUser(null);
+    const session = startSession('variables', 1, 'codeSimulation', 'badge');
+    expect(session.userId).toMatch(/^user_/);
   });
 });
