@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useAudio } from "../hooks/useAudio";
+import { AudioControl } from "../components/AudioControl";
 
 function isEmail(val) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
@@ -35,6 +37,9 @@ export default function LoginPage() {
 
   const { signIn, signUp, continueAsGuest, user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { startMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
+
+  useEffect(() => { startMusic('adventure'); }, [isMuted, startMusic]);
 
   // Navigate once auth state confirms the user is logged in
   useEffect(() => {
@@ -117,6 +122,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-[#0d1117]">
+      <div className="fixed top-3 right-3 z-50">
+        <AudioControl isMuted={isMuted} toggleMute={toggleMute} musicVolume={musicVolume} setMusicVolume={setMusicVolume} />
+      </div>
       {/* Logo */}
       <div className="text-center mb-8">
         <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-2">
