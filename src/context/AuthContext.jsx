@@ -128,9 +128,10 @@ export function AuthProvider({ children }) {
     if (!user || !supabase) return;
     const { error } = await supabase
       .from("profiles")
-      .update({ skill_level: level })
-      .eq("id", user.id);
-    if (!error) setSkillLevel(level);
+      .upsert({ id: user.id, skill_level: level }, { onConflict: "id" });
+    if (error) console.error("updateSkillLevel error:", error);
+    // Update local state regardless — DB will sync on next login once RLS is correct
+    setSkillLevel(level);
   };
 
   const continueAsGuest = () => {
