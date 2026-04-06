@@ -91,8 +91,16 @@ export function AuthProvider({ children }) {
     // reacting to user/skillLevel changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Background token rotation — nothing to do
-        if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") return;
+        // Skip all background/spurious events.
+        // TOKEN_REFRESHED — silent JWT rotation, nothing changed.
+        // INITIAL_SESSION — handled by getSession() above.
+        // SIGNED_OUT     — can fire spuriously during token refresh gaps;
+        //                  explicit sign-out is handled directly in signOut().
+        if (
+          event === "TOKEN_REFRESHED" ||
+          event === "INITIAL_SESSION" ||
+          event === "SIGNED_OUT"
+        ) return;
 
         try {
           await initUser(session?.user ?? null);
@@ -144,10 +152,16 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    // Clear all auth state immediately so ProtectedRoute redirects to /login.
+    // We do this here (not in onAuthStateChange) because SIGNED_OUT is skipped
+    // in the listener to prevent spurious mid-session logouts.
+    setUser(null);
+    setIsAdmin(false);
+    setSkillLevel(null);
+    setIsGuest(false);
     setHeroUser(null);
     setProgressUser(null);
     setSessionUser(null);
-    setIsGuest(false);
     if (supabase) await supabase.auth.signOut();
   };
 
