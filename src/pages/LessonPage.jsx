@@ -20,6 +20,7 @@ import {
   SUPPORT_STRATEGIES,
 } from "../mab/engine";
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
+import { loadMABFromSupabase, incrementMABArm } from "../mab/supabase";
 import { useAudio } from "../hooks/useAudio";
 import { AudioControl } from "../components/AudioControl";
 
@@ -82,6 +83,17 @@ function LessonPage() {
   const [correctCount, setCorrectCount] = useState(0);
   const [session] = useState(() => startSession(conceptId, levelNum, modality, rewardType, supportStrategy));
   const [sceneResult, setSceneResult] = useState(null);
+
+  // ── Sync global MAB state from Supabase on mount ─────────────────
+  // Loads the shared bandit counts into localStorage so the NEXT lesson
+  // session selects arms informed by all users, not just this device.
+  useEffect(() => {
+    loadMABFromSupabase().then((cloudMAB) => {
+      if (cloudMAB) {
+        localStorage.setItem("kidcode_supportMAB", JSON.stringify(cloudMAB));
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Audio ──────────────────────────────────────────────────────────
   const { playCorrect, playIncorrect, startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
@@ -178,11 +190,12 @@ function LessonPage() {
         rewardScore: reward,
       }]);
 
-      // Update support strategy MAB after each question
+      // Update support strategy MAB locally + sync to global Supabase state
       const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
       const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
       updateMAB(supportMAB, supportStrategy, reward);
       localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
+      incrementMABArm(supportStrategy, reward).catch(() => {});
 
       setFeedback("correct");
       setSceneResult("correct");
@@ -215,11 +228,12 @@ function LessonPage() {
         rewardScore: 0,
       }]);
 
-      // Update support MAB with 0 reward for incorrect
+      // Update support MAB with 0 reward for incorrect + sync globally
       const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
       const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
       updateMAB(supportMAB, supportStrategy, 0);
       localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
+      incrementMABArm(supportStrategy, 0).catch(() => {});
 
       setFeedback("incorrect");
       setSceneResult("incorrect");
