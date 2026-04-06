@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   // events (fired by Supabase on tab focus / session restore) don't re-trigger
   // the full loading screen.
   const hasInitialized = useRef(false);
+  const initializedUserIdRef = useRef(null);
 
   async function initUser(supabaseUser) {
     if (!supabaseUser) {
@@ -77,6 +78,7 @@ export function AuthProvider({ children }) {
         try {
           await initUser(session?.user ?? null);
           hasInitialized.current = true;
+          initializedUserIdRef.current = session?.user?.id ?? null;
         } catch (err) {
           console.error("initUser error:", err);
         } finally {
@@ -94,9 +96,10 @@ export function AuthProvider({ children }) {
         // Silent background events — no loading screen needed
         if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") return;
 
-        // SIGNED_IN after first init = tab focus / session restore by Supabase.
-        // Silently refresh skill level only; no loading screen.
-        if (event === "SIGNED_IN" && hasInitialized.current) {
+        // SIGNED_IN for the *same* user after first init = tab focus / session
+        // restore by Supabase. Silently refresh skill level; no loading screen.
+        // If it's a different (or new) user, fall through to full initUser.
+        if (event === "SIGNED_IN" && hasInitialized.current && session?.user?.id === initializedUserIdRef.current) {
           if (session?.user) {
             supabase.from("profiles")
               .select("role, skill_level")
@@ -115,7 +118,8 @@ export function AuthProvider({ children }) {
         setLoading(true);
         try {
           await initUser(session?.user ?? null);
-          hasInitialized.current = !!session?.user;
+          hasInitialized.current = true;
+          initializedUserIdRef.current = session?.user?.id ?? null;
         } catch (err) {
           console.error("initUser error:", err);
         } finally {
