@@ -8,7 +8,7 @@
  *
  * Each session records:
  *   - sessionId:         unique ID for this visit
- *   - userId:            anonymous user identifier
+ *   - userId:            anonymous user identifier (or Supabase user ID when logged in)
  *   - conceptId:         which concept (variables/loops/conditions)
  *   - level:             difficulty level (1-5)
  *   - modality:          teaching mode (codeSimulation/dragDrop/speedCoding)
@@ -29,6 +29,15 @@
  *   - timestamp:         when this session happened
  */
 
+import { logSessionToSupabase } from "./supabase";
+
+// Set by AuthContext when a user logs in/out (same pattern as hero.js / progress.js)
+let _currentUserId = null;
+
+export function setCurrentUser(userId) {
+  _currentUserId = userId;
+}
+
 /**
  * Generate a simple unique ID for sessions.
  */
@@ -37,9 +46,12 @@ function generateSessionId() {
 }
 
 /**
- * Get or create a user ID stored in localStorage.
+ * Get the current user ID.
+ * Returns the authenticated Supabase user ID when logged in,
+ * otherwise falls back to an anonymous ID stored in localStorage.
  */
 export function getUserId() {
+  if (_currentUserId) return _currentUserId;
   let userId = localStorage.getItem("kidcode_userId");
   if (!userId) {
     userId = "user_" + Math.random().toString(36).substring(2, 10);
@@ -102,13 +114,19 @@ export function endSession(session, completed, score = 0, streak = 0) {
 }
 
 /**
- * Save a completed session to localStorage.
+ * Save a completed session to localStorage and sync to Supabase when logged in.
  */
 export function saveSession(session) {
   const sessions = getAllSessions();
   const { startTime, ...sessionData } = session;
   sessions.push(sessionData);
   localStorage.setItem("kidcode_sessions", JSON.stringify(sessions));
+
+  // Sync to cloud if user is logged in (fire and forget)
+  if (_currentUserId) {
+    logSessionToSupabase(sessionData).catch(() => {});
+  }
+
   return sessionData;
 }
 

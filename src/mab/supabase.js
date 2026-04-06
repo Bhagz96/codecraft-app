@@ -13,17 +13,8 @@
  * Supabase is only needed if you want persistent cloud storage.
  */
 
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Only create the client if credentials are provided
-// This means the app works fine without Supabase configured
-export const supabase =
-  supabaseUrl && supabaseAnonKey && !supabaseUrl.includes("your-supabase")
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
+import { supabase } from "../lib/supabase";
+export { supabase };
 
 /**
  * Log a session to Supabase (if connected).
@@ -45,18 +36,29 @@ export const supabase =
  * );
  */
 export async function logSessionToSupabase(sessionData) {
-  if (!supabase) return null; // Supabase not configured, skip silently
+  if (!supabase) return null;
 
   try {
     const { data, error } = await supabase.from("sessions").insert({
       session_id: sessionData.sessionId,
       user_id: sessionData.userId,
-      lesson_id: sessionData.lessonId,
+      concept_id: sessionData.conceptId,
+      level: sessionData.level,
       modality: sessionData.modality,
       reward_type: sessionData.rewardType,
+      support_strategy: sessionData.supportStrategy,
       completed: sessionData.completed,
       time_spent: sessionData.timeSpent,
-      started_next: sessionData.startedNext,
+      score: sessionData.score,
+      streak: sessionData.streak,
+      correct_count: sessionData.correctCount,
+      total_steps: sessionData.totalSteps,
+      first_try_count: sessionData.firstTryCount,
+      total_attempts: sessionData.totalAttempts,
+      total_hints: sessionData.totalHints,
+      scaffold_used: sessionData.scaffoldUsed,
+      reward_score: sessionData.rewardScore,
+      timestamp: sessionData.timestamp,
     });
 
     if (error) {

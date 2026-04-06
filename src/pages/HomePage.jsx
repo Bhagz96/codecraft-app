@@ -1,13 +1,10 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import lessons from "../data/lessons";
-import { getAllProgress, isLevelUnlocked, getProgress } from "../data/progress";
+import { getAllProgress, isLevelUnlocked, getProgress, completeLevel } from "../data/progress";
 import { getHero, hasHero, createHero } from "../data/hero";
-import { getAvatar } from "../data/avatars";
 import GameHero from "../components/game/GameHero";
-import AvatarFace from "../components/game/AvatarFace";
-import AvatarPicker from "../components/AvatarPicker";
-import { useAudio } from "../hooks/useAudio";
+import { useAuth } from "../context/AuthContext";
 
 /**
  * HOME PAGE — with Story Landing + Hero Creation
@@ -16,14 +13,80 @@ import { useAudio } from "../hooks/useAudio";
  * Returning users go straight to the concept picker.
  */
 
-// Available outfit/armor colors
+// Knowledge levels for onboarding assessment
+const KNOWLEDGE_LEVELS = [
+  {
+    id: "beginner",
+    label: "New to coding",
+    description: "I've never written code before",
+    tag: "Start fresh",
+    tagColor: "text-cyan-400",
+    recommendation: {
+      conceptId: "variables",
+      level: 1,
+      label: "Variables — Level 1",
+      description: "The perfect starting point. You'll learn how Python stores data.",
+      prereqs: [],
+    },
+  },
+  {
+    id: "some",
+    label: "Tried it a bit",
+    description: "I've seen some Python but need more practice",
+    tag: "Some exposure",
+    tagColor: "text-green-400",
+    recommendation: {
+      conceptId: "variables",
+      level: 2,
+      label: "Variables — Level 2",
+      description: "Skip the intro and dive into variable types and operations.",
+      prereqs: [{ conceptId: "variables", level: 1 }],
+    },
+  },
+  {
+    id: "intermediate",
+    label: "Know the basics",
+    description: "I understand variables and basic Python syntax",
+    tag: "Familiar",
+    tagColor: "text-violet-400",
+    recommendation: {
+      conceptId: "loops",
+      level: 1,
+      label: "Loops — Level 1",
+      description: "Jump straight to loops — making your code repeat and automate.",
+      prereqs: [1, 2, 3, 4, 5].map((l) => ({ conceptId: "variables", level: l })),
+    },
+  },
+  {
+    id: "advanced",
+    label: "Comfortable with Python",
+    description: "I know variables, loops, and want to tackle conditions",
+    tag: "Experienced",
+    tagColor: "text-orange-400",
+    recommendation: {
+      conceptId: "conditions",
+      level: 1,
+      label: "Conditions — Level 1",
+      description: "Skip ahead to if/else logic — the decision-making engine of any program.",
+      prereqs: [
+        ...[1, 2, 3, 4, 5].map((l) => ({ conceptId: "variables", level: l })),
+        ...[1, 2, 3, 4, 5].map((l) => ({ conceptId: "loops", level: l })),
+      ],
+    },
+  },
+];
+
+// localStorage key to track if onboarding is done
+const ONBOARDING_KEY = "kidcode_onboarded";
+
+// Available hero colors
 const HERO_COLORS = [
-  { name: "Cyan",   value: "#00d4ff" },
-  { name: "Green",  value: "#00ff88" },
+  { name: "Cyan", value: "#00d4ff" },
+  { name: "Green", value: "#00ff88" },
   { name: "Purple", value: "#a855f7" },
   { name: "Orange", value: "#ff6b35" },
-  { name: "Pink",   value: "#ec4899" },
-  { name: "Gold",   value: "#f59e0b" },
+  { name: "Pink", value: "#ec4899" },
+  { name: "Gold", value: "#f59e0b" },
 ];
 
 // ===========================
@@ -120,36 +183,40 @@ function FeatureCard({ icon, title, description, delay }) {
 }
 
 function HomePage() {
+  const { user, isAdmin, isGuest, signOut } = useAuth();
   const [heroExists, setHeroExists] = useState(hasHero());
   const [heroName, setHeroName] = useState("");
   const [selectedColor, setSelectedColor] = useState(HERO_COLORS[0].value);
-  const [selectedAvatarId, setSelectedAvatarId] = useState("m01");
   const [showCreateHero, setShowCreateHero] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
+  const [selectedKnowledge, setSelectedKnowledge] = useState(null);
+  const navigate = useNavigate();
   const hero = heroExists ? getHero() : null;
   const progress = getAllProgress();
 
-  // ── Audio ──────────────────────────────────────────────────────────
-  const { startMusic, stopMusic, isMuted, toggleMute } = useAudio();
-
-  // Full-volume theme on home screens; re-apply when muted toggles off
-  useEffect(() => {
-    startMusic('adventure');
-  }, [isMuted, startMusic]);
-
-  const muteBtn = (
-    <button
-      onClick={toggleMute}
-      title={isMuted ? "Unmute sound" : "Mute sound"}
-      className="fixed top-3 right-3 z-50 w-9 h-9 rounded-full bg-[#161b22]/80 border border-[#30363d] text-gray-400 hover:text-gray-200 hover:border-cyan-500/50 transition-all flex items-center justify-center text-sm backdrop-blur-sm cursor-pointer"
-    >
-      {isMuted ? '🔇' : '🔊'}
-    </button>
-  );
-
-  // Handle hero creation
+  // Handle hero creation — show assessment on first-ever creation
   const handleCreateHero = () => {
     if (heroName.trim().length === 0) return;
-    createHero(heroName.trim(), selectedColor, selectedAvatarId);
+    createHero(heroName.trim(), selectedColor);
+    const alreadyOnboarded = localStorage.getItem(ONBOARDING_KEY);
+    if (!alreadyOnboarded) {
+      setShowAssessment(true);
+    } else {
+      setHeroExists(true);
+    }
+  };
+
+  // Apply the recommended starting point — unlock prereq levels then navigate
+  const handleJumpToRecommendation = (rec) => {
+    rec.prereqs.forEach(({ conceptId, level }) => completeLevel(conceptId, level));
+    localStorage.setItem(ONBOARDING_KEY, "true");
+    navigate(`/lesson/${rec.conceptId}/${rec.level}`);
+  };
+
+  // Start from the very beginning
+  const handleStartFromBeginning = () => {
+    localStorage.setItem(ONBOARDING_KEY, "true");
+    setShowAssessment(false);
     setHeroExists(true);
   };
 
@@ -158,8 +225,6 @@ function HomePage() {
   // ===========================
   if (!heroExists && !showCreateHero) {
     return (
-      <>
-      {muteBtn}
       <div className="min-h-screen flex flex-col items-center px-4 py-8 overflow-hidden">
         {/* Title */}
         <div className="text-center mb-6 animate-fade-in">
@@ -236,7 +301,6 @@ function HomePage() {
           No account needed &middot; Your progress saves automatically
         </p>
       </div>
-      </>
     );
   }
 
@@ -244,129 +308,202 @@ function HomePage() {
   // HERO CREATION SCREEN
   // ===========================
   if (!heroExists && showCreateHero) {
-    const previewAvatar = getAvatar(selectedAvatarId);
-
     return (
-      <>
-      {muteBtn}
-      <div className="min-h-screen flex flex-col items-center px-4 py-8">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
         {/* Back button */}
         <button
           onClick={() => setShowCreateHero(false)}
-          className="self-start mb-5 text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors cursor-pointer"
+          className="self-start ml-4 md:ml-16 mb-6 text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors cursor-pointer"
         >
           &larr; Back
         </button>
 
-        <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-1">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400 mb-2">
           Create Your Crafter
         </h1>
-        <p className="text-gray-400 text-sm font-mono mb-6">
-          Pick a hero, choose your name and outfit colour
+        <p className="text-gray-400 text-sm font-mono mb-10">
+          Choose a name and color for your hero
         </p>
 
-        <div className="flex flex-col md:flex-row gap-6 max-w-3xl w-full">
+        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 max-w-md w-full">
+          {/* Hero preview — mini game scene */}
+          <div className="relative rounded-xl overflow-hidden border border-[#30363d] mb-6" style={{ height: 160 }}>
+            {/* Sky */}
+            <div className="absolute inset-0"
+              style={{ background: "linear-gradient(180deg, #1a3a5c 0%, #2d5a7b 50%, #3d6a5a 100%)" }} />
+            {/* Mountains */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 160" preserveAspectRatio="none">
+              <polygon points="0,160 60,70 120,100 180,60 240,90 300,50 360,75 400,65 400,160" fill="#1f3f4f" opacity="0.7" />
+              <polygon points="0,160 0,110 80,85 160,105 220,80 300,95 360,75 400,85 400,160" fill="#254535" />
+            </svg>
+            {/* Ground */}
+            <div className="absolute bottom-0 left-0 right-0 h-10"
+              style={{ background: "linear-gradient(180deg, #2d5530 0%, #152a18 100%)" }} />
+            {/* Ground texture dots */}
+            <svg className="absolute bottom-0 left-0 right-0 h-10 w-full" viewBox="0 0 400 40" preserveAspectRatio="none">
+              {[...Array(12)].map((_, i) => (
+                <circle key={i} cx={20 + i * 32} cy={8 + (i * 7) % 20} r={1} fill="white" opacity="0.04" />
+              ))}
+            </svg>
+            {/* Hero centered on ground */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+              <GameHero color={selectedColor} size={88} animation="idle" />
+            </div>
+          </div>
 
-          {/* ── Left: avatar picker ── */}
-          <div className="flex-1 bg-[#161b22] border border-[#30363d] rounded-2xl p-5">
-            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">
-              Choose Your Hero
+          {/* Name input */}
+          <div className="mb-6">
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
+              Crafter Name
             </label>
-            <AvatarPicker
-              selectedId={selectedAvatarId}
-              onSelect={setSelectedAvatarId}
+            <input
+              type="text"
+              value={heroName}
+              onChange={(e) => setHeroName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateHero()}
+              placeholder="Enter a name..."
+              maxLength={20}
+              className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 text-gray-100 font-mono text-lg focus:outline-none focus:border-cyan-500/50 placeholder-gray-600 transition-colors"
+              autoFocus
             />
           </div>
 
-          {/* ── Right: name + colour + preview ── */}
-          <div className="flex flex-col gap-4 w-full md:w-64">
-
-            {/* Hero preview */}
-            <div className="relative rounded-xl overflow-hidden border border-[#30363d]" style={{ height: 180 }}>
-              <div className="absolute inset-0"
-                style={{ background: "linear-gradient(180deg, #1a3a5c 0%, #2d5a7b 50%, #3d6a5a 100%)" }} />
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 180" preserveAspectRatio="none">
-                <polygon points="0,180 50,80 110,110 160,60 220,90 280,55 300,65 300,180" fill="#1f3f4f" opacity="0.7" />
-                <polygon points="0,180 0,120 80,95 160,115 220,85 300,100 300,180" fill="#254535" />
-              </svg>
-              <div className="absolute bottom-0 left-0 right-0 h-12"
-                style={{ background: "linear-gradient(180deg, #2d5530 0%, #152a18 100%)" }} />
-              <div className="absolute bottom-10 left-1/2 -translate-x-1/2">
-                <GameHero
-                  color={selectedColor}
-                  size={92}
-                  animation="idle"
-                  avatarId={selectedAvatarId}
+          {/* Color picker */}
+          <div className="mb-8">
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
+              Crafter Color
+            </label>
+            <div className="flex gap-3 flex-wrap">
+              {HERO_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => setSelectedColor(c.value)}
+                  className={`w-10 h-10 rounded-lg border-2 transition-all duration-200 ${
+                    selectedColor === c.value
+                      ? "border-white scale-110 shadow-lg"
+                      : "border-[#30363d] hover:border-[#484f58]"
+                  }`}
+                  style={{ backgroundColor: c.value }}
+                  title={c.name}
                 />
-              </div>
-              {/* Name badge */}
-              {heroName.trim() && (
-                <div className="absolute top-2 left-0 right-0 text-center">
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-black/40"
-                    style={{ color: selectedColor }}>
-                    {heroName.trim()}
-                  </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Create button */}
+          <button
+            onClick={handleCreateHero}
+            disabled={heroName.trim().length === 0}
+            className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
+              heroName.trim().length > 0
+                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+                : "bg-[#0d1117] border border-[#30363d] text-gray-600 cursor-not-allowed"
+            }`}
+          >
+            {heroName.trim().length > 0
+              ? `Start as ${heroName.trim()}`
+              : "Enter a name first..."}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================
+  // KNOWLEDGE ASSESSMENT — LEVEL PICKER
+  // ===========================
+  if (showAssessment && !selectedKnowledge) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+        <div className="max-w-xl w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-extrabold text-white mb-2">
+              How much Python do you know?
+            </h1>
+            <p className="text-gray-400 text-sm font-mono">
+              We'll recommend the best starting point for you.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {KNOWLEDGE_LEVELS.map((lvl) => (
+              <button
+                key={lvl.id}
+                onClick={() => setSelectedKnowledge(lvl)}
+                className="w-full text-left bg-[#161b22] border border-[#30363d] hover:border-[#484f58] rounded-xl p-5 transition-all duration-200 hover:bg-[#1c2333] cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-base">{lvl.label}</span>
+                      <span className={`text-xs font-mono ${lvl.tagColor}`}>{lvl.tag}</span>
+                    </div>
+                    <p className="text-gray-500 text-sm">{lvl.description}</p>
+                  </div>
+                  <span className="text-gray-600 group-hover:text-gray-300 transition-colors text-xl ml-4">→</span>
                 </div>
-              )}
-            </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            {/* Name input */}
-            <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-              <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
-                Crafter Name
-              </label>
-              <input
-                type="text"
-                value={heroName}
-                onChange={(e) => setHeroName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateHero()}
-                placeholder="Enter a name..."
-                maxLength={20}
-                className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2.5 text-gray-100 font-mono text-base focus:outline-none focus:border-cyan-500/50 placeholder-gray-600 transition-colors"
-                autoFocus
-              />
-            </div>
+  // ===========================
+  // KNOWLEDGE ASSESSMENT — RECOMMENDATION
+  // ===========================
+  if (showAssessment && selectedKnowledge) {
+    const rec = selectedKnowledge.recommendation;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+        <div className="max-w-md w-full">
+          <div className="text-center mb-8">
+            <p className="text-gray-500 text-xs font-mono uppercase tracking-widest mb-2">Recommended for you</p>
+            <h1 className="text-3xl font-extrabold text-white mb-2">
+              Start with {rec.label}
+            </h1>
+            <p className="text-gray-400 text-sm leading-relaxed">{rec.description}</p>
+          </div>
 
-            {/* Outfit colour */}
-            <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-              <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
-                Outfit Colour
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {HERO_COLORS.map((c) => (
-                  <button
-                    key={c.value}
-                    onClick={() => setSelectedColor(c.value)}
-                    className={`w-8 h-8 rounded-lg border-2 transition-all duration-150 cursor-pointer ${
-                      selectedColor === c.value
-                        ? "border-white scale-110 shadow-lg"
-                        : "border-[#30363d] hover:border-[#484f58]"
-                    }`}
-                    style={{ backgroundColor: c.value }}
-                    title={c.name}
-                  />
-                ))}
+          <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm font-mono">
+                {rec.conceptId === "variables" ? "x=" : rec.conceptId === "loops" ? "for" : "if"}
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">{rec.label}</p>
+                {rec.prereqs.length > 0 && (
+                  <p className="text-gray-500 text-xs font-mono">
+                    {rec.prereqs.length} prerequisite level{rec.prereqs.length > 1 ? "s" : ""} auto-unlocked
+                  </p>
+                )}
               </div>
             </div>
-
-            {/* Create button */}
             <button
-              onClick={handleCreateHero}
-              disabled={heroName.trim().length === 0}
-              className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
-                heroName.trim().length > 0
-                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:scale-[1.02] cursor-pointer"
-                  : "bg-[#0d1117] border border-[#30363d] text-gray-600 cursor-not-allowed"
-              }`}
+              onClick={() => handleJumpToRecommendation(rec)}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 text-white font-bold text-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer"
             >
-              {heroName.trim().length > 0
-                ? `Start as ${heroName.trim()}`
-                : "Enter a name first..."}
+              Start Here →
+            </button>
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onClick={() => setSelectedKnowledge(null)}
+              className="text-gray-600 hover:text-gray-400 text-xs font-mono transition-colors cursor-pointer"
+            >
+              ← Change my answer
+            </button>
+            <button
+              onClick={handleStartFromBeginning}
+              className="text-gray-500 hover:text-gray-300 text-xs font-mono underline underline-offset-4 transition-colors cursor-pointer"
+            >
+              No thanks, start from Level 1
             </button>
           </div>
         </div>
       </div>
-      </>
     );
   }
 
@@ -374,8 +511,6 @@ function HomePage() {
   // MAIN HOME PAGE
   // ===========================
   return (
-    <>
-    {muteBtn}
     <div className="min-h-screen flex flex-col items-center px-4 py-10">
       {/* Header */}
       <header className="text-center mb-8">
@@ -391,8 +526,8 @@ function HomePage() {
       {hero && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-4 mb-8 max-w-md w-full">
           <div className="flex items-center gap-4">
-            <div className="rounded-xl overflow-hidden flex-shrink-0">
-              <AvatarFace avatar={getAvatar(hero.avatarId)} size={64} />
+            <div className="bg-[#0d1117] rounded-lg p-2 border border-[#30363d]">
+              <GameHero color={hero.color} size={48} animation="idle" />
             </div>
             <div className="flex-1">
               <h2 className="font-bold text-gray-100" style={{ color: hero.color }}>
@@ -514,15 +649,28 @@ function HomePage() {
         })}
       </div>
 
-      {/* Admin link */}
-      <Link
-        to="/admin"
-        className="text-sm text-gray-600 hover:text-gray-400 font-mono transition-colors"
-      >
-        /admin →
-      </Link>
+      {/* Footer: user info + logout */}
+      <div className="flex flex-col items-center gap-2 mt-4">
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="text-sm text-gray-600 hover:text-gray-400 font-mono transition-colors"
+          >
+            /admin →
+          </Link>
+        )}
+        <div className="flex items-center gap-3 text-xs font-mono text-gray-600">
+          <span>{user?.email}</span>
+          <span>·</span>
+          <button
+            onClick={signOut}
+            className="hover:text-gray-400 transition-colors cursor-pointer"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
     </div>
-    </>
   );
 }
 

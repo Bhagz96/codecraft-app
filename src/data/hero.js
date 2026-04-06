@@ -1,14 +1,23 @@
 /**
  * HERO PERSISTENCE
  * ================
- * Stores and retrieves the player's hero data across sessions.
- * The hero is created in Variables Level 1 and persists throughout
- * all lessons, growing as the player learns more concepts.
- *
- * Stored in localStorage as a JSON object.
+ * Stores and retrieves the player's hero data.
+ * When a user is logged in, data is namespaced by userId in localStorage
+ * and synced to Supabase for cross-device persistence.
  */
 
-const STORAGE_KEY = "kidcode_hero";
+import { supabase } from "../lib/supabase";
+
+// Set by AuthContext when a user logs in/out
+let _currentUserId = null;
+
+export function setCurrentUser(userId) {
+  _currentUserId = userId;
+}
+
+function getStorageKey() {
+  return _currentUserId ? `kidcode_hero_${_currentUserId}` : "kidcode_hero";
+}
 
 const DEFAULT_HERO = {
   name: "",
@@ -19,52 +28,46 @@ const DEFAULT_HERO = {
   gold: 0,
   xp: 0,
   level: 1,
-  color: "#00d4ff",      // Hero accent/outfit color (cyan default)
-  avatarId: "m01",       // Selected cartoon avatar
+  color: "#00d4ff",
   created: false,
 };
 
-/**
- * Get the current hero data. Returns default if none exists.
- */
 export function getHero() {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      return { ...DEFAULT_HERO, ...JSON.parse(data) };
-    }
+    const data = localStorage.getItem(getStorageKey());
+    if (data) return { ...DEFAULT_HERO, ...JSON.parse(data) };
   } catch {
     // ignore parse errors
   }
   return { ...DEFAULT_HERO };
 }
 
-/**
- * Save hero data to localStorage.
- */
 export function saveHero(hero) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(hero));
+  localStorage.setItem(getStorageKey(), JSON.stringify(hero));
+  // Sync to cloud if user is logged in (fire and forget)
+  if (_currentUserId) {
+    supabase.from("heroes").upsert({
+      user_id: _currentUserId,
+      name: hero.name,
+      color: hero.color,
+      level: hero.level,
+      xp: hero.xp,
+      health: hero.health,
+      max_health: hero.maxHealth,
+      attack: hero.attack,
+      defense: hero.defense,
+      gold: hero.gold,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" }).catch(() => {});
+  }
 }
 
-/**
- * Create a new hero with the given name.
- * Called during Variables Level 1.
- */
-export function createHero(name, color = "#00d4ff", avatarId = "m01") {
-  const hero = {
-    ...DEFAULT_HERO,
-    name: name || "Hero",
-    color,
-    avatarId,
-    created: true,
-  };
+export function createHero(name, color = "#00d4ff") {
+  const hero = { ...DEFAULT_HERO, name: name || "Hero", color, created: true };
   saveHero(hero);
   return hero;
 }
 
-/**
- * Update specific hero stats (e.g., after completing a level).
- */
 export function updateHero(updates) {
   const hero = getHero();
   const updated = { ...hero, ...updates };
@@ -72,16 +75,11 @@ export function updateHero(updates) {
   return updated;
 }
 
-/**
- * Award XP and possibly level up the hero.
- * Called after completing a lesson level.
- */
 export function awardXP(amount) {
   const hero = getHero();
   hero.xp += amount;
   hero.gold += Math.floor(amount / 2);
 
-  // Level up every 100 XP
   const newLevel = Math.floor(hero.xp / 100) + 1;
   if (newLevel > hero.level) {
     hero.level = newLevel;
@@ -95,17 +93,38 @@ export function awardXP(amount) {
   return hero;
 }
 
-/**
- * Check if a hero has been created.
- */
 export function hasHero() {
-  const hero = getHero();
-  return hero.created === true;
+  return getHero().created === true;
+}
+
+export function resetHero() {
+  localStorage.removeItem(getStorageKey());
 }
 
 /**
- * Reset hero data (for demos/testing).
+ * Load hero data from Supabase into localStorage.
+ * Called by AuthContext when a user logs in.
  */
-export function resetHero() {
-  localStorage.removeItem(STORAGE_KEY);
+export async function loadHeroFromCloud(userId) {
+  const { data } = await supabase
+    .from("heroes")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (data) {
+    const hero = {
+      name: data.name,
+      color: data.color,
+      level: data.level,
+      xp: data.xp,
+      health: data.health,
+      maxHealth: data.max_health,
+      attack: data.attack,
+      defense: data.defense,
+      gold: data.gold,
+      created: true,
+    };
+    localStorage.setItem(`kidcode_hero_${userId}`, JSON.stringify(hero));
+  }
 }

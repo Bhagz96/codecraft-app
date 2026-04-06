@@ -23,6 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
-
 .env
-using-the-api-version.md
