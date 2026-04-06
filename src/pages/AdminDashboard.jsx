@@ -88,7 +88,7 @@ function UsersTab() {
 
       const { data: progress } = await client
         .from("user_progress")
-        .select("user_id, concept_id, level");
+        .select("user_id, concept_id, highest_level");
 
       const heroMap = {};
       (heroes || []).forEach((h) => { heroMap[h.user_id] = h; });
@@ -96,9 +96,8 @@ function UsersTab() {
       const progressMap = {};
       (progress || []).forEach((p) => {
         if (!progressMap[p.user_id]) progressMap[p.user_id] = {};
-        // group by concept: store highest completed level
         const cur = progressMap[p.user_id][p.concept_id] || 0;
-        if (p.level > cur) progressMap[p.user_id][p.concept_id] = p.level;
+        if (p.highest_level > cur) progressMap[p.user_id][p.concept_id] = p.highest_level;
       });
 
       setUsers((profiles || []).map((p) => ({
