@@ -26,7 +26,7 @@ function ProtectedRoute({ children, requiresSkillLevel = true }) {
 function AdminRoute({ children }) {
   const { user, isAdmin, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" state={{ from: "admin" }} replace />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return children;
 }

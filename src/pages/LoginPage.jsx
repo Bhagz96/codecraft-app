@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function isEmail(val) {
@@ -20,6 +20,9 @@ function resolveEmail(val) {
 }
 
 export default function LoginPage() {
+  const location = useLocation();
+  const isAdminLogin = location.state?.from === "admin";
+
   const [mode, setMode] = useState("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -81,7 +84,7 @@ export default function LoginPage() {
               : err.message
           );
         } else {
-          navigate("/");
+          navigate(isAdminLogin ? "/admin" : "/");
         }
       } else {
         const { error: err } = await signUp(
@@ -116,28 +119,32 @@ export default function LoginPage() {
           CodeCraft
         </h1>
         <p className="text-gray-400 text-sm font-mono">
-          {mode === "login" ? "Welcome back. Continue your quest." : "Create an account to start your quest."}
+          {isAdminLogin
+            ? "Admin access — log in to continue."
+            : mode === "login" ? "Welcome back. Continue your quest." : "Create an account to start your quest."}
         </p>
       </div>
 
       {/* Card */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 w-full max-w-sm">
-        {/* Mode toggle */}
-        <div className="flex bg-[#0d1117] rounded-xl p-1 mb-6 border border-[#30363d]">
-          {["login", "signup"].map((m) => (
-            <button
-              key={m}
-              onClick={() => switchMode(m)}
-              className={`flex-1 py-2 rounded-lg text-sm font-mono font-semibold transition-all duration-200 cursor-pointer ${
-                mode === m
-                  ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              {m === "login" ? "Log In" : "Sign Up"}
-            </button>
-          ))}
-        </div>
+        {/* Mode toggle — hidden for admin login (login only) */}
+        {!isAdminLogin && (
+          <div className="flex bg-[#0d1117] rounded-xl p-1 mb-6 border border-[#30363d]">
+            {["login", "signup"].map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className={`flex-1 py-2 rounded-lg text-sm font-mono font-semibold transition-all duration-200 cursor-pointer ${
+                  mode === m
+                    ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow"
+                    : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                {m === "login" ? "Log In" : "Sign Up"}
+              </button>
+            ))}
+          </div>
+        )}
 
         {successMsg && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-green-900/30 border border-green-700/50 text-green-400 text-sm font-mono leading-relaxed">
@@ -224,30 +231,40 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-[#30363d]" />
-          <span className="text-gray-600 text-xs font-mono">or</span>
-          <div className="flex-1 h-px bg-[#30363d]" />
+        {/* Divider + Guest — hidden for admin login */}
+        {!isAdminLogin && (
+          <>
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-[#30363d]" />
+              <span className="text-gray-600 text-xs font-mono">or</span>
+              <div className="flex-1 h-px bg-[#30363d]" />
+            </div>
+            <button
+              onClick={handleGuest}
+              className="w-full py-2.5 rounded-xl border border-[#30363d] text-gray-400 text-sm font-mono hover:text-gray-200 hover:border-[#484f58] transition-all duration-200 cursor-pointer"
+            >
+              Continue as Guest
+            </button>
+            <p className="text-gray-700 text-xs font-mono text-center mt-2">
+              Progress saves locally — not synced to account
+            </p>
+          </>
+        )}
+
+        {isAdminLogin && (
+          <p className="text-gray-700 text-xs font-mono text-center mt-4">
+            Use your admin credentials to access the dashboard.
+          </p>
+        )}
+      </div>
+
+      {!isAdminLogin && (
+        <div className="mt-6 text-center">
+          <p className="text-gray-600 text-xs font-mono">
+            Admin? Log in above — you&apos;ll be redirected automatically.
+          </p>
         </div>
-
-        {/* Guest mode */}
-        <button
-          onClick={handleGuest}
-          className="w-full py-2.5 rounded-xl border border-[#30363d] text-gray-400 text-sm font-mono hover:text-gray-200 hover:border-[#484f58] transition-all duration-200 cursor-pointer"
-        >
-          Continue as Guest
-        </button>
-        <p className="text-gray-700 text-xs font-mono text-center mt-2">
-          Progress saves locally — not synced to account
-        </p>
-      </div>
-
-      <div className="mt-6 text-center">
-        <p className="text-gray-600 text-xs font-mono">
-          Admin? Log in above — you&apos;ll be redirected automatically.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
