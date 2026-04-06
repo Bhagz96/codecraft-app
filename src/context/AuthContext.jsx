@@ -85,7 +85,10 @@ export function AuthProvider({ children }) {
       });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        // TOKEN_REFRESHED is a silent background JWT rotation — user/profile
+        // haven't changed, no need to re-fetch data or show a loading screen.
+        if (event === "TOKEN_REFRESHED") return;
         setLoading(true);
         try {
           await initUser(session?.user ?? null);
