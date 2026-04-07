@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { getAllProgress, isLevelUnlocked, getProgress } from "../data/progress";
-import { getHero, hasHero, createHero } from "../data/hero";
+import { getHero, hasHero, createHero, persistHeroToCloud } from "../data/hero";
 import { getAvatar } from "../data/avatars";
 import GameHero from "../components/game/GameHero";
 import AvatarFace from "../components/game/AvatarFace";
@@ -161,12 +161,17 @@ function HomePage() {
     </div>
   );
 
-  // Handle hero creation — brief success state so the user sees it worked
+  // Handle hero creation — saves locally then awaits cloud sync within the
+  // animation window so the hero is available on any device on next login.
   const handleCreateHero = async () => {
     if (heroName.trim().length === 0 || heroCreating) return;
     setHeroCreating(true);
     createHero(heroName.trim(), selectedColor, selectedAvatarId);
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    // Run animation and cloud sync in parallel; cloud sync is best-effort
+    await Promise.all([
+      persistHeroToCloud(),
+      new Promise((resolve) => setTimeout(resolve, 900)),
+    ]);
     setHeroExists(true);
     setHeroCreating(false);
   };

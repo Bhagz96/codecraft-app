@@ -9,6 +9,7 @@ import {
   resetHero,
   setCurrentUser,
   loadHeroFromCloud,
+  persistHeroToCloud,
 } from '../../data/hero';
 
 describe('createHero', () => {
@@ -219,6 +220,51 @@ describe('resetHero', () => {
     createHero('ToReset');
     resetHero();
     expect(getHero().created).toBe(false);
+  });
+});
+
+describe('persistHeroToCloud', () => {
+  afterEach(() => {
+    setCurrentUser(null);
+  });
+
+  it('is exported as a function', () => {
+    expect(typeof persistHeroToCloud).toBe('function');
+  });
+
+  it('resolves without error when supabase is null (no env vars)', async () => {
+    await expect(persistHeroToCloud()).resolves.toBeUndefined();
+  });
+
+  it('resolves without error when no hero has been created', async () => {
+    setCurrentUser('user_persist');
+    await expect(persistHeroToCloud()).resolves.toBeUndefined();
+  });
+
+  it('resolves without error when a hero exists but supabase is null', async () => {
+    setCurrentUser('user_persist');
+    createHero('PersistMe');
+    await expect(persistHeroToCloud()).resolves.toBeUndefined();
+  });
+});
+
+describe('loadHeroFromCloud — repair: syncs local hero to cloud when cloud is empty', () => {
+  afterEach(() => {
+    setCurrentUser(null);
+  });
+
+  it('resolves without error when supabase is null and localStorage has a hero', async () => {
+    setCurrentUser('user_repair');
+    createHero('LocalOnlyHero');
+    await expect(loadHeroFromCloud('user_repair')).resolves.toBeUndefined();
+  });
+
+  it('local hero remains available after loadHeroFromCloud runs with no cloud data', async () => {
+    setCurrentUser('user_repair2');
+    createHero('StillThere');
+    await loadHeroFromCloud('user_repair2');
+    expect(hasHero()).toBe(true);
+    expect(getHero().name).toBe('StillThere');
   });
 });
 

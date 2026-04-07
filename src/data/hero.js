@@ -126,8 +126,38 @@ export function resetHero() {
 }
 
 /**
+ * Explicitly persist the current hero to Supabase (awaitable).
+ * Used during hero creation to ensure cross-device availability.
+ */
+export async function persistHeroToCloud() {
+  if (!_currentUserId || !supabase) return;
+  const hero = getHero();
+  if (!hero.created) return;
+  try {
+    await supabase.from("heroes").upsert({
+      user_id:    _currentUserId,
+      name:       hero.name,
+      color:      hero.color,
+      avatar_id:  hero.avatarId,
+      level:      hero.level,
+      xp:         hero.xp,
+      health:     hero.health,
+      max_health: hero.maxHealth,
+      attack:     hero.attack,
+      defense:    hero.defense,
+      gold:       hero.gold,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+  } catch {
+    // Non-critical — hero is safe in localStorage
+  }
+}
+
+/**
  * Load hero data from Supabase into localStorage.
  * Called by AuthContext when a user logs in.
+ * If the cloud has no record but localStorage does, syncs local → cloud
+ * so future logins on other devices can restore the hero.
  */
 export async function loadHeroFromCloud(userId) {
   if (!supabase) return;
@@ -152,5 +182,31 @@ export async function loadHeroFromCloud(userId) {
       created: true,
     };
     localStorage.setItem(`kidcode_hero_${userId}`, JSON.stringify(hero));
+  } else {
+    // Cloud has no hero — check if localStorage has one and repair the sync
+    try {
+      const raw = localStorage.getItem(`kidcode_hero_${userId}`);
+      if (raw) {
+        const localHero = JSON.parse(raw);
+        if (localHero?.created) {
+          supabase.from("heroes").upsert({
+            user_id:    userId,
+            name:       localHero.name,
+            color:      localHero.color,
+            avatar_id:  localHero.avatarId || "m01",
+            level:      localHero.level ?? 1,
+            xp:         localHero.xp ?? 0,
+            health:     localHero.health ?? 100,
+            max_health: localHero.maxHealth ?? 100,
+            attack:     localHero.attack ?? 10,
+            defense:    localHero.defense ?? 5,
+            gold:       localHero.gold ?? 0,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id" }).then(() => {}, () => {});
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 }
