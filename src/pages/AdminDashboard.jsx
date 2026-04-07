@@ -14,6 +14,7 @@ import { getAllSessions, clearSessions } from "../mab/sessionTracker";
 import { resetProgress } from "../data/progress";
 import { resetHero } from "../data/hero";
 import { supabase, supabaseAdmin } from "../lib/supabase";
+import { exportToExcel } from "../utils/exportExcel";
 
 const CONCEPTS = ["variables", "loops", "conditions"];
 
@@ -847,6 +848,7 @@ function SessionsTab() {
 
 function AdminDashboard() {
   const [tab, setTab] = useState("users");
+  const [exporting, setExporting] = useState(false);
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -866,6 +868,20 @@ function AdminDashboard() {
             <p className="text-gray-500 text-sm font-mono">Instructor Dashboard</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  await exportToExcel(supabaseAdmin || supabase);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+              disabled={exporting}
+              className="bg-[#161b22] border border-cyan-500/40 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:border-cyan-400 hover:text-cyan-300 transition-colors text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting ? "Exporting…" : "⬇ Export Excel"}
+            </button>
             <Link to="/" className="bg-[#161b22] border border-[#30363d] text-gray-300 font-medium px-4 py-2 rounded-lg hover:border-[#484f58] transition-colors text-sm">
               ← Back
             </Link>
