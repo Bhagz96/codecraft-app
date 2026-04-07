@@ -83,16 +83,43 @@ function UsersTab() {
         .select("id, nus_id, first_name, last_name, skill_level, role");
       if (pErr) throw pErr;
 
-      const { data: heroes } = await client
+      const { data: heroRows } = await client
         .from("heroes")
-        .select("user_id, name, level, xp, color");
+        .select("user_id, name, level, xp, health, attack, defense, gold, color");
 
       const { data: progress } = await client
         .from("user_progress")
         .select("user_id, concept_id, highest_level");
 
       const heroMap = {};
-      (heroes || []).forEach((h) => { heroMap[h.user_id] = h; });
+      (heroRows || []).forEach((h) => { heroMap[h.user_id] = h; });
+
+      // Heroes are also saved to user_metadata (the reliable fallback used by
+      // persistHeroToCloud). If the heroes table has no row for a user — e.g.
+      // because RLS blocked the insert — pull stats from auth metadata instead.
+      if (supabaseAdmin) {
+        try {
+          const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          (authUsers || []).forEach((au) => {
+            if (!heroMap[au.id] && au.user_metadata?.hero_name) {
+              const m = au.user_metadata;
+              heroMap[au.id] = {
+                user_id: au.id,
+                name:    m.hero_name,
+                level:   m.hero_level   ?? 1,
+                xp:      m.hero_xp      ?? 0,
+                health:  m.hero_health  ?? 100,
+                attack:  m.hero_attack  ?? 10,
+                defense: m.hero_defense ?? 5,
+                gold:    m.hero_gold    ?? 0,
+                color:   m.hero_color   ?? "#00d4ff",
+              };
+            }
+          });
+        } catch {
+          // auth admin API unavailable — heroes table is the only source
+        }
+      }
 
       const progressMap = {};
       (progress || []).forEach((p) => {
