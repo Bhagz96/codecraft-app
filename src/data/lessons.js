@@ -161,7 +161,7 @@ const lessons = [
             ],
             options: ["<class 'int'>", "<class 'str'>", "<class 'bool'>"],
             correctIndex: 0,
-            hint: "hero_hp = 100 — the number 100 has no quotes. Numbers without quotes are integers (int).",
+            hint: "Health points are whole numbers — no quotes around them. Look at the three options: one has quotes (making it text), one is True/False. Which option is a plain number?",
             explanation:
               "100 is an integer (int) — a whole number with no quotes. \"100\" would be a string. Python has several types: int, float, str, bool.",
           },
@@ -185,7 +185,7 @@ const lessons = [
             ],
             options: ["80", "50", "30"],
             correctIndex: 0,
-            hint: "hero_xp starts at 50, then 30 is added to it. What is 50 + 30?",
+            hint: "hero_xp = hero_xp + ___ means 'current XP plus the battle reward'. Look at the scene description — how much XP did this battle award?",
             explanation:
               "hero_xp starts as 50. Then hero_xp = hero_xp + 30 means 'take current hero_xp (50), add 30, store result back'. So hero_xp becomes 80.",
           },
@@ -505,7 +505,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Trace through the climb loop — what step numbers does {heroName} take?",
               dragDrop: "Arrange the code to make {heroName} climb 3 steps.",
-              speedCoding: "Complete the loop to climb 3 mountain steps.",
+              speedCoding: "The hero climbs a set number of steps. What value goes in range() to loop the right number of times?",
             },
             gameAction: "heroClimbSteps",
             storyContext: "The mountain has many steps. Loops let your hero climb them automatically.",
@@ -520,7 +520,7 @@ const lessons = [
             ],
             options: ["0, 1, 2", "1, 2, 3", "0, 1, 2, 3"],
             correctIndex: 0,
-            hint: "range(3) starts at 0 and stops BEFORE 3. Count: 0, 1, 2.",
+            hint: "range(n) runs the loop exactly n times. Ask yourself: how many steps should the hero take in total?",
             explanation:
               "range(3) generates 0, 1, 2 — it starts at 0 and stops BEFORE 3. So the loop runs 3 times. This is how games animate step-by-step movement!",
           },
@@ -529,7 +529,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Trace the XP calculation for each step — what are the five rewards?",
               dragDrop: "Arrange the code to calculate XP rewards for each step.",
-              speedCoding: "Complete the loop to calculate double XP per step.",
+              speedCoding: "Each step earns the hero XP based on a multiplier. What multiplier means 'double'?",
             },
             gameAction: "heroCollectLoop",
             sceneConfig: { itemEmoji: "⭐" },
@@ -544,7 +544,7 @@ const lessons = [
             ],
             options: ["2, 4, 6, 8, 10", "1, 2, 3, 4, 5", "2, 4, 6, 8"],
             correctIndex: 0,
-            hint: "range(1, 6) gives 1, 2, 3, 4, 5. For each step, multiply it by 2 to get the XP.",
+            hint: "The formula is xp = step * ___. The word 'double' in the instruction tells you what the multiplier should be — what does doubling a number mean mathematically?",
             explanation:
               "range(1, 6) gives 1, 2, 3, 4, 5. Each step earns step * 2 XP. Loops are powerful — 3 lines of code produced 5 rewards!",
           },
@@ -677,7 +677,7 @@ const lessons = [
             instructions: {
               codeSimulation: "2 rows × 3 enemies each — count the total attacks in this nested loop battle.",
               dragDrop: "Arrange the nested loop that attacks 2 rows of 3 enemies each.",
-              speedCoding: "There are 3 enemies in each row. Fill in the inner loop range to attack all of them.",
+              speedCoding: "The inner loop attacks every enemy in a single row. Look at the grid structure — what should range() equal for the columns?",
             },
             gameAction: "heroFightWave",
             codeSnippet: "for row in range(2):\n    for col in range(3):\n        print(f\"Attack ({row},{col})!\")",
@@ -691,7 +691,7 @@ const lessons = [
             ],
             options: ["6 attacks", "5 attacks", "2 attacks"],
             correctIndex: 0,
-            hint: "The inner loop controls how many enemies per row. Each row has 3 enemies, so range(3) runs 3 times per row. 2 rows × 3 enemies = 6 total attacks.",
+            hint: "The outer loop uses range(2) for 2 rows. The inner loop mirrors that idea — look at the instruction to find how many enemies are in each row, then use that number for range().",
             explanation:
               "Outer loop runs 2 times, inner runs 3 times each. Total: 2 × 3 = 6 attacks. Nested loops multiply — games use them for grids, maps, and enemy formations!",
           },
@@ -845,7 +845,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Which enemies pass the power filter?",
               dragDrop: "Arrange the code to filter enemies by power level.",
-              speedCoding: "Complete the comprehension to keep enemies with power >= 30.",
+              speedCoding: "Only powerful enemies make it through the filter. What threshold separates strong from weak?",
             },
             gameAction: "heroFightWave",
             codeSnippet: "enemies = [10, 25, 30, 45, 50, 15]\nstrong = [e for e in enemies if e >= 30]\nprint(f\"Strong enemies: {strong}\")",
@@ -859,7 +859,7 @@ const lessons = [
             ],
             options: ["[30, 45, 50]", "[10, 25, 15]", "[10, 25, 30, 45, 50, 15]"],
             correctIndex: 0,
-            hint: "Go through each value: 10<30 skip, 25<30 skip, 30>=30 keep, 45>=30 keep, 50>=30 keep, 15<30 skip.",
+            hint: "The variable is called 'strong' — look at the enemy values [10, 25, 30, 45, 50, 15] and decide which ones you'd call strong. What's the natural cutoff between the small and large values?",
             explanation:
               "List comprehension with a filter: keeps only values >= 30. One line replaces a loop + if statement. Games use this to filter enemies, items, and more!",
           },
@@ -891,7 +891,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Which attacks get boosted and by how much?",
               dragDrop: "Arrange the code to filter and boost strong attacks.",
-              speedCoding: "Complete the comprehension to boost attacks scoring >= 30.",
+              speedCoding: "Only strong attacks earn the +10 boost. Scan the attacks list — what minimum score should qualify?",
             },
             gameAction: "heroFightWave",
             codeSnippet: "attacks = [15, 40, 25, 50, 35]\nboosted = [a + 10 for a in attacks if a >= 30]\nprint(f\"Boosted attacks: {boosted}\")",
@@ -905,7 +905,7 @@ const lessons = [
             ],
             options: ["[50, 60, 45]", "[40, 50, 35]", "[25, 50, 35, 60, 45]"],
             correctIndex: 0,
-            hint: "First filter keeps 40, 50, 35 (all >= 30). Then add 10 to each: 40+10=50, 50+10=60, 35+10=45.",
+            hint: "Look at the attacks list [15, 40, 25, 50, 35]. Which attacks are clearly strong vs weak? Find the value that divides the list into two groups — that's your threshold.",
             explanation:
               "Filter (>= 30) keeps 40, 50, 35. Then +10 each: 50, 60, 45. One line filters AND transforms — this is peak Python! Games use this for buff calculations.",
           },
@@ -962,7 +962,7 @@ const lessons = [
             ],
             options: ['"Too hot! Rest in shade."', '"Perfect weather. Keep climbing!"', "Both"],
             correctIndex: 0,
-            hint: "temp = 35. Is 35 > 30? If yes, the if-block runs; if no, the else-block runs.",
+            hint: "The blank is a comparison operator. 'Too hot' means the temperature exceeds a limit — which operator tests whether a value is above another: >, <, or ==?",
             explanation:
               "temp is 35. Is 35 > 30? Yes! So the if-block runs. The else is skipped entirely. Only ONE branch ever runs — your game picks the right response.",
           },
@@ -972,7 +972,7 @@ const lessons = [
             instructions: {
               codeSimulation: "{heroName} has 15 energy but needs at least 20. Trace what the condition decides.",
               dragDrop: "Arrange the energy check — the barrier requires at least 20 energy points.",
-              speedCoding: "The barrier needs at least 20 energy to pass. Fill in that threshold value.",
+              speedCoding: "The barrier blocks heroes who don't have enough energy. Read the story — what energy level must the hero meet to pass?",
             },
             gameAction: "heroObstacle",
             sceneConfig: { varDisplay: "energy = 15", conditionLabel: "if energy >= 20:", successAction: "→ charges ahead!" },
@@ -987,7 +987,7 @@ const lessons = [
             ],
             options: ['"{heroName} needs to rest first."', '"{heroName} charges ahead!"', "Nothing"],
             correctIndex: 0,
-            hint: "The barrier requires 20 energy. {heroName} has 15. Is 15 >= 20? Work out the answer, then decide which branch runs.",
+            hint: "The story context tells you exactly what energy level the barrier requires. Once you fill in that threshold, ask: does energy = 15 satisfy the >= condition? Which branch runs?",
             explanation:
               "energy is 15. Is 15 >= 20? No! So the else-block runs and {heroName} needs to rest. The >= operator means 'greater than or equal to'. Your game protects the hero from overexertion.",
           },
@@ -1011,7 +1011,7 @@ const lessons = [
             ],
             options: ["Path B (safer)", "Path A (safer)", "Error"],
             correctIndex: 0,
-            hint: "path_a_danger = 7, path_b_danger = 3. Is 7 > 3? If yes, which path does the if-block assign to safe_path?",
+            hint: "You want the safer path — lower danger wins. If path A has MORE danger, which comparison operator correctly identifies that path_a_danger is greater than path_b_danger?",
             explanation:
               "Is 7 > 3? Yes. Path A is more dangerous, so the hero takes Path B. This is a classic pattern for finding the best option — games use it everywhere!",
           },
