@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { workedExamples } from "../data/workedExamples";
 import { completeLevel } from "../data/progress";
-import { getHero, awardXP } from "../data/hero";
+import { getHero, awardXP, persistHeroToCloud } from "../data/hero";
 import { injectHeroIntoLevel } from "../data/lessonTemplates";
 import CodeSimulation from "../components/CodeSimulation";
 import DragDropBuilder from "../components/DragDropBuilder";
@@ -291,6 +291,9 @@ function LessonPage() {
         completeLevel(conceptId, levelNum);
         const updatedHero = awardXP(xpAmount);
         setHero(updatedHero);
+        // Sync latest hero stats to Supabase so the admin dashboard stays current.
+        // Fire-and-forget — lesson completion must never be blocked by this.
+        persistHeroToCloud().catch(() => {});
       } catch (err) {
         // Persistence failed (e.g. localStorage full) — log but don't block
         console.error("LessonPage: error saving session/progress:", err);
