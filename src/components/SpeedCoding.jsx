@@ -15,7 +15,7 @@
 import { useState, useEffect, useRef } from "react";
 import { shuffleOptions } from "../utils/shuffleOptions";
 
-const TIME_LIMIT = 20; // seconds per question
+const TIME_LIMIT = 30; // seconds per question
 
 function SpeedCoding({ step, onAnswer, feedback }) {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
@@ -108,9 +108,9 @@ function SpeedCoding({ step, onAnswer, feedback }) {
 
   // Timer colour
   const timerColor =
-    timeLeft > 14 ? "bg-green-500" : timeLeft > 7 ? "bg-yellow-500" : "bg-red-500";
+    timeLeft > 20 ? "bg-green-500" : timeLeft > 10 ? "bg-yellow-500" : "bg-red-500";
   const timerGlow =
-    timeLeft > 14 ? "" : timeLeft > 7 ? "glow-orange" : "shadow-[0_0_20px_rgba(239,68,68,0.5)]";
+    timeLeft > 20 ? "" : timeLeft > 10 ? "glow-orange" : "shadow-[0_0_20px_rgba(239,68,68,0.5)]";
   const timerWidth = (timeLeft / TIME_LIMIT) * 100;
 
   // Streak display
