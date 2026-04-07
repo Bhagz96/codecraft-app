@@ -113,25 +113,28 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // The initial load is fully handled by getSession() above with proper
+        // loading state. This subscription only handles genuine session changes
+        // (e.g. sign-in from another tab, OAuth callback). We intentionally
+        // never set loading=true here so in-app navigation never shows the
+        // loading screen due to a background token refresh or SIGNED_IN echo.
+        //
+        // INITIAL_SESSION — duplicate of getSession(), skip.
         // TOKEN_REFRESHED — silent JWT rotation, nothing changed.
-        // INITIAL_SESSION — handled by getSession() above.
-        // SIGNED_OUT     — can fire spuriously; explicit logout handled in signOut().
-        // USER_UPDATED   — fired by supabase.auth.updateUser() (e.g. hero metadata
-        //                  save); user object is already in state, no reload needed.
+        // USER_UPDATED    — fired by updateUser() (hero metadata); skip.
+        // SIGNED_OUT      — can fire spuriously; explicit logout handled in signOut().
         if (
-          event === "TOKEN_REFRESHED" ||
           event === "INITIAL_SESSION" ||
-          event === "SIGNED_OUT"    ||
-          event === "USER_UPDATED"
+          event === "TOKEN_REFRESHED" ||
+          event === "USER_UPDATED"    ||
+          event === "SIGNED_OUT"
         ) return;
 
-        setLoading(true);
+        // Silently refresh auth state without showing a loading screen.
         try {
           await initUser(session?.user ?? null);
         } catch (err) {
           console.error("initUser error:", err);
-        } finally {
-          setLoading(false);
         }
       }
     );
