@@ -48,8 +48,10 @@ export function AuthProvider({ children }) {
     const cached = readCachedSkillLevel(supabaseUser.id);
     if (cached) setSkillLevel(cached);
 
-    // Load cloud data into localStorage
-    await loadHeroFromCloud(supabaseUser.id);
+    // Load cloud data into localStorage.
+    // Pass user_metadata so loadHeroFromCloud can fall back to it if the
+    // heroes table is unavailable (e.g. missing RLS policy).
+    await loadHeroFromCloud(supabaseUser.id, supabaseUser.user_metadata ?? {});
     await loadProgressFromCloud(supabaseUser.id);
 
     // Insert profile on first login only — never overwrite existing data
