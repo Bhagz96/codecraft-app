@@ -57,6 +57,22 @@ describe('useAudio', () => {
     expect(mockAudio.play).toHaveBeenCalled();
   });
 
+  it('registers a click listener for autoplay retry when play() is blocked by browser', async () => {
+    mockAudio.play.mockRejectedValueOnce(new DOMException('play() failed', 'NotAllowedError'));
+    const addEventSpy = vi.spyOn(document, 'addEventListener');
+
+    const { result } = renderHook(() => useAudio());
+    await act(async () => {
+      result.current.startMusic('adventure');
+      // Flush microtasks so the .catch() callback runs
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const registered = addEventSpy.mock.calls.map(([event]) => event);
+    expect(registered).toContain('click');
+  });
+
   it('startMusic sets lower volume for mystery (lesson) mode', () => {
     const { result } = renderHook(() => useAudio());
     act(() => result.current.startMusic('mystery'));

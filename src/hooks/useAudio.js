@@ -56,6 +56,9 @@ function scheduleNote(ctx, dest, freq, start, dur, wave = 'triangle', amp = 0.3)
 // ── Hook ───────────────────────────────────────────────────────────
 
 export function useAudio() {
+  // Ref to the pending autoplay-retry handler so it can be cleaned up on unmount
+  const retryHandlerRef = useRef(null);
+
   const [isMuted, setIsMuted] = useState(
     () => localStorage.getItem('kidcode_muted') === 'true'
   );
@@ -98,7 +101,25 @@ export function useAudio() {
     const audio = getAudio();
     if (!audio) return;
     audio.volume = vol;
-    if (audio.paused) audio.play().catch(() => {});
+    if (audio.paused) {
+      audio.play().catch(() => {
+        // Browser autoplay policy blocked the play — schedule a retry
+        // on the next user interaction (click / keydown / touch).
+        if (retryHandlerRef.current) return; // already pending
+        retryHandlerRef.current = () => {
+          retryHandlerRef.current = null;
+          if (mutedRef.current) return;
+          const a = getAudio();
+          if (a && a.paused) {
+            a.volume = targetVolume(theme.type, volumeRef.current);
+            a.play().catch(() => {});
+          }
+        };
+        document.addEventListener('click',      retryHandlerRef.current, { once: true });
+        document.addEventListener('keydown',    retryHandlerRef.current, { once: true });
+        document.addEventListener('touchstart', retryHandlerRef.current, { once: true });
+      });
+    }
   }, []);
 
   /**
@@ -181,8 +202,14 @@ export function useAudio() {
     });
   }, [getSfxCtx]);
 
-  // Close SFX context on unmount (not the audio element — that's shared)
+  // Cleanup on unmount: close SFX context and remove any pending retry listener
   useEffect(() => () => {
+    if (retryHandlerRef.current) {
+      document.removeEventListener('click',      retryHandlerRef.current);
+      document.removeEventListener('keydown',    retryHandlerRef.current);
+      document.removeEventListener('touchstart', retryHandlerRef.current);
+      retryHandlerRef.current = null;
+    }
     if (ctxRef.current) {
       ctxRef.current.close();
       ctxRef.current = null;

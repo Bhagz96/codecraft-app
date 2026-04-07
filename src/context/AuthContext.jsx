@@ -116,10 +116,13 @@ export function AuthProvider({ children }) {
         // TOKEN_REFRESHED — silent JWT rotation, nothing changed.
         // INITIAL_SESSION — handled by getSession() above.
         // SIGNED_OUT     — can fire spuriously; explicit logout handled in signOut().
+        // USER_UPDATED   — fired by supabase.auth.updateUser() (e.g. hero metadata
+        //                  save); user object is already in state, no reload needed.
         if (
           event === "TOKEN_REFRESHED" ||
           event === "INITIAL_SESSION" ||
-          event === "SIGNED_OUT"
+          event === "SIGNED_OUT"    ||
+          event === "USER_UPDATED"
         ) return;
 
         setLoading(true);

@@ -136,7 +136,8 @@ export async function persistHeroToCloud() {
   const hero = getHero();
   if (!hero.created) return;
 
-  const heroRow = {
+  // Fire-and-forget heroes table sync — table may be unavailable (RLS/missing)
+  supabase.from("heroes").upsert({
     user_id:    _currentUserId,
     name:       hero.name,
     color:      hero.color,
@@ -149,20 +150,14 @@ export async function persistHeroToCloud() {
     defense:    hero.defense,
     gold:       hero.gold,
     updated_at: new Date().toISOString(),
-  };
+  }, { onConflict: "user_id" }).then(() => {}, () => {});
 
-  // Save to heroes table (best-effort)
+  // Save to user_metadata — the most reliable cross-device backup.
+  // Piggybacks on Supabase Auth (always works if login works).
+  // NOTE: this triggers USER_UPDATED in onAuthStateChange which we ignore.
+  // A 5-second timeout prevents this from blocking hero creation indefinitely.
   try {
-    await supabase.from("heroes").upsert(heroRow, { onConflict: "user_id" });
-  } catch {
-    // Non-critical — hero is safe in localStorage and user_metadata
-  }
-
-  // Save to user_metadata as the most reliable cross-device backup.
-  // This piggybacks on Supabase Auth which is always functional if the user
-  // can log in. Supabase merges new keys into existing metadata.
-  try {
-    await supabase.auth.updateUser({
+    const updatePromise = supabase.auth.updateUser({
       data: {
         hero_name:       hero.name,
         hero_color:      hero.color,
@@ -176,6 +171,8 @@ export async function persistHeroToCloud() {
         hero_gold:       hero.gold,
       },
     });
+    const timeout = new Promise((resolve) => setTimeout(resolve, 5000));
+    await Promise.race([updatePromise, timeout]);
   } catch {
     // Non-critical
   }
