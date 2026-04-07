@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { setCurrentUser as setHeroUser, loadHeroFromCloud } from "../data/hero";
 import { setCurrentUser as setProgressUser, loadProgressFromCloud } from "../data/progress";
@@ -28,8 +28,15 @@ export function AuthProvider({ children }) {
   const [skillLevel, setSkillLevel] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Tracks the user ID that was fully initialized by initUser.
+  // onAuthStateChange uses this to skip re-initialization when the
+  // same user is already loaded — preventing transient state resets
+  // that would incorrectly redirect authenticated users to /skill-level.
+  const initializedUserIdRef = useRef(null);
+
   async function initUser(supabaseUser) {
     if (!supabaseUser) {
+      initializedUserIdRef.current = null;
       setHeroUser(null);
       setProgressUser(null);
       setSessionUser(null);
@@ -83,6 +90,10 @@ export function AuthProvider({ children }) {
       setSkillLevel(resolved);
       writeCachedSkillLevel(supabaseUser.id, resolved);
     }
+
+    // Mark this user as fully initialized so onAuthStateChange can skip
+    // redundant re-runs for background SIGNED_IN events (e.g. token refresh).
+    initializedUserIdRef.current = supabaseUser.id;
   }
 
   useEffect(() => {
@@ -113,12 +124,6 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // The initial load is fully handled by getSession() above with proper
-        // loading state. This subscription only handles genuine session changes
-        // (e.g. sign-in from another tab, OAuth callback). We intentionally
-        // never set loading=true here so in-app navigation never shows the
-        // loading screen due to a background token refresh or SIGNED_IN echo.
-        //
         // INITIAL_SESSION — duplicate of getSession(), skip.
         // TOKEN_REFRESHED — silent JWT rotation, nothing changed.
         // USER_UPDATED    — fired by updateUser() (hero metadata); skip.
@@ -130,7 +135,15 @@ export function AuthProvider({ children }) {
           event === "SIGNED_OUT"
         ) return;
 
-        // Silently refresh auth state without showing a loading screen.
+        // Skip if this is the same user already fully initialized by getSession().
+        // Supabase often echoes SIGNED_IN during navigation (e.g. background
+        // token refresh); re-running initUser would transiently clear isAdmin /
+        // skillLevel before the async DB fetch completes, causing incorrect
+        // redirects to /skill-level for existing users and admins.
+        if (session?.user?.id && session.user.id === initializedUserIdRef.current) return;
+
+        // Genuine new sign-in (different user, OAuth redirect, cross-tab login).
+        // Silently update auth state without a loading screen.
         try {
           await initUser(session?.user ?? null);
         } catch (err) {

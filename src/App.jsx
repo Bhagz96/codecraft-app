@@ -65,7 +65,9 @@ function AppRoutes() {
         path="/skill-level"
         element={
           <ProtectedRoute requiresSkillLevel={false}>
-            <SkillLevelPage />
+            <AdminRedirect>
+              <SkillLevelPage />
+            </AdminRedirect>
           </ProtectedRoute>
         }
       />
