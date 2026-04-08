@@ -1,43 +1,25 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  createMAB,
-  updateMAB,
-  getArmStats,
-  MODALITIES,
-  REWARD_TYPES,
-  SUPPORT_STRATEGIES,
-  SUPPORT_DESCRIPTIONS,
-} from "../mab/engine";
-import { getAllSessions, clearSessions } from "../mab/sessionTracker";
-import { resetProgress } from "../data/progress";
-import { resetHero } from "../data/hero";
 import { supabase, supabaseAdmin } from "../lib/supabase";
 import { exportToExcel } from "../utils/exportExcel";
 
 const CONCEPTS = ["variables", "loops", "conditions"];
 
-const strategyShortLabels = {
+const MODE_LABELS = {
   worked_example_first:  "📖 Example First",
-  hint_first:            "💡 Hint First",
   try_first_then_hint:   "🎯 Try → Hint",
   step_by_step_scaffold: "🪜 Scaffold",
-  explain_after_error:   "🔄 Explain on Error",
 };
-const strategyTextColors = {
+const MODE_COLORS = {
   worked_example_first:  "text-amber-400",
-  hint_first:            "text-yellow-400",
   try_first_then_hint:   "text-cyan-400",
   step_by_step_scaffold: "text-violet-400",
-  explain_after_error:   "text-emerald-400",
 };
-const strategyBarColors = {
+const MODE_BAR = {
   worked_example_first:  "from-amber-500 to-yellow-500",
-  hint_first:            "from-yellow-500 to-lime-500",
   try_first_then_hint:   "from-cyan-500 to-teal-500",
   step_by_step_scaffold: "from-violet-500 to-purple-500",
-  explain_after_error:   "from-emerald-500 to-green-500",
 };
 
 // ─── USERS TAB ───────────────────────────────────────────────────────────────
@@ -68,19 +50,13 @@ function UsersTab() {
   useEffect(() => { fetchUsers(); }, []);
 
   async function fetchUsers() {
-    // Prefer the service-role client (bypasses RLS) — fall back to anon client
     const client = supabaseAdmin || supabase;
-    if (!client) {
-      setError("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
+    if (!client) { setError("Supabase not configured."); setLoading(false); return; }
+    setLoading(true); setError(null);
     try {
       const { data: profiles, error: pErr } = await client
         .from("profiles")
-        .select("id, nus_id, first_name, last_name, skill_level, role");
+        .select("id, nus_id, first_name, last_name, role, instruction_mode");
       if (pErr) throw pErr;
 
       const { data: heroRows } = await client
@@ -94,38 +70,31 @@ function UsersTab() {
       const heroMap = {};
       (heroRows || []).forEach((h) => { heroMap[h.user_id] = h; });
 
-      // Heroes are also saved to user_metadata (the reliable fallback used by
-      // persistHeroToCloud). If the heroes table has no row for a user — e.g.
-      // because RLS blocked the insert — pull stats from auth metadata instead.
+      // Fallback: pull hero stats from auth metadata if heroes table is empty
       if (supabaseAdmin) {
         try {
           const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
           (authUsers || []).forEach((au) => {
             if (!heroMap[au.id] && au.user_metadata?.hero_name) {
               const m = au.user_metadata;
-              heroMap[au.id] = {
-                user_id: au.id,
-                name:    m.hero_name,
-                level:   m.hero_level   ?? 1,
-                xp:      m.hero_xp      ?? 0,
-                health:  m.hero_health  ?? 100,
-                attack:  m.hero_attack  ?? 10,
-                defense: m.hero_defense ?? 5,
-                gold:    m.hero_gold    ?? 0,
-                color:   m.hero_color   ?? "#00d4ff",
-              };
+              heroMap[au.id] = { user_id: au.id, name: m.hero_name, level: m.hero_level ?? 1,
+                xp: m.hero_xp ?? 0, health: m.hero_health ?? 100, attack: m.hero_attack ?? 10,
+                defense: m.hero_defense ?? 5, gold: m.hero_gold ?? 0, color: m.hero_color ?? "#00d4ff" };
             }
           });
-        } catch {
-          // auth admin API unavailable — heroes table is the only source
-        }
+        } catch {}
       }
 
+      // Progress: highest level per concept + review completion
       const progressMap = {};
       (progress || []).forEach((p) => {
         if (!progressMap[p.user_id]) progressMap[p.user_id] = {};
-        const cur = progressMap[p.user_id][p.concept_id] || 0;
-        if (p.highest_level > cur) progressMap[p.user_id][p.concept_id] = p.highest_level;
+        if (p.concept_id.endsWith("_review")) {
+          progressMap[p.user_id][p.concept_id] = true;
+        } else {
+          const cur = progressMap[p.user_id][p.concept_id] || 0;
+          if ((p.highest_level || 0) > cur) progressMap[p.user_id][p.concept_id] = p.highest_level;
+        }
       });
 
       setUsers((profiles || []).map((p) => ({
@@ -133,52 +102,26 @@ function UsersTab() {
         hero: heroMap[p.id] || null,
         progress: progressMap[p.id] || {},
       })));
-    } catch (err) {
-      setError(err.message);
-    }
+    } catch (err) { setError(err.message); }
     setLoading(false);
   }
 
-  if (loading) return (
-    <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">
-      Loading users...
-    </div>
-  );
-
-  if (error) return (
-    <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono">
-      <p className="font-semibold mb-1">Error loading users</p>
-      <p className="text-red-400/70 text-xs">{error}</p>
-      <p className="text-red-500/60 text-xs mt-2">
-        Make sure RLS admin policies are configured in Supabase and the service role key is set.
-      </p>
-    </div>
-  );
-
-  if (users.length === 0) return (
-    <div className="text-center py-16 text-gray-600 font-mono text-sm">
-      // no registered users yet
-    </div>
-  );
+  if (loading) return <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading users...</div>;
+  if (error) return <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono"><p className="font-semibold mb-1">Error loading users</p><p className="text-xs">{error}</p></div>;
+  if (users.length === 0) return <div className="text-center py-16 text-gray-600 font-mono text-sm">// no registered users yet</div>;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-gray-500 text-xs font-mono">
-          {users.length} registered user{users.length !== 1 ? "s" : ""}
-        </p>
-        <button
-          onClick={fetchUsers}
-          className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer"
-        >
-          ↺ Refresh
-        </button>
+        <p className="text-gray-500 text-xs font-mono">{users.length} registered user{users.length !== 1 ? "s" : ""}</p>
+        <button onClick={fetchUsers} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh</button>
       </div>
 
       {users.map((u) => {
         const isExpanded = expandedUser === u.id;
         const totalLevels = CONCEPTS.reduce((sum, c) => sum + (u.progress[c] || 0), 0);
         const displayName = [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
+        const mode = u.instruction_mode;
 
         return (
           <div key={u.id} className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
@@ -186,46 +129,43 @@ function UsersTab() {
               onClick={() => setExpandedUser(isExpanded ? null : u.id)}
               className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-[#1c2333] transition-colors cursor-pointer"
             >
-              {/* Avatar initial */}
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 border border-[#30363d] flex items-center justify-center text-sm font-bold text-cyan-400 font-mono shrink-0">
                 {(u.first_name?.[0] || u.nus_id?.[0] || "?").toUpperCase()}
               </div>
-
-              {/* Name + NUS ID */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-gray-100 font-semibold text-sm">{displayName}</span>
                   <span className="text-gray-500 font-mono text-xs">{u.nus_id || "—"}</span>
                   {u.role === "admin" && (
-                    <span className="text-[10px] font-mono text-orange-400 bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 rounded">
-                      admin
-                    </span>
+                    <span className="text-[10px] font-mono text-orange-400 bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 rounded">admin</span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-gray-600 text-xs font-mono capitalize">
-                    {u.skill_level || "no level set"}
-                  </span>
+                  {mode ? (
+                    <span className={`text-xs font-mono ${MODE_COLORS[mode] || "text-gray-400"}`}>
+                      {MODE_LABELS[mode] || mode}
+                    </span>
+                  ) : (
+                    <span className="text-gray-600 text-xs font-mono">no mode assigned</span>
+                  )}
                   {u.hero && (
                     <span className="text-gray-600 text-xs">
-                      Hero:{" "}
-                      <span style={{ color: u.hero.color || "#00d4ff" }}>{u.hero.name}</span>{" "}
-                      Lv{u.hero.level}
+                      Hero: <span style={{ color: u.hero.color || "#00d4ff" }}>{u.hero.name}</span> Lv{u.hero.level}
                     </span>
                   )}
                 </div>
               </div>
-
-              {/* Progress summary (desktop) */}
               <div className="hidden sm:flex gap-3 items-center shrink-0">
                 {CONCEPTS.map((c) => {
                   const lvl = u.progress[c] || 0;
+                  const reviewed = u.progress[`${c}_review`] || false;
                   return (
                     <div key={c} className="text-center">
                       <div className={`text-xs font-bold font-mono ${lvl >= 5 ? "text-green-400" : lvl > 0 ? "text-cyan-400" : "text-gray-700"}`}>
                         {lvl}/5
                       </div>
                       <div className="text-[10px] text-gray-600 capitalize">{c.slice(0, 4)}</div>
+                      {reviewed && <div className="text-[9px] text-violet-400">✓rev</div>}
                     </div>
                   );
                 })}
@@ -234,49 +174,41 @@ function UsersTab() {
                   <div className="text-[10px] text-gray-600">total</div>
                 </div>
               </div>
-
               <span className="text-gray-600 text-xs ml-2">{isExpanded ? "▲" : "▼"}</span>
             </button>
 
             {isExpanded && (
               <div className="border-t border-[#30363d] px-5 py-4 bg-[#0d1117]/50">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Progress breakdown */}
                   <div>
                     <p className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Concept Progress</p>
                     <div className="space-y-3">
                       {CONCEPTS.map((c) => {
                         const lvl = u.progress[c] || 0;
+                        const reviewed = u.progress[`${c}_review`] || false;
                         return (
                           <div key={c}>
                             <div className="flex justify-between text-xs mb-1">
                               <span className="text-gray-300 capitalize">{c}</span>
-                              <span className="text-gray-500 font-mono">{lvl}/5 levels</span>
+                              <span className="text-gray-500 font-mono">
+                                {lvl}/5 levels {reviewed && <span className="text-violet-400">· reviewed ✓</span>}
+                              </span>
                             </div>
                             <div className="bg-[#161b22] rounded-full h-2 border border-[#30363d] overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-600 transition-all"
-                                style={{ width: `${(lvl / 5) * 100}%` }}
-                              />
+                              <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-600 transition-all" style={{ width: `${(lvl / 5) * 100}%` }} />
                             </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-
-                  {/* Hero stats */}
                   <div>
                     <p className="text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Hero Stats</p>
                     {u.hero ? (
                       <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                        {[
-                          ["Name",  u.hero.name,   "text-gray-100"],
-                          ["Level", u.hero.level,  "text-violet-400"],
-                          ["XP",    u.hero.xp,     "text-purple-400"],
-                          ["HP",    u.hero.health, "text-green-400"],
-                          ["ATK",   u.hero.attack, "text-red-400"],
-                          ["Gold",  u.hero.gold,   "text-yellow-400"],
+                        {[["Name", u.hero.name, "text-gray-100"], ["Level", u.hero.level, "text-violet-400"],
+                          ["XP", u.hero.xp, "text-purple-400"], ["HP", u.hero.health, "text-green-400"],
+                          ["ATK", u.hero.attack, "text-red-400"], ["Gold", u.hero.gold, "text-yellow-400"],
                         ].map(([label, val, color]) => (
                           <div key={label} className="flex justify-between bg-[#161b22] rounded px-2 py-1.5 border border-[#30363d]">
                             <span className="text-gray-600">{label}</span>
@@ -289,10 +221,9 @@ function UsersTab() {
                     )}
                   </div>
                 </div>
-
                 <div className="mt-4 pt-4 border-t border-[#21262d] flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-wrap gap-4 text-xs font-mono text-gray-600">
-                    <span>Skill: <span className="text-gray-400 capitalize">{u.skill_level || "not set"}</span></span>
+                    <span>Mode: <span className={MODE_COLORS[mode] || "text-gray-400"}>{MODE_LABELS[mode] || "not assigned"}</span></span>
                     <span>ID: <span className="text-gray-700">{u.id.slice(0, 8)}…</span></span>
                   </div>
                   {u.role !== "admin" && (
@@ -314,378 +245,6 @@ function UsersTab() {
   );
 }
 
-// ─── MAB TAB ─────────────────────────────────────────────────────────────────
-
-function MABTab() {
-  const [supportStats, setSupportStats] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [profiles, setProfiles] = useState([]);
-  const [dbLoading, setDbLoading] = useState(true);
-
-  const loadLocalData = () => {
-    const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
-    const supportMAB = savedSupportMAB
-      ? JSON.parse(savedSupportMAB)
-      : createMAB(SUPPORT_STRATEGIES, 0.3);
-    setSupportStats(getArmStats(supportMAB));
-  };
-
-  const loadDbData = async () => {
-    const client = supabaseAdmin || supabase;
-    if (!client) { setDbLoading(false); return; }
-    setDbLoading(true);
-    try {
-      const [{ data: sess }, { data: prof }] = await Promise.all([
-        client.from("sessions").select(
-          "user_id, concept_id, level, modality, support_strategy, completed, " +
-          "correct_count, total_steps, first_try_count, total_hints, reward_score, time_spent, timestamp"
-        ).limit(500),
-        client.from("profiles").select("id, skill_level"),
-      ]);
-      setSessions(sess || []);
-      setProfiles(prof || []);
-    } catch {}
-    setDbLoading(false);
-  };
-
-  useEffect(() => { loadLocalData(); loadDbData(); }, []);
-
-  const simulateData = () => {
-    const supportMAB = createMAB(SUPPORT_STRATEGIES, 0.3);
-    const supportRates = {
-      try_first_then_hint:   0.85,
-      explain_after_error:   0.75,
-      worked_example_first:  0.70,
-      hint_first:            0.60,
-      step_by_step_scaffold: 0.55,
-    };
-    const concepts = ["variables", "loops", "conditions"];
-    const fakeSessions = [];
-    for (let i = 0; i < 50; i++) {
-      const support = SUPPORT_STRATEGIES[Math.floor(Math.random() * SUPPORT_STRATEGIES.length)];
-      const mod = MODALITIES[Math.floor(Math.random() * MODALITIES.length)];
-      const rew = REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)];
-      const rewardScore = Math.random() < supportRates[support]
-        ? parseFloat((0.6 + Math.random() * 0.4).toFixed(2))
-        : parseFloat((Math.random() * 0.4).toFixed(2));
-      const totalSteps = 3 + Math.floor(Math.random() * 3);
-      const correctCount = Math.min(totalSteps, Math.round(rewardScore * totalSteps + Math.random()));
-      const firstTryCount = Math.round(correctCount * (0.5 + Math.random() * 0.5));
-      updateMAB(supportMAB, support, rewardScore);
-      fakeSessions.push({
-        sessionId: "sim_" + i,
-        userId: "sim_user",
-        conceptId: concepts[i % 3],
-        level: (i % 5) + 1,
-        modality: mod, rewardType: rew, supportStrategy: support,
-        completed: rewardScore > 0,
-        timeSpent: Math.floor(Math.random() * 120) + 30,
-        score: Math.floor(Math.random() * 500),
-        correctCount, totalSteps, firstTryCount, rewardScore,
-        timestamp: new Date(Date.now() - (50 - i) * 3600000).toISOString(),
-      });
-    }
-    localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
-    localStorage.setItem("kidcode_sessions", JSON.stringify(fakeSessions));
-    loadLocalData();
-  };
-
-  const resetData = () => {
-    localStorage.removeItem("kidcode_supportMAB");
-    localStorage.removeItem("kidcode_modalityMAB");
-    localStorage.removeItem("kidcode_rewardMAB");
-    clearSessions();
-    resetProgress();
-    resetHero();
-    loadLocalData();
-  };
-
-  const getBestArm = (stats) =>
-    stats.length === 0 ? null : stats.reduce((b, c) => c.averageReward > b.averageReward ? c : b);
-
-  const bestSupport = getBestArm(supportStats);
-
-  // ── Compute stats from Supabase sessions ──────────────────────────────────
-  const skillMap = {};
-  profiles.forEach((p) => { skillMap[p.id] = p.skill_level; });
-
-  // Strategy stats from real sessions
-  const strategyDbStats = SUPPORT_STRATEGIES.map((s) => {
-    const rows = sessions.filter((r) => r.support_strategy === s);
-    const avg = rows.length === 0 ? 0
-      : rows.reduce((sum, r) => sum + (r.reward_score ?? 0), 0) / rows.length;
-    const correctPct = rows.length === 0 ? 0
-      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
-    return { arm: s, count: rows.length, avgReward: avg, correctPct };
-  }).sort((a, b) => b.avgReward - a.avgReward);
-
-  // Modality stats from real sessions
-  const modalityDbStats = MODALITIES.map((m) => {
-    const rows = sessions.filter((r) => r.modality === m);
-    const correctPct = rows.length === 0 ? 0
-      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
-    return { key: m, count: rows.length, correctPct };
-  });
-
-  // Skill-level breakdown
-  const SKILL_LEVELS = ["beginner", "intermediate", "expert"];
-  const skillStats = SKILL_LEVELS.map((level) => {
-    const userIds = profiles.filter((p) => p.skill_level === level).map((p) => p.id);
-    const rows = sessions.filter((r) => userIds.includes(r.user_id));
-    const avgCorrect = rows.length === 0 ? null
-      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
-    const avgHints = rows.length === 0 ? null
-      : (rows.reduce((sum, r) => sum + (r.total_hints ?? 0), 0) / rows.length).toFixed(1);
-    const avgTime = rows.length === 0 ? null
-      : Math.round(rows.reduce((sum, r) => sum + (r.time_spent ?? 0), 0) / rows.length);
-    const completionRate = rows.length === 0 ? null
-      : Math.round(rows.filter((r) => r.completed).length / rows.length * 100);
-    return { level, userCount: userIds.length, sessionCount: rows.length, avgCorrect, avgHints, avgTime, completionRate };
-  });
-
-  const skillColors = {
-    beginner: "text-green-400", intermediate: "text-yellow-400", expert: "text-orange-400",
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Design note */}
-      <div className="bg-[#161b22] border border-violet-500/30 rounded-xl px-5 py-4 text-xs font-mono space-y-1">
-        <p className="text-violet-400 font-semibold uppercase tracking-wider text-[10px] mb-2">How the algorithm works</p>
-        <p className="text-gray-300">
-          <span className="text-cyan-400">Support strategy</span> — selected by the <span className="text-cyan-400">ε-greedy MAB</span> (ε = 0.3).
-          The bandit learns which scaffolding method (e.g. "Try First → Hint", "Worked Example") produces the highest correctness score and exploits it over time.
-        </p>
-        <p className="text-gray-300">
-          <span className="text-violet-400">Teaching modality</span> — assigned <span className="text-violet-400">randomly</span> each session (Code Simulation, Drag &amp; Drop, Speed Coding).
-          Modality is <em>not</em> controlled by the MAB; it is rotated uniformly so each format gets equal exposure.
-        </p>
-      </div>
-
-      <div className="flex gap-3 flex-wrap">
-        <button onClick={() => loadDbData()} className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:bg-cyan-500/20 transition-colors text-sm cursor-pointer">
-          ↺ Refresh from Supabase
-        </button>
-        <button onClick={simulateData} className="bg-violet-500/10 border border-violet-500/30 text-violet-400 font-medium px-4 py-2 rounded-lg hover:bg-violet-500/20 transition-colors text-sm cursor-pointer">
-          Simulate 50 Sessions (local)
-        </button>
-        <button onClick={resetData} className="bg-red-500/10 border border-red-500/30 text-red-400 font-medium px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors text-sm cursor-pointer">
-          Reset Local Data
-        </button>
-      </div>
-
-      {dbLoading && (
-        <p className="text-cyan-400 font-mono text-sm animate-pulse">Loading live data from Supabase…</p>
-      )}
-
-      {/* ── Performance by Skill Level (Supabase) ── */}
-      {!dbLoading && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-gray-100 mb-1">
-            Performance by Skill Level
-            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
-          </h2>
-          <p className="text-xs text-gray-500 mb-5">How beginners, intermediates, and experts compare across all sessions.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {skillStats.map(({ level, userCount, sessionCount, avgCorrect, avgHints, avgTime, completionRate }) => (
-              <div key={level} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d]">
-                <p className={`font-semibold capitalize text-sm mb-3 ${skillColors[level]}`}>{level}</p>
-                <div className="space-y-2 text-xs font-mono">
-                  <div className="flex justify-between"><span className="text-gray-500">Users</span><span className="text-gray-300">{userCount}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Sessions</span><span className="text-gray-300">{sessionCount}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Avg correct</span><span className={avgCorrect == null ? "text-gray-600" : avgCorrect >= 70 ? "text-green-400" : avgCorrect >= 40 ? "text-yellow-400" : "text-red-400"}>{avgCorrect == null ? "—" : `${avgCorrect}%`}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Completion</span><span className="text-gray-300">{completionRate == null ? "—" : `${completionRate}%`}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Avg hints</span><span className="text-gray-300">{avgHints ?? "—"}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Avg time</span><span className="text-gray-300">{avgTime == null ? "—" : `${avgTime}s`}</span></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Best strategy per skill level (Supabase) ── */}
-      {!dbLoading && sessions.length > 0 && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-gray-100 mb-1">
-            Best Strategy per Skill Level
-            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
-          </h2>
-          <p className="text-xs text-gray-500 mb-5">
-            Which instructional strategy works best for each learner group — the key insight for deploying personalised MAB variants.
-          </p>
-          <div className="space-y-6">
-            {SKILL_LEVELS.map((lvl) => {
-              const userIds = profiles.filter((p) => p.skill_level === lvl).map((p) => p.id);
-              const lvlSessions = sessions.filter((s) => userIds.includes(s.user_id));
-              if (lvlSessions.length === 0) return (
-                <div key={lvl}>
-                  <p className={`text-sm font-semibold capitalize mb-2 ${skillColors[lvl]}`}>{lvl}</p>
-                  <p className="text-gray-700 text-xs font-mono">// no sessions yet for this group</p>
-                </div>
-              );
-              const byStrategy = SUPPORT_STRATEGIES.map((s) => {
-                const rows = lvlSessions.filter((r) => r.support_strategy === s);
-                const correctPct = rows.length === 0 ? null
-                  : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
-                const avgReward = rows.length === 0 ? null
-                  : rows.reduce((sum, r) => sum + (r.reward_score ?? 0), 0) / rows.length;
-                return { arm: s, count: rows.length, correctPct, avgReward };
-              }).filter((s) => s.count > 0).sort((a, b) => (b.avgReward ?? 0) - (a.avgReward ?? 0));
-
-              const best = byStrategy[0];
-              return (
-                <div key={lvl}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <p className={`text-sm font-semibold capitalize ${skillColors[lvl]}`}>{lvl}</p>
-                    {best && (
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${strategyTextColors[best.arm]} bg-current/5 border-current/20`}>
-                        Best: {strategyShortLabels[best.arm]} — {best.correctPct}% correct
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {byStrategy.map(({ arm, count, correctPct, avgReward }) => {
-                      const maxR = Math.max(...byStrategy.map((s) => s.avgReward ?? 0), 0.01);
-                      return (
-                        <div key={arm} className="flex items-center gap-3">
-                          <span className={`text-[10px] font-mono w-36 shrink-0 ${strategyTextColors[arm]}`}>
-                            {strategyShortLabels[arm]}
-                          </span>
-                          <div className="flex-1 bg-[#0d1117] rounded-full h-2 overflow-hidden border border-[#30363d]">
-                            <div
-                              className={`h-full bg-gradient-to-r ${strategyBarColors[arm]} rounded-full transition-all duration-500`}
-                              style={{ width: `${((avgReward ?? 0) / maxR) * 100}%` }}
-                            />
-                          </div>
-                          <span className="text-gray-500 text-[10px] font-mono w-28 text-right shrink-0">
-                            {count} sess · {correctPct}% correct
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Strategy effectiveness (Supabase) ── */}
-      {!dbLoading && sessions.length > 0 && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-gray-100 mb-1">
-            Strategy Effectiveness
-            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
-          </h2>
-          <p className="text-xs text-gray-500 mb-5">Avg correctness rate per instructional strategy across all real sessions.</p>
-          <div className="space-y-3">
-            {strategyDbStats.map(({ arm, count, avgReward, correctPct }) => {
-              const maxReward = Math.max(...strategyDbStats.map((s) => s.avgReward), 0.01);
-              return (
-                <div key={arm}>
-                  <div className="flex justify-between items-baseline mb-1">
-                    <span className={`text-xs font-mono font-medium ${strategyTextColors[arm] || "text-gray-400"}`}>
-                      {strategyShortLabels[arm] || arm}
-                    </span>
-                    <span className="text-gray-500 text-xs">{count} sessions · {correctPct}% correct · {(avgReward * 100).toFixed(0)}% reward</span>
-                  </div>
-                  <div className="bg-[#0d1117] rounded-full h-2.5 overflow-hidden border border-[#30363d]">
-                    <div
-                      className={`h-full bg-gradient-to-r ${strategyBarColors[arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
-                      style={{ width: count === 0 ? "0%" : `${(avgReward / maxReward) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Modality effectiveness (Supabase) ── */}
-      {!dbLoading && sessions.length > 0 && (
-        <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-gray-100 mb-1">
-            Modality Effectiveness
-            <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
-          </h2>
-          <p className="text-xs text-gray-500 mb-4">Which teaching format produces the highest correctness rate.</p>
-          <div className="grid grid-cols-3 gap-4">
-            {modalityDbStats.map(({ key, count, correctPct }) => (
-              <div key={key} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d] text-center">
-                <p className="text-gray-300 font-mono text-xs mb-2">
-                  {{ codeSimulation: ">_ Code", dragDrop: "{ } Drag", speedCoding: "⚡ Speed" }[key]}
-                </p>
-                <p className={`text-2xl font-bold font-mono ${correctPct >= 70 ? "text-green-400" : correctPct >= 40 ? "text-yellow-400" : "text-red-400"}`}>
-                  {count === 0 ? "—" : `${correctPct}%`}
-                </p>
-                <p className="text-gray-600 text-[10px] mt-1">{count} sessions</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── MAB Algorithm State (local) ── */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-bold text-gray-100">
-              MAB Algorithm State
-              <span className="ml-2 text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">local browser</span>
-            </h2>
-            <p className="text-xs text-gray-500 mt-1">ε-greedy bandit state for this browser session. Reflects the algorithm&apos;s current arm preferences.</p>
-          </div>
-        </div>
-        {bestSupport && bestSupport.count > 0 && (
-          <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 mb-5">
-            <p className="text-green-400 font-medium text-sm">
-              Current leader: <strong>{strategyShortLabels[bestSupport.arm]}</strong>
-              {" — "}avg learning score <strong>{(bestSupport.averageReward * 100).toFixed(0)}%</strong>
-              <span className="text-green-500/60 text-xs ml-2">({bestSupport.count} pulls)</span>
-            </p>
-          </div>
-        )}
-        {supportStats.length === 0 || supportStats.every((s) => s.count === 0) ? (
-          <p className="text-gray-600 text-sm font-mono">// no local MAB data — play some levels or simulate</p>
-        ) : (
-          <div className="space-y-4">
-            {supportStats.map((stat) => {
-              const maxCount = Math.max(...supportStats.map((s) => s.count), 1);
-              const barWidth = stat.count === 0 ? 0 : (stat.count / maxCount) * 100;
-              return (
-                <div key={stat.arm}>
-                  <div className="flex justify-between items-baseline mb-1.5">
-                    <div className="flex items-baseline gap-2 min-w-0 pr-4">
-                      <span className={`font-mono text-xs font-medium shrink-0 ${strategyTextColors[stat.arm] || "text-gray-400"}`}>
-                        {strategyShortLabels[stat.arm] || stat.arm}
-                      </span>
-                      <span className="text-gray-600 text-[10px] truncate hidden sm:inline">
-                        {SUPPORT_DESCRIPTIONS[stat.arm]}
-                      </span>
-                    </div>
-                    <span className="text-gray-500 text-xs shrink-0">
-                      {stat.count} pulls · {(stat.averageReward * 100).toFixed(0)}% avg
-                    </span>
-                  </div>
-                  <div className="bg-[#0d1117] rounded-full h-3 overflow-hidden border border-[#30363d]">
-                    <div
-                      className={`h-full bg-gradient-to-r ${strategyBarColors[stat.arm] || "from-gray-500 to-gray-600"} rounded-full transition-all duration-500`}
-                      style={{ width: `${barWidth}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── SESSIONS TAB ────────────────────────────────────────────────────────────
 
 function SessionsTab() {
@@ -694,7 +253,32 @@ function SessionsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [filter, setFilter] = useState("all"); // all | lessons | reviews
   const [deletingId, setDeletingId] = useState(null);
+
+  useEffect(() => { fetchSessions(); }, []);
+
+  async function fetchSessions() {
+    const client = supabaseAdmin || supabase;
+    if (!client) { setError("Supabase not configured."); setLoading(false); return; }
+    setLoading(true); setError(null);
+    try {
+      const [{ data, error: err }, { data: profiles }] = await Promise.all([
+        client.from("sessions").select(
+          "id, session_id, user_id, concept_id, level, modality, support_strategy, " +
+          "completed, time_spent, correct_count, total_steps, first_try_count, " +
+          "total_attempts, total_hints, scaffold_used, reward_score, step_details, timestamp"
+        ).order("timestamp", { ascending: false }).limit(300),
+        client.from("profiles").select("id, first_name, last_name, nus_id, instruction_mode"),
+      ]);
+      if (err) throw err;
+      const map = {};
+      (profiles || []).forEach((p) => { map[p.id] = p; });
+      setUserMap(map);
+      setSessions(data || []);
+    } catch (err) { setError(err.message); }
+    setLoading(false);
+  }
 
   async function deleteSession(sessionId) {
     const client = supabaseAdmin || supabase;
@@ -706,72 +290,33 @@ function SessionsTab() {
     setDeletingId(null);
   }
 
-  useEffect(() => { fetchSessions(); }, []);
+  if (loading) return <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading sessions...</div>;
+  if (error) return <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono"><p className="font-semibold mb-1">Error</p><p className="text-xs">{error}</p></div>;
 
-  async function fetchSessions() {
-    const client = supabaseAdmin || supabase;
-    if (!client) {
-      setError("Supabase is not configured.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const [{ data, error: err }, { data: profiles }] = await Promise.all([
-        client
-          .from("sessions")
-          .select(
-            "id, session_id, user_id, concept_id, level, modality, support_strategy, " +
-            "completed, time_spent, score, correct_count, total_steps, first_try_count, " +
-            "total_attempts, total_hints, scaffold_used, reward_score, step_details, timestamp"
-          )
-          .order("timestamp", { ascending: false })
-          .limit(200),
-        client.from("profiles").select("id, first_name, last_name, nus_id, skill_level"),
-      ]);
-      if (err) throw err;
-      const map = {};
-      (profiles || []).forEach((p) => { map[p.id] = p; });
-      setUserMap(map);
-      setSessions(data || []);
-    } catch (err) {
-      setError(err.message);
-    }
-    setLoading(false);
-  }
+  const isReview = (s) => s.level === 0 || s.support_strategy === "review";
+  const filtered = filter === "reviews" ? sessions.filter(isReview)
+    : filter === "lessons" ? sessions.filter((s) => !isReview(s))
+    : sessions;
 
-  if (loading) return (
-    <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading sessions...</div>
-  );
-
-  if (error) return (
-    <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono">
-      <p className="font-semibold mb-1">Error loading sessions</p>
-      <p className="text-red-400/70 text-xs">{error}</p>
-    </div>
-  );
-
-  if (sessions.length === 0) return (
-    <div className="text-center py-16 text-gray-600 font-mono text-sm">// no sessions recorded yet</div>
-  );
-
-  const strategyColor = {
-    worked_example_first:  "text-amber-400",
-    hint_first:            "text-yellow-400",
-    try_first_then_hint:   "text-cyan-400",
-    step_by_step_scaffold: "text-violet-400",
-    explain_after_error:   "text-emerald-400",
-  };
+  const reviewCount = sessions.filter(isReview).length;
+  const lessonCount = sessions.length - reviewCount;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-gray-500 text-xs font-mono">{sessions.length} sessions (most recent first)</p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
+        <div className="flex gap-1 bg-[#0d1117] border border-[#30363d] rounded-xl p-1">
+          {[["all", `All (${sessions.length})`], ["lessons", `Lessons (${lessonCount})`], ["reviews", `Reviews (${reviewCount})`]].map(([key, label]) => (
+            <button key={key} onClick={() => setFilter(key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${filter === key ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white" : "text-gray-500 hover:text-gray-300"}`}
+            >{label}</button>
+          ))}
+        </div>
         <button onClick={fetchSessions} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh</button>
       </div>
 
-      {sessions.map((s) => {
+      {filtered.length === 0 && <div className="text-center py-16 text-gray-600 font-mono text-sm">// no sessions recorded yet</div>}
+
+      {filtered.map((s) => {
         const isOpen = expanded === s.id;
         const pct = s.total_steps > 0 ? Math.round((s.correct_count / s.total_steps) * 100) : 0;
         const date = new Date(s.timestamp).toLocaleString();
@@ -779,60 +324,55 @@ function SessionsTab() {
         const userName = profile
           ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.nus_id || "—"
           : s.user_id?.slice(0, 8) + "…";
-        const skillBadgeColor = {
-          beginner: "text-green-400 bg-green-500/10 border-green-500/20",
-          intermediate: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-          expert: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-        }[profile?.skill_level] || "text-gray-500 bg-gray-500/10 border-gray-500/20";
+        const mode = profile?.instruction_mode;
+        const reviewSession = isReview(s);
 
         return (
-          <div key={s.id} className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden">
-            {/* Row header */}
+          <div key={s.id} className={`border rounded-xl overflow-hidden ${reviewSession ? "bg-[#13111f] border-violet-500/20" : "bg-[#161b22] border-[#30363d]"}`}>
             <button
               onClick={() => setExpanded(isOpen ? null : s.id)}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#1c2330] transition-colors cursor-pointer"
             >
-              <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${s.completed ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-gray-500 border-gray-600/30"}`}>
-                {s.completed ? "✓" : "⏸"}
-              </span>
+              {reviewSession ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border text-violet-400 border-violet-500/30 bg-violet-500/10 shrink-0">review</span>
+              ) : (
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-full border shrink-0 ${s.completed ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-gray-500 border-gray-600/30"}`}>
+                  {s.completed ? "✓" : "⏸"}
+                </span>
+              )}
               <span className="text-gray-300 text-xs font-mono flex-1 truncate">
-                {s.concept_id} L{s.level} — {s.modality}
+                {s.concept_id} {reviewSession ? "— Chapter Review" : `L${s.level} — ${s.modality}`}
               </span>
-              <span className={`text-xs font-mono ${strategyColor[s.support_strategy] || "text-gray-400"}`}>
-                {s.support_strategy?.replace(/_/g, " ")}
-              </span>
+              {mode && (
+                <span className={`text-[10px] font-mono hidden sm:inline ${MODE_COLORS[mode] || "text-gray-400"}`}>
+                  {MODE_LABELS[mode] || mode}
+                </span>
+              )}
               <span className="text-gray-400 text-xs font-mono w-16 text-right">{pct}% correct</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border hidden sm:inline ${skillBadgeColor}`}>
-                {profile?.skill_level || "?"}
-              </span>
               <span className="text-gray-400 text-xs font-mono hidden md:block max-w-[120px] truncate">{userName}</span>
               <span className="text-gray-600 text-xs font-mono hidden lg:block w-36 text-right">{date}</span>
               <span className="text-gray-600 text-xs ml-1">{isOpen ? "▲" : "▼"}</span>
             </button>
 
-            {/* Expanded detail */}
             {isOpen && (
               <div className="px-4 pb-4 border-t border-[#30363d] pt-3 space-y-3">
-                {/* Aggregate metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
                   {[
-                    ["User",           s.user_id?.slice(0, 8) + "…"],
-                    ["Time",           s.time_spent + "s"],
-                    ["Score",          s.reward_score?.toFixed(2)],
-                    ["First-try",      `${s.first_try_count}/${s.total_steps}`],
-                    ["Attempts",       s.total_attempts],
-                    ["Hints",          s.total_hints],
-                    ["Scaffold",       s.scaffold_used ? "yes" : "no"],
-                    ["Reward type",    s.modality],
+                    ["User",       userName],
+                    ["Mode",       MODE_LABELS[mode] || mode || "—"],
+                    ["Time",       s.time_spent != null ? s.time_spent + "s" : "—"],
+                    ["Score",      s.reward_score?.toFixed(2) ?? "—"],
+                    ["Correct",    `${s.correct_count ?? "—"}/${s.total_steps ?? "—"}`],
+                    ["First-try",  `${s.first_try_count ?? "—"}/${s.total_steps ?? "—"}`],
+                    ["Hints",      s.total_hints ?? "—"],
+                    ["Scaffold",   s.scaffold_used ? "yes" : "no"],
                   ].map(([k, v]) => (
                     <div key={k} className="bg-[#0d1117] rounded-lg p-2">
                       <p className="text-gray-600 text-[10px] uppercase tracking-wider">{k}</p>
-                      <p className="text-gray-300 mt-0.5 truncate">{v ?? "—"}</p>
+                      <p className="text-gray-300 mt-0.5 truncate">{v}</p>
                     </div>
                   ))}
                 </div>
-
-                {/* Step-level breakdown */}
                 {s.step_details && s.step_details.length > 0 && (
                   <div>
                     <p className="text-gray-500 text-[10px] font-mono uppercase tracking-wider mb-2">Per-step detail</p>
@@ -840,9 +380,7 @@ function SessionsTab() {
                       {s.step_details.map((step, i) => (
                         <div key={i} className="flex items-center gap-3 text-xs font-mono bg-[#0d1117] rounded-lg px-3 py-1.5">
                           <span className="text-gray-600 w-6">#{step.stepIndex + 1}</span>
-                          <span className={step.correct ? "text-green-400" : "text-red-400"}>
-                            {step.correct ? "✓ correct" : "✗ wrong"}
-                          </span>
+                          <span className={step.correct ? "text-green-400" : "text-red-400"}>{step.correct ? "✓ correct" : "✗ wrong"}</span>
                           <span className="text-gray-500">{step.firstTry ? "first try" : `${step.attempts} attempts`}</span>
                           <span className="text-gray-500">{step.hintCount > 0 ? `${step.hintCount} hint${step.hintCount > 1 ? "s" : ""}` : "no hints"}</span>
                           <span className="ml-auto text-cyan-400">{step.rewardScore?.toFixed(2)}</span>
@@ -851,14 +389,9 @@ function SessionsTab() {
                     </div>
                   </div>
                 )}
-
-                {/* Delete */}
                 <div className="pt-2 flex justify-end">
-                  <button
-                    onClick={() => deleteSession(s.id)}
-                    disabled={deletingId === s.id}
-                    className="text-xs font-mono px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/15 transition-colors cursor-pointer disabled:opacity-50"
-                  >
+                  <button onClick={() => deleteSession(s.id)} disabled={deletingId === s.id}
+                    className="text-xs font-mono px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/15 transition-colors cursor-pointer disabled:opacity-50">
                     {deletingId === s.id ? "Deleting…" : "Delete this session"}
                   </button>
                 </div>
@@ -867,6 +400,202 @@ function SessionsTab() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── ANALYTICS TAB ───────────────────────────────────────────────────────────
+
+function AnalyticsTab() {
+  const [sessions, setSessions] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { fetchData(); }, []);
+
+  async function fetchData() {
+    const client = supabaseAdmin || supabase;
+    if (!client) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [{ data: sess }, { data: prof }] = await Promise.all([
+        client.from("sessions").select(
+          "user_id, concept_id, level, modality, support_strategy, completed, " +
+          "correct_count, total_steps, first_try_count, total_hints, reward_score, time_spent, timestamp"
+        ).limit(500),
+        client.from("profiles").select("id, instruction_mode"),
+      ]);
+      setSessions(sess || []);
+      setProfiles(prof || []);
+    } catch {}
+    setLoading(false);
+  }
+
+  const modeMap = {};
+  profiles.forEach((p) => { if (p.instruction_mode) modeMap[p.id] = p.instruction_mode; });
+
+  const MODES = ["worked_example_first", "try_first_then_hint", "step_by_step_scaffold"];
+
+  // Lesson sessions only (level > 0)
+  const lessonSessions = sessions.filter((s) => s.level > 0);
+  // Review sessions (level === 0)
+  const reviewSessions = sessions.filter((s) => s.level === 0 || s.support_strategy === "review");
+
+  // Stats per instruction mode
+  const modeStats = MODES.map((mode) => {
+    const userIds = profiles.filter((p) => p.instruction_mode === mode).map((p) => p.id);
+    const rows = lessonSessions.filter((s) => userIds.includes(s.user_id));
+    const reviews = reviewSessions.filter((s) => userIds.includes(s.user_id));
+    const avgCorrect = rows.length === 0 ? null
+      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+    const avgHints = rows.length === 0 ? null
+      : (rows.reduce((sum, r) => sum + (r.total_hints ?? 0), 0) / rows.length).toFixed(1);
+    const avgTime = rows.length === 0 ? null
+      : Math.round(rows.reduce((sum, r) => sum + (r.time_spent ?? 0), 0) / rows.length);
+    const completionRate = rows.length === 0 ? null
+      : Math.round(rows.filter((r) => r.completed).length / rows.length * 100);
+    const avgReviewScore = reviews.length === 0 ? null
+      : Math.round(reviews.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / reviews.length * 100);
+    return { mode, userCount: userIds.length, sessionCount: rows.length, reviewCount: reviews.length,
+      avgCorrect, avgHints, avgTime, completionRate, avgReviewScore };
+  });
+
+  // Modality breakdown
+  const MODALITIES = ["codeSimulation", "dragDrop", "speedCoding"];
+  const modalityStats = MODALITIES.map((m) => {
+    const rows = lessonSessions.filter((s) => s.modality === m);
+    const correctPct = rows.length === 0 ? null
+      : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+    return { key: m, count: rows.length, correctPct };
+  });
+
+  // Concept completion counts
+  const conceptStats = CONCEPTS.map((c) => {
+    const completedUsers = new Set(lessonSessions.filter((s) => s.concept_id === c && s.level === 5 && s.completed).map((s) => s.user_id)).size;
+    const reviewedUsers = new Set(reviewSessions.filter((s) => s.concept_id === c).map((s) => s.user_id)).size;
+    return { concept: c, completedUsers, reviewedUsers };
+  });
+
+  if (loading) return <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading analytics...</div>;
+
+  const totalSessions = lessonSessions.length;
+  const totalReviews = reviewSessions.length;
+  const totalUsers = profiles.length;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary row */}
+      <div className="grid grid-cols-3 gap-4">
+        {[["Total Users", totalUsers, "text-cyan-400"], ["Lesson Sessions", totalSessions, "text-violet-400"], ["Chapter Reviews", totalReviews, "text-amber-400"]].map(([label, val, color]) => (
+          <div key={label} className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 text-center">
+            <p className={`text-2xl font-bold font-mono ${color}`}>{val}</p>
+            <p className="text-gray-500 text-xs font-mono mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Instruction Mode Comparison — the core research table */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-gray-100 mb-1">
+          Instruction Mode Comparison
+          <span className="ml-2 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider align-middle">live · supabase</span>
+        </h2>
+        <p className="text-xs text-gray-500 mb-5">How each fixed instruction mode performs across all users. This is the core research metric.</p>
+        <div className="space-y-5">
+          {modeStats.map(({ mode, userCount, sessionCount, reviewCount, avgCorrect, avgHints, avgTime, completionRate, avgReviewScore }) => {
+            const maxCorrect = Math.max(...modeStats.map((m) => m.avgCorrect ?? 0), 1);
+            return (
+              <div key={mode}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-sm font-semibold ${MODE_COLORS[mode] || "text-gray-400"}`}>{MODE_LABELS[mode] || mode}</span>
+                  <span className="text-gray-600 text-xs font-mono">{userCount} users · {sessionCount} sessions</span>
+                </div>
+                <div className="mb-2">
+                  <div className="flex justify-between text-[10px] font-mono text-gray-600 mb-1">
+                    <span>Lesson correctness</span>
+                    <span>{avgCorrect == null ? "—" : `${avgCorrect}%`}</span>
+                  </div>
+                  <div className="bg-[#0d1117] rounded-full h-3 overflow-hidden border border-[#30363d]">
+                    <div className={`h-full bg-gradient-to-r ${MODE_BAR[mode]} rounded-full transition-all duration-500`}
+                      style={{ width: avgCorrect == null ? "0%" : `${(avgCorrect / maxCorrect) * 100}%` }} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
+                  {[
+                    ["Avg correct", avgCorrect == null ? "—" : `${avgCorrect}%`, avgCorrect == null ? "text-gray-600" : avgCorrect >= 70 ? "text-green-400" : avgCorrect >= 40 ? "text-yellow-400" : "text-red-400"],
+                    ["Completion", completionRate == null ? "—" : `${completionRate}%`, "text-gray-300"],
+                    ["Avg hints", avgHints ?? "—", "text-gray-300"],
+                    ["Avg time", avgTime == null ? "—" : `${avgTime}s`, "text-gray-300"],
+                    ["Review score", avgReviewScore == null ? "—" : `${avgReviewScore}%`, avgReviewScore == null ? "text-gray-600" : avgReviewScore >= 70 ? "text-green-400" : avgReviewScore >= 40 ? "text-yellow-400" : "text-red-400"],
+                  ].map(([label, val, color]) => (
+                    <div key={label} className="bg-[#0d1117] rounded-lg px-3 py-2 border border-[#30363d]">
+                      <p className="text-gray-600 text-[10px] uppercase tracking-wider">{label}</p>
+                      <p className={`font-semibold mt-0.5 ${color}`}>{val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Chapter Review Scores by Mode */}
+      {totalReviews > 0 && (
+        <div className="bg-[#161b22] border border-violet-500/20 rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">Chapter Review Scores by Mode</h2>
+          <p className="text-xs text-gray-500 mb-5">Post-concept assessment scores — how well each mode prepared users for the unscaffolded review.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {modeStats.map(({ mode, avgReviewScore, reviewCount }) => (
+              <div key={mode} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d] text-center">
+                <p className={`text-xs font-mono font-semibold mb-3 ${MODE_COLORS[mode]}`}>{MODE_LABELS[mode]}</p>
+                <p className={`text-3xl font-bold font-mono ${avgReviewScore == null ? "text-gray-700" : avgReviewScore >= 70 ? "text-green-400" : avgReviewScore >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                  {avgReviewScore == null ? "—" : `${avgReviewScore}%`}
+                </p>
+                <p className="text-gray-600 text-[10px] mt-1">{reviewCount} review{reviewCount !== 1 ? "s" : ""}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modality breakdown */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-gray-100 mb-1">Teaching Format Performance</h2>
+        <p className="text-xs text-gray-500 mb-4">Correctness rate per modality (randomly assigned — not controlled by instruction mode).</p>
+        <div className="grid grid-cols-3 gap-4">
+          {modalityStats.map(({ key, count, correctPct }) => (
+            <div key={key} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d] text-center">
+              <p className="text-gray-300 font-mono text-xs mb-2">{{ codeSimulation: ">_ Code", dragDrop: "{ } Drag", speedCoding: "⚡ Speed" }[key]}</p>
+              <p className={`text-2xl font-bold font-mono ${correctPct == null ? "text-gray-700" : correctPct >= 70 ? "text-green-400" : correctPct >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                {count === 0 ? "—" : `${correctPct}%`}
+              </p>
+              <p className="text-gray-600 text-[10px] mt-1">{count} sessions</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Concept progress */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-gray-100 mb-1">Concept Completion</h2>
+        <p className="text-xs text-gray-500 mb-4">How many users finished all 5 levels and completed the chapter review per concept.</p>
+        <div className="grid grid-cols-3 gap-4">
+          {conceptStats.map(({ concept, completedUsers, reviewedUsers }) => (
+            <div key={concept} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d] text-center">
+              <p className="text-gray-300 font-mono text-xs mb-3 capitalize">{concept}</p>
+              <div className="space-y-2 text-xs font-mono">
+                <div className="flex justify-between"><span className="text-gray-500">Completed</span><span className="text-cyan-400">{completedUsers} users</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Reviewed</span><span className="text-violet-400">{reviewedUsers} users</span></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={fetchData} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh analytics</button>
+      </div>
     </div>
   );
 }
@@ -887,64 +616,51 @@ function AdminDashboard() {
   return (
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-orange-400">
               CodeCraft Admin
             </h1>
-            <p className="text-gray-500 text-sm font-mono">Instructor Dashboard</p>
+            <p className="text-gray-500 text-sm font-mono">Instructor Dashboard — Beta</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={async () => {
                 setExporting(true);
-                try {
-                  await exportToExcel(supabaseAdmin || supabase);
-                } finally {
-                  setExporting(false);
-                }
+                try { await exportToExcel(supabaseAdmin || supabase); } finally { setExporting(false); }
               }}
               disabled={exporting}
-              className="bg-[#161b22] border border-cyan-500/40 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:border-cyan-400 hover:text-cyan-300 transition-colors text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#161b22] border border-cyan-500/40 text-cyan-400 font-medium px-4 py-2 rounded-lg hover:border-cyan-400 hover:text-cyan-300 transition-colors text-sm cursor-pointer disabled:opacity-50"
             >
               {exporting ? "Exporting…" : "⬇ Export Excel"}
             </button>
             <Link to="/" className="bg-[#161b22] border border-[#30363d] text-gray-300 font-medium px-4 py-2 rounded-lg hover:border-[#484f58] transition-colors text-sm">
               ← Back
             </Link>
-            <button
-              onClick={handleSignOut}
-              className="bg-[#161b22] border border-[#30363d] text-gray-400 font-medium px-4 py-2 rounded-lg hover:border-red-500/40 hover:text-red-400 transition-colors text-sm cursor-pointer"
-            >
+            <button onClick={handleSignOut}
+              className="bg-[#161b22] border border-[#30363d] text-gray-400 font-medium px-4 py-2 rounded-lg hover:border-red-500/40 hover:text-red-400 transition-colors text-sm cursor-pointer">
               Sign Out
             </button>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex bg-[#0d1117] rounded-xl p-1 mb-6 border border-[#30363d] w-fit gap-1">
           {[
-            { id: "users",    label: "👥 Users" },
-            { id: "sessions", label: "📋 Sessions" },
-            { id: "mab",      label: "📊 MAB Analytics" },
+            { id: "users",     label: "👥 Users" },
+            { id: "sessions",  label: "📋 Sessions" },
+            { id: "analytics", label: "📊 Analytics" },
           ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => setTab(t.id)}
               className={`px-5 py-2 rounded-lg text-sm font-mono font-semibold transition-all duration-200 cursor-pointer ${
-                tab === t.id
-                  ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow"
-                  : "text-gray-500 hover:text-gray-300"
+                tab === t.id ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white shadow" : "text-gray-500 hover:text-gray-300"
               }`}
-            >
-              {t.label}
-            </button>
+            >{t.label}</button>
           ))}
         </div>
 
-        {tab === "users"    && <UsersTab />}
-        {tab === "sessions" && <SessionsTab />}
-        {tab === "mab"      && <MABTab />}
+        {tab === "users"     && <UsersTab />}
+        {tab === "sessions"  && <SessionsTab />}
+        {tab === "analytics" && <AnalyticsTab />}
       </div>
     </div>
   );
