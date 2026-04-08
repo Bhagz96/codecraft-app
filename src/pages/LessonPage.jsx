@@ -526,16 +526,16 @@ function LessonPage() {
                 </div>
               )}
 
-              {/* Hint — slim inline strip, not a heavy box */}
-              {(hintVisible || shouldShowHintInitially) && !showWorkedExample && (
+              {/* Hint — not shown in worked_example_first mode */}
+              {supportStrategy !== "worked_example_first" && (hintVisible || shouldShowHintInitially) && !showWorkedExample && (
                 <div className="mt-3 pt-3 border-t border-[#30363d] flex gap-2 items-start">
                   <span className="text-yellow-400 text-[10px] font-mono uppercase tracking-wider flex-shrink-0 mt-0.5">Hint</span>
                   <p className="text-gray-400 text-xs leading-relaxed">{getHintForStep(step)}</p>
                 </div>
               )}
 
-              {/* Hint request button */}
-              {!hintVisible && !shouldShowHintInitially && feedback === null && !showWorkedExample && (
+              {/* Hint request button — not shown in worked_example_first mode */}
+              {supportStrategy !== "worked_example_first" && !hintVisible && !shouldShowHintInitially && feedback === null && !showWorkedExample && (
                 <button
                   onClick={() => { requestHint(); setTotalHints((p) => p + 1); }}
                   className="mt-3 text-yellow-500/50 text-xs font-mono hover:text-yellow-400 transition-colors cursor-pointer"
