@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import lessons from "../data/lessons";
 import { getAllProgress, isLevelUnlocked, getProgress } from "../data/progress";
 import { getHero, hasHero, createHero, persistHeroToCloud } from "../data/hero";
@@ -122,6 +122,7 @@ function FeatureCard({ icon, title, description, delay }) {
 }
 
 function HomePage() {
+  const navigate = useNavigate();
   const [heroExists, setHeroExists] = useState(hasHero());
   const [heroName, setHeroName] = useState("");
   const [selectedColor, setSelectedColor] = useState(HERO_COLORS[0].value);
@@ -132,7 +133,12 @@ function HomePage() {
   const progress = getAllProgress();
 
   // ── Auth ───────────────────────────────────────────────────────────
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, isGuest, signOut } = useAuth();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/login");
+  }
 
   // Re-check hero existence after auth loads (cloud hero may arrive after mount).
   // Only promote to true — never reset to false — so a just-created hero isn't
@@ -150,7 +156,15 @@ function HomePage() {
   }, [isMuted, startMusic]);
 
   const muteBtn = (
-    <div className="fixed top-3 right-3 z-50">
+    <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
+      {(user || isGuest) && (
+        <button
+          onClick={isGuest ? () => navigate("/login") : handleSignOut}
+          className="text-xs text-gray-500 hover:text-red-400 font-mono transition-colors cursor-pointer border border-[#30363d] hover:border-red-500/40 px-2 py-1 rounded-lg bg-[#0d1117]"
+        >
+          {isGuest ? "log in" : "sign out"}
+        </button>
+      )}
       <AudioControl
         isMuted={isMuted}
         toggleMute={toggleMute}
@@ -558,7 +572,7 @@ function HomePage() {
         {user && (
           <button
             onClick={signOut}
-            className="text-xs text-gray-600 hover:text-gray-400 font-mono transition-colors cursor-pointer"
+            className="text-xs text-gray-500 hover:text-red-400 font-mono transition-colors cursor-pointer border border-[#30363d] hover:border-red-500/40 px-2 py-1 rounded-lg"
           >
             sign out
           </button>
