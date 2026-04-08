@@ -170,7 +170,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Your hero earned XP! Trace through to find the new total.",
               dragDrop: "Arrange the code to calculate your hero's new XP total.",
-              speedCoding: "Complete the code to add battle XP to your hero's score.",
+              speedCoding: "Your hero earned 30 XP in this battle. Complete the code to add exactly 30 to their score.",
             },
             gameAction: "heroCollectItem",
             sceneConfig: { statChange: "+30 XP", itemEmoji: "⭐", itemName: "XP orb" },
@@ -251,11 +251,11 @@ const lessons = [
               "f-strings start with f before the quote. Inside curly braces, Python inserts the variable's value. This is how games build dynamic text — every message can be personalized!",
           },
           {
-            instruction: "Show the hero's health bar in the game HUD.",
+            instruction: "Use len() to count the number of characters in your hero's name.",
             instructions: {
-              codeSimulation: "What number does the health bar display show?",
+              codeSimulation: "What number does len() return for your hero's name?",
               dragDrop: "Arrange the code to measure and display the hero's name length.",
-              speedCoding: "Complete the code to check how long your hero's name is.",
+              speedCoding: "Complete the code to count how many characters are in your hero's name using len().",
             },
             gameAction: "heroStoreData",
             codeSnippet: 'hero = "{heroName}"\nname_length = len(hero)\nprint(f"Name: {hero} ({name_length} chars)")',
@@ -505,7 +505,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Trace through the climb loop — what step numbers does {heroName} take?",
               dragDrop: "Arrange the code to make {heroName} climb 3 steps.",
-              speedCoding: "The hero climbs a set number of steps. What value goes in range() to loop the right number of times?",
+              speedCoding: "The hero needs to climb exactly 3 steps. What value goes in range() to make the loop run 3 times?",
             },
             gameAction: "heroClimbSteps",
             storyContext: "The mountain has many steps. Loops let your hero climb them automatically.",
@@ -520,7 +520,7 @@ const lessons = [
             ],
             options: ["0, 1, 2", "1, 2, 3", "0, 1, 2, 3"],
             correctIndex: 0,
-            hint: "range(n) runs the loop exactly n times. Ask yourself: how many steps should the hero take in total?",
+            hint: "range(n) runs the loop exactly n times. The hero needs to climb 3 steps — so what number goes in range()?",
             explanation:
               "range(3) generates 0, 1, 2 — it starts at 0 and stops BEFORE 3. So the loop runs 3 times. This is how games animate step-by-step movement!",
           },
@@ -845,7 +845,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Which enemies pass the power filter?",
               dragDrop: "Arrange the code to filter enemies by power level.",
-              speedCoding: "Only powerful enemies make it through the filter. What threshold separates strong from weak?",
+              speedCoding: "Enemies with power 30 or above are considered strong. Complete the filter to keep only those enemies — what number goes in the blank?",
             },
             gameAction: "heroFightWave",
             codeSnippet: "enemies = [10, 25, 30, 45, 50, 15]\nstrong = [e for e in enemies if e >= 30]\nprint(f\"Strong enemies: {strong}\")",
@@ -859,7 +859,7 @@ const lessons = [
             ],
             options: ["[30, 45, 50]", "[10, 25, 15]", "[10, 25, 30, 45, 50, 15]"],
             correctIndex: 0,
-            hint: "The variable is called 'strong' — look at the enemy values [10, 25, 30, 45, 50, 15] and decide which ones you'd call strong. What's the natural cutoff between the small and large values?",
+            hint: "The threshold is 30 — enemies with power >= 30 count as strong. Look at the list [10, 25, 30, 45, 50, 15]: which values would pass e >= 30?",
             explanation:
               "List comprehension with a filter: keeps only values >= 30. One line replaces a loop + if statement. Games use this to filter enemies, items, and more!",
           },
@@ -891,7 +891,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Which attacks get boosted and by how much?",
               dragDrop: "Arrange the code to filter and boost strong attacks.",
-              speedCoding: "Only strong attacks earn the +10 boost. Scan the attacks list — what minimum score should qualify?",
+              speedCoding: "Only attacks of 30 or more earn the +10 boost. What minimum score goes in the filter?",
             },
             gameAction: "heroFightWave",
             codeSnippet: "attacks = [15, 40, 25, 50, 35]\nboosted = [a + 10 for a in attacks if a >= 30]\nprint(f\"Boosted attacks: {boosted}\")",
@@ -905,7 +905,7 @@ const lessons = [
             ],
             options: ["[50, 60, 45]", "[40, 50, 35]", "[25, 50, 35, 60, 45]"],
             correctIndex: 0,
-            hint: "Look at the attacks list [15, 40, 25, 50, 35]. Which attacks are clearly strong vs weak? Find the value that divides the list into two groups — that's your threshold.",
+            hint: "The threshold is 30 — attacks of 30 or more get the boost. From [15, 40, 25, 50, 35], which values pass a >= 30 check? Those are the ones that get +10.",
             explanation:
               "Filter (>= 30) keeps 40, 50, 35. Then +10 each: 50, 60, 45. One line filters AND transforms — this is peak Python! Games use this for buff calculations.",
           },
