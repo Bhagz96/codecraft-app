@@ -99,25 +99,23 @@ export function AuthProvider({ children }) {
     }
 
     // Fetch role, skill_level, and instruction_mode from profiles table
-    // instruction_mode column may not exist yet — fall back gracefully
+    // instruction_mode column may not exist yet — check error and fall back
     let profile = null;
-    try {
-      const { data } = await supabase
+    const { data: profileData, error: profileErr } = await supabase
+      .from("profiles")
+      .select("role, skill_level, instruction_mode")
+      .eq("id", supabaseUser.id)
+      .maybeSingle();
+    if (!profileErr) {
+      profile = profileData;
+    } else {
+      // Likely column doesn't exist yet — retry without instruction_mode
+      const { data: profileData2 } = await supabase
         .from("profiles")
-        .select("role, skill_level, instruction_mode")
+        .select("role, skill_level")
         .eq("id", supabaseUser.id)
         .maybeSingle();
-      profile = data;
-    } catch {
-      // Column may not exist yet — try without instruction_mode
-      try {
-        const { data } = await supabase
-          .from("profiles")
-          .select("role, skill_level")
-          .eq("id", supabaseUser.id)
-          .maybeSingle();
-        profile = data;
-      } catch { /* non-critical */ }
+      profile = profileData2;
     }
 
     setIsAdmin(profile?.role === "admin");
