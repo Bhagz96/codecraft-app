@@ -5,7 +5,7 @@ import LessonPage from "./pages/LessonPage";
 import RewardPage from "./pages/RewardPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import LoginPage from "./pages/LoginPage";
-import SkillLevelPage from "./pages/SkillLevelPage";
+import ChapterReviewPage from "./pages/ChapterReviewPage";
 
 /**
  * Redirects unauthenticated visitors to /login.
@@ -13,12 +13,11 @@ import SkillLevelPage from "./pages/SkillLevelPage";
  * Set requiresSkillLevel={false} to skip the skill level check (used on
  * /skill-level itself so users aren't caught in a redirect loop).
  */
-function ProtectedRoute({ children, requiresSkillLevel = true }) {
-  const { user, isGuest, isAdmin, skillLevel, loading } = useAuth();
+// Beta: no skill-level gate — instructionMode is assigned automatically
+function ProtectedRoute({ children }) {
+  const { user, isGuest, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user && !isGuest) return <Navigate to="/login" replace />;
-  if (requiresSkillLevel && user && !isAdmin && !skillLevel)
-    return <Navigate to="/skill-level" replace />;
   return children;
 }
 
@@ -62,16 +61,6 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
-        path="/skill-level"
-        element={
-          <ProtectedRoute requiresSkillLevel={false}>
-            <AdminRedirect>
-              <SkillLevelPage />
-            </AdminRedirect>
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/"
         element={
           <ProtectedRoute>
@@ -84,7 +73,7 @@ function AppRoutes() {
       <Route
         path="/lesson/:conceptId/:level"
         element={
-          <ProtectedRoute requiresSkillLevel={false}>
+          <ProtectedRoute>
             <LessonPage />
           </ProtectedRoute>
         }
@@ -92,8 +81,16 @@ function AppRoutes() {
       <Route
         path="/reward"
         element={
-          <ProtectedRoute requiresSkillLevel={false}>
+          <ProtectedRoute>
             <RewardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/review/:conceptId"
+        element={
+          <ProtectedRoute>
+            <ChapterReviewPage />
           </ProtectedRoute>
         }
       />

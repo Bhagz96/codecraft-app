@@ -35,32 +35,28 @@ export const MODALITIES = ["codeSimulation", "dragDrop", "speedCoding"];
 // The three reward types (secondary MAB arms)
 export const REWARD_TYPES = ["badge", "coins", "mysteryBox"];
 
-// ── PRIMARY MAB: Instructional Support Strategies ──────────────────────
-// These control HOW the learner is supported during each question.
+// ── BETA: Fixed Instructional Modes (3 only) ───────────────────────────
+// In this beta, each user is assigned exactly one mode at sign-up.
+// The mode is fixed for their entire study journey — no MAB selection.
+// Removed: hint_first, explain_after_error
 export const SUPPORT_STRATEGIES = [
   "worked_example_first",    // Show a worked example before the question
-  "hint_first",              // Give a hint upfront before they attempt
   "try_first_then_hint",     // Let them try first, offer hint after wrong answer
   "step_by_step_scaffold",   // Break the problem into smaller guided steps
-  "explain_after_error",     // After wrong answer, explain then let them retry
 ];
 
 // Human-readable labels for support strategies
 export const SUPPORT_LABELS = {
-  worked_example_first:   "📖 Worked Example First",
-  hint_first:             "💡 Hint First",
-  try_first_then_hint:    "🎯 Try First → Hint",
-  step_by_step_scaffold:  "🪜 Step-by-Step Scaffold",
-  explain_after_error:    "🔄 Explain After Error",
+  worked_example_first:   "📖 Example First",
+  try_first_then_hint:    "🎯 Try → Hint",
+  step_by_step_scaffold:  "🪜 Scaffold",
 };
 
 // Short descriptions for each strategy (for admin dashboard)
 export const SUPPORT_DESCRIPTIONS = {
   worked_example_first:   "Shows a solved example before the question so the learner can study the pattern first.",
-  hint_first:             "Provides a contextual hint upfront to guide the learner's first attempt.",
   try_first_then_hint:    "Lets the learner attempt unaided first; offers a hint only after a wrong answer.",
   step_by_step_scaffold:  "Breaks the problem into smaller steps with guidance at each stage.",
-  explain_after_error:    "After a wrong answer, explains the concept before allowing a retry.",
 };
 
 /**

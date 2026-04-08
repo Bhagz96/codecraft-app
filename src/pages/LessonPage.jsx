@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { workedExamples } from "../data/workedExamples";
@@ -11,16 +11,12 @@ import SpeedCoding from "../components/SpeedCoding";
 import ConceptIntro from "../components/ConceptIntro";
 import GameScene from "../components/game/GameScene";
 import {
-  createMAB,
-  selectArm,
-  updateMAB,
   calculateRewardScore,
   MODALITIES,
   REWARD_TYPES,
-  SUPPORT_STRATEGIES,
 } from "../mab/engine";
 import { startSession, endSession, saveSession } from "../mab/sessionTracker";
-import { loadMABFromSupabase, incrementMABArm } from "../mab/supabase";
+import { useAuth } from "../context/AuthContext";
 import { useAudio } from "../hooks/useAudio";
 import { AudioControl } from "../components/AudioControl";
 
@@ -64,36 +60,22 @@ function LessonPage() {
   const stepIntroExample = levelNum === 1 ? workedExamples[`${conceptId}_1_0`] : null;
   const [showStepIntro, setShowStepIntro] = useState(!!(stepIntroExample?.intro));
 
-  // ── MAB arm selection ────────────────────────────────────────────
-  // Support strategy: MAB-optimised (learning signal)
-  // Modality + reward type: randomly assigned to avoid confounding
-  const { modality, rewardType, supportStrategy } = useMemo(() => {
-    const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
-    const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
-
-    return {
-      modality: MODALITIES[Math.floor(Math.random() * MODALITIES.length)],
-      rewardType: REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)],
-      supportStrategy: selectArm(supportMAB),
-    };
-  }, [conceptId, levelNum]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Beta: fixed instruction mode per user ────────────────────────
+  // Each user has a single instructionMode assigned at sign-up (stored in DB).
+  // Modality + reward type are still randomly assigned per session.
+  const { instructionMode } = useAuth();
+  const { modality, rewardType, supportStrategy } = useMemo(() => ({
+    modality: MODALITIES[Math.floor(Math.random() * MODALITIES.length)],
+    rewardType: REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)],
+    // Fall back to try_first_then_hint if instructionMode hasn't loaded yet
+    supportStrategy: instructionMode || "try_first_then_hint",
+  }), [conceptId, levelNum, instructionMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [currentStep, setCurrentStep] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [session] = useState(() => startSession(conceptId, levelNum, modality, rewardType, supportStrategy));
   const [sceneResult, setSceneResult] = useState(null);
-
-  // ── Sync global MAB state from Supabase on mount ─────────────────
-  // Loads the shared bandit counts into localStorage so the NEXT lesson
-  // session selects arms informed by all users, not just this device.
-  useEffect(() => {
-    loadMABFromSupabase().then((cloudMAB) => {
-      if (cloudMAB) {
-        localStorage.setItem("kidcode_supportMAB", JSON.stringify(cloudMAB));
-      }
-    }).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Audio ──────────────────────────────────────────────────────────
   const { playCorrect, playIncorrect, startMusic, stopMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
@@ -143,8 +125,8 @@ function LessonPage() {
     return workedExamples[key] || null;
   }, [conceptId, levelNum]);
 
-  // ── Support strategy: should hint show initially? ───────────────
-  const shouldShowHintInitially = supportStrategy === "hint_first";
+  // Beta: hint_first removed — no strategy pre-shows the hint
+  const shouldShowHintInitially = false;
 
   // ── Handle requesting a hint ────────────────────────────────────
   const requestHint = useCallback(() => {
@@ -154,12 +136,7 @@ function LessonPage() {
 
   // ── Handle answer ───────────────────────────────────────────────
   const handleAnswer = (chosenIndex) => {
-    if (feedback !== null && supportStrategy !== "explain_after_error") return;
-
-    // If we're showing explanation after error and user is retrying
-    if (showExplanation) {
-      setShowExplanation(false);
-    }
+    if (feedback !== null) return;
 
     const step = levelData.steps[currentStep];
     const isCorrect = chosenIndex === step.correctIndex;
@@ -172,7 +149,6 @@ function LessonPage() {
       if (isFirstTry) setFirstTryCount((prev) => prev + 1);
       setCorrectCount((prev) => prev + 1);
 
-      // Calculate per-question reward score
       const reward = calculateRewardScore({
         correct: true,
         firstTry: isFirstTry,
@@ -180,7 +156,6 @@ function LessonPage() {
         hintCount,
       });
 
-      // Record step detail
       setStepDetails((prev) => [...prev, {
         stepIndex: currentStep,
         correct: true,
@@ -190,24 +165,9 @@ function LessonPage() {
         rewardScore: reward,
       }]);
 
-      // Update support strategy MAB locally + sync to global Supabase state
-      const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
-      const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
-      updateMAB(supportMAB, supportStrategy, reward);
-      localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
-      incrementMABArm(supportStrategy, reward).catch(() => {});
-
       setFeedback("correct");
       setSceneResult("correct");
     } else {
-      // Wrong answer handling depends on strategy
-      if (supportStrategy === "explain_after_error" && currentAttempt === 1) {
-        // Show explanation and let them retry (don't set feedback yet)
-        setShowExplanation(true);
-        setSceneResult("incorrect");
-        return;
-      }
-
       if (supportStrategy === "try_first_then_hint" && currentAttempt === 1 && !hintVisible) {
         // Auto-show hint after first wrong attempt
         setHintVisible(true);
@@ -218,7 +178,6 @@ function LessonPage() {
         return;
       }
 
-      // Record incorrect step detail
       setStepDetails((prev) => [...prev, {
         stepIndex: currentStep,
         correct: false,
@@ -227,13 +186,6 @@ function LessonPage() {
         hintCount,
         rewardScore: 0,
       }]);
-
-      // Update support MAB with 0 reward for incorrect + sync globally
-      const savedSupportMAB = localStorage.getItem("kidcode_supportMAB");
-      const supportMAB = savedSupportMAB ? JSON.parse(savedSupportMAB) : createMAB(SUPPORT_STRATEGIES, 0.3);
-      updateMAB(supportMAB, supportStrategy, 0);
-      localStorage.setItem("kidcode_supportMAB", JSON.stringify(supportMAB));
-      incrementMABArm(supportStrategy, 0).catch(() => {});
 
       setFeedback("incorrect");
       setSceneResult("incorrect");
@@ -249,7 +201,7 @@ function LessonPage() {
       // Reset per-question state
       setAttempts(0);
       setHintCount(0);
-      setHintVisible(supportStrategy === "hint_first");
+      setHintVisible(false);
       setShowWorkedExample(supportStrategy === "worked_example_first");
       setShowExplanation(false);
       setStepScaffoldPhase(0);

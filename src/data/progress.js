@@ -77,6 +77,71 @@ export function completeLevel(conceptId, level) {
  */
 export function resetProgress() {
   localStorage.removeItem(getStorageKey());
+  if (_currentUserId) localStorage.removeItem(`kidcode_reviews_${_currentUserId}`);
+  else localStorage.removeItem("kidcode_reviews");
+}
+
+// ── Chapter Review Tracking (Beta) ────────────────────────────────────────
+// Tracks which concepts the user has completed the end-of-concept review for.
+
+function getReviewStorageKey() {
+  return _currentUserId ? `kidcode_reviews_${_currentUserId}` : "kidcode_reviews";
+}
+
+function getAllReviews() {
+  try {
+    const data = localStorage.getItem(getReviewStorageKey());
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Returns true if the user has completed the chapter review for this concept.
+ */
+export function isReviewCompleted(conceptId) {
+  return getAllReviews()[conceptId] === true;
+}
+
+/**
+ * Mark a concept's chapter review as completed.
+ * Syncs to Supabase user_progress using highest_level = 99 as a sentinel.
+ */
+export function completeReview(conceptId) {
+  const reviews = getAllReviews();
+  reviews[conceptId] = true;
+  localStorage.setItem(getReviewStorageKey(), JSON.stringify(reviews));
+
+  if (_currentUserId && supabase) {
+    supabase.from("user_progress").upsert({
+      user_id: _currentUserId,
+      concept_id: `${conceptId}_review`,
+      highest_level: 1,
+    }, { onConflict: "user_id,concept_id" }).then(() => {}, () => {});
+  }
+}
+
+/**
+ * Load review completion state from Supabase into localStorage.
+ * Called alongside loadProgressFromCloud on login.
+ */
+export async function loadReviewsFromCloud(userId) {
+  if (!supabase) return;
+  const { data } = await supabase
+    .from("user_progress")
+    .select("concept_id, highest_level")
+    .eq("user_id", userId)
+    .like("concept_id", "%_review");
+
+  if (data && data.length > 0) {
+    const reviews = {};
+    data.forEach((row) => {
+      const conceptId = row.concept_id.replace("_review", "");
+      reviews[conceptId] = true;
+    });
+    localStorage.setItem(`kidcode_reviews_${userId}`, JSON.stringify(reviews));
+  }
 }
 
 /**

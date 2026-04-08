@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { isReviewCompleted } from "../data/progress";
 import { useAudio } from "../hooks/useAudio";
 import { AudioControl } from "../components/AudioControl";
 
@@ -100,6 +101,9 @@ function RewardPage() {
   // Calculate next level
   const nextLevel = levelNum + 1;
   const concept = conceptId;
+  // After the final level (5), direct to chapter review if not yet completed
+  const isLastLevel = levelNum >= 5;
+  const reviewPending = isLastLevel && !isReviewCompleted(conceptId);
 
   // Score rating
   const scorePercent = totalSteps > 0 ? Math.round((correctCount / totalSteps) * 100) : 0;
@@ -262,8 +266,17 @@ function RewardPage() {
           animating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"
         }`}
       >
-        {/* Next level button (if exists) */}
-        {nextLevel <= 5 && (
+        {/* Chapter review button after final level */}
+        {reviewPending && (
+          <Link
+            to={`/review/${concept}`}
+            className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-center"
+          >
+            📝 Chapter Review →
+          </Link>
+        )}
+        {/* Next level button (if not on final level) */}
+        {!isLastLevel && (
           <Link
             to={`/lesson/${concept}/${nextLevel}`}
             className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold px-6 py-3 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-center"

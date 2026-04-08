@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { setCurrentUser as setHeroUser, loadHeroFromCloud } from "../data/hero";
-import { setCurrentUser as setProgressUser, loadProgressFromCloud } from "../data/progress";
+import { setCurrentUser as setProgressUser, loadProgressFromCloud, loadReviewsFromCloud } from "../data/progress";
+import { SUPPORT_STRATEGIES } from "../mab/engine";
 import { setCurrentUser as setSessionUser } from "../mab/sessionTracker";
 
 const AuthContext = createContext(null);
 
-// ─── Skill-level localStorage helpers (keyed by userId so users don't share) ──
+// ─── Skill-level localStorage helpers (kept for DB read compatibility) ────────
 function skillLevelKey(userId) {
   return userId ? `kidcode_skill_level_${userId}` : null;
 }
@@ -21,11 +22,30 @@ function writeCachedSkillLevel(userId, level) {
   else localStorage.removeItem(key);
 }
 
+// ─── Instruction-mode localStorage helpers (Beta) ─────────────────────────────
+function instructionModeKey(userId) {
+  return userId ? `kidcode_instruction_mode_${userId}` : null;
+}
+function readCachedInstructionMode(userId) {
+  const key = instructionModeKey(userId);
+  return key ? localStorage.getItem(key) : null;
+}
+function writeCachedInstructionMode(userId, mode) {
+  const key = instructionModeKey(userId);
+  if (!key) return;
+  if (mode) localStorage.setItem(key, mode);
+  else localStorage.removeItem(key);
+}
+function randomInstructionMode() {
+  return SUPPORT_STRATEGIES[Math.floor(Math.random() * SUPPORT_STRATEGIES.length)];
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [skillLevel, setSkillLevel] = useState(null);
+  const [instructionMode, setInstructionMode] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Tracks the user ID that was fully initialized by initUser.
@@ -43,6 +63,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       setIsAdmin(false);
       setSkillLevel(null);
+      setInstructionMode(null);
       return;
     }
 
@@ -51,15 +72,18 @@ export function AuthProvider({ children }) {
     setProgressUser(supabaseUser.id);
     setSessionUser(supabaseUser.id);
 
+    // Restore instruction mode from localStorage immediately (fast, no network wait)
+    const cachedMode = readCachedInstructionMode(supabaseUser.id);
+    if (cachedMode) setInstructionMode(cachedMode);
+
     // Restore skill level from localStorage immediately (fast, no network wait)
     const cached = readCachedSkillLevel(supabaseUser.id);
     if (cached) setSkillLevel(cached);
 
     // Load cloud data into localStorage.
-    // Pass user_metadata so loadHeroFromCloud can fall back to it if the
-    // heroes table is unavailable (e.g. missing RLS policy).
     await loadHeroFromCloud(supabaseUser.id, supabaseUser.user_metadata ?? {});
     await loadProgressFromCloud(supabaseUser.id);
+    await loadReviewsFromCloud(supabaseUser.id);
 
     // Insert profile on first login only — never overwrite existing data
     const meta = supabaseUser.user_metadata || {};
@@ -74,25 +98,36 @@ export function AuthProvider({ children }) {
       // non-critical — profile may already exist
     }
 
-    // Fetch role + skill level from profiles table
+    // Fetch role, skill_level, and instruction_mode from profiles table
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, skill_level")
+      .select("role, skill_level, instruction_mode")
       .eq("id", supabaseUser.id)
       .maybeSingle();
 
     setIsAdmin(profile?.role === "admin");
 
-    // Use DB value if present; otherwise keep whatever is already in state/cache
+    // Resolve skill level (DB value preferred over cache)
     const dbLevel = profile?.skill_level ?? null;
-    const resolved = dbLevel || cached || null;
-    if (resolved) {
-      setSkillLevel(resolved);
-      writeCachedSkillLevel(supabaseUser.id, resolved);
+    const resolvedLevel = dbLevel || cached || null;
+    if (resolvedLevel) {
+      setSkillLevel(resolvedLevel);
+      writeCachedSkillLevel(supabaseUser.id, resolvedLevel);
     }
 
-    // Mark this user as fully initialized so onAuthStateChange can skip
-    // redundant re-runs for background SIGNED_IN events (e.g. token refresh).
+    // Resolve instruction mode — assign randomly on first login if not set
+    let resolvedMode = profile?.instruction_mode || cachedMode || null;
+    if (!resolvedMode) {
+      resolvedMode = randomInstructionMode();
+      // Persist the assignment to DB immediately so it's permanent
+      supabase.from("profiles")
+        .update({ instruction_mode: resolvedMode })
+        .eq("id", supabaseUser.id)
+        .then(() => {}, () => {});
+    }
+    setInstructionMode(resolvedMode);
+    writeCachedInstructionMode(supabaseUser.id, resolvedMode);
+
     initializedUserIdRef.current = supabaseUser.id;
   }
 
@@ -196,12 +231,13 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
-    // Clear localStorage cache for this user's skill level
     if (user) writeCachedSkillLevel(user.id, null);
+    if (user) writeCachedInstructionMode(user.id, null);
     // Clear all auth state so ProtectedRoute redirects to /login
     setUser(null);
     setIsAdmin(false);
     setSkillLevel(null);
+    setInstructionMode(null);
     setIsGuest(false);
     setHeroUser(null);
     setProgressUser(null);
@@ -211,7 +247,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, isAdmin, isGuest, skillLevel, loading,
+      user, isAdmin, isGuest, skillLevel, instructionMode, loading,
       signIn, signUp, signInWithGoogle,
       continueAsGuest, signOut, updateSkillLevel,
     }}>
@@ -222,7 +258,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   return useContext(AuthContext) ?? {
-    user: null, isAdmin: false, isGuest: true, skillLevel: null, loading: false,
+    user: null, isAdmin: false, isGuest: true, skillLevel: null,
+    instructionMode: null, loading: false,
     signIn: async () => ({}), signUp: async () => ({}),
     signInWithGoogle: async () => ({}),
     continueAsGuest: () => {}, signOut: async () => {},
