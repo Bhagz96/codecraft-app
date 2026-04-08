@@ -67,20 +67,18 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    setUser(supabaseUser);
+    // Wire up data modules immediately (needed for cloud loads below)
     setHeroUser(supabaseUser.id);
     setProgressUser(supabaseUser.id);
     setSessionUser(supabaseUser.id);
 
-    // Restore instruction mode from localStorage immediately (fast, no network wait)
+    // Restore caches from localStorage immediately (fast, no network wait)
     const cachedMode = readCachedInstructionMode(supabaseUser.id);
     if (cachedMode) setInstructionMode(cachedMode);
-
-    // Restore skill level from localStorage immediately (fast, no network wait)
     const cached = readCachedSkillLevel(supabaseUser.id);
     if (cached) setSkillLevel(cached);
 
-    // Load cloud data into localStorage.
+    // Load cloud data into localStorage
     await loadHeroFromCloud(supabaseUser.id, supabaseUser.user_metadata ?? {});
     await loadProgressFromCloud(supabaseUser.id);
     await loadReviewsFromCloud(supabaseUser.id);
@@ -99,7 +97,6 @@ export function AuthProvider({ children }) {
     }
 
     // Fetch role, skill_level, and instruction_mode from profiles table
-    // instruction_mode column may not exist yet — check error and fall back
     let profile = null;
     const { data: profileData, error: profileErr } = await supabase
       .from("profiles")
@@ -109,7 +106,6 @@ export function AuthProvider({ children }) {
     if (!profileErr) {
       profile = profileData;
     } else {
-      // Likely column doesn't exist yet — retry without instruction_mode
       const { data: profileData2 } = await supabase
         .from("profiles")
         .select("role, skill_level")
@@ -118,9 +114,7 @@ export function AuthProvider({ children }) {
       profile = profileData2;
     }
 
-    setIsAdmin(profile?.role === "admin");
-
-    // Resolve skill level (DB value preferred over cache)
+    // Resolve skill level
     const dbLevel = profile?.skill_level ?? null;
     const resolvedLevel = dbLevel || cached || null;
     if (resolvedLevel) {
@@ -132,7 +126,6 @@ export function AuthProvider({ children }) {
     let resolvedMode = profile?.instruction_mode || cachedMode || null;
     if (!resolvedMode) {
       resolvedMode = randomInstructionMode();
-      // Persist the assignment to DB immediately so it's permanent
       supabase.from("profiles")
         .update({ instruction_mode: resolvedMode })
         .eq("id", supabaseUser.id)
@@ -140,6 +133,11 @@ export function AuthProvider({ children }) {
     }
     setInstructionMode(resolvedMode);
     writeCachedInstructionMode(supabaseUser.id, resolvedMode);
+
+    // Set isAdmin BEFORE setUser so AdminRedirect already has the correct value
+    // when it first renders — prevents the brief story-page flash for admin logins.
+    setIsAdmin(profile?.role === "admin");
+    setUser(supabaseUser);
 
     initializedUserIdRef.current = supabaseUser.id;
   }
