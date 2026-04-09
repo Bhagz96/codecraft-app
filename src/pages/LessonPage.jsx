@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import lessons from "../data/lessons";
 import { workedExamples } from "../data/workedExamples";
+import { scaffoldGuides } from "../data/scaffoldGuides";
 import { completeLevel } from "../data/progress";
 import { getHero, awardXP, persistHeroToCloud } from "../data/hero";
 import { injectHeroIntoLevel } from "../data/lessonTemplates";
@@ -123,6 +124,13 @@ function LessonPage() {
   const getWorkedExample = useCallback((stepIndex) => {
     const key = `${conceptId}_${levelNum}_${stepIndex}`;
     return workedExamples[key] || null;
+  }, [conceptId, levelNum]);
+
+  // ── Scaffold guide lookup ─────────────────────────────────────────
+  // Returns a 3-element array of phase texts specific to this question.
+  const getScaffoldGuide = useCallback((stepIndex) => {
+    const key = `${conceptId}_${levelNum}_${stepIndex}`;
+    return scaffoldGuides[key] || null;
   }, [conceptId, levelNum]);
 
   // Beta: hint_first removed — no strategy pre-shows the hint
@@ -500,47 +508,28 @@ function LessonPage() {
                 <p className="text-gray-400 text-xs font-mono mt-1.5">{step.instruction}</p>
               )}
 
-              {/* Step-by-step scaffold — progressive concept teaching, no hints */}
-              {supportStrategy === "step_by_step_scaffold" && feedback === null && !showWorkedExample && (
-                <div className="mt-3 pt-3 border-t border-[#30363d]">
-                  <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1.5">
-                    Guide {stepScaffoldPhase + 1} of 3
-                  </p>
-                  <p className="text-gray-300 text-xs leading-relaxed">
-                    {/* Variables — teach assignment rules → tracing → reading print() */}
-                    {conceptId === "variables" && stepScaffoldPhase === 0 &&
-                      "In Python, a variable stores exactly one value at a time. When you write the same variable twice — like hero_hp = 0 then hero_hp = 100 — the second line replaces the first. Only the last assigned value is kept."}
-                    {conceptId === "variables" && stepScaffoldPhase === 1 &&
-                      "Read the code line by line and track each variable as you go. Write down what value each variable holds after every assignment. The value a variable holds is what gets used when Python reaches the next line that references it."}
-                    {conceptId === "variables" && stepScaffoldPhase === 2 &&
-                      "Find the print() call and look at what's inside it. Whatever value that variable (or expression) holds at that exact moment in the code is precisely what gets printed. Match that value to one of the answer choices."}
-
-                    {/* Loops — teach range/iteration count → per-iteration tracing → accumulate result */}
-                    {conceptId === "loops" && stepScaffoldPhase === 0 &&
-                      "range(n) always starts at 0 and stops before n, so range(3) produces 0, 1, 2 — exactly 3 values. A for loop runs its body once for each value in the range or list. Knowing the count tells you how many times everything inside repeats."}
-                    {conceptId === "loops" && stepScaffoldPhase === 1 &&
-                      "Go through the loop one pass at a time. On each pass, replace the loop variable with its current value (0, then 1, then 2, etc.) and work out what the loop body produces. If there's an accumulator variable like total, update it after each pass."}
-                    {conceptId === "loops" && stepScaffoldPhase === 2 &&
-                      "Collect all the outputs from every iteration in order. If the loop builds a running total, add each pass's contribution step by step to get the final value. The combined result across all iterations is your answer."}
-
-                    {/* Conditions — teach True/False evaluation → substitute values → trace branch */}
-                    {conceptId === "conditions" && stepScaffoldPhase === 0 &&
-                      "A condition like x > 10 always evaluates to either True or False — nothing else. The if block only runs when the condition is True. If it's False, Python skips the if block and runs the else block (or skips entirely if there's no else)."}
-                    {conceptId === "conditions" && stepScaffoldPhase === 1 &&
-                      "Substitute the real variable values into the condition. For example: if energy = 15 and the condition is energy >= 20, you get 15 >= 20. Ask yourself: is that statement true or false? That single True or False determines everything that follows."}
-                    {conceptId === "conditions" && stepScaffoldPhase === 2 &&
-                      "You now know whether the condition is True or False. The if branch runs only when True — the else branch runs only when False. Locate the output for that branch in the code, then find that matching value in the answer choices."}
-                  </p>
-                  {stepScaffoldPhase < 2 && (
-                    <button
-                      onClick={() => setStepScaffoldPhase((p) => p + 1)}
-                      className="mt-2 text-violet-400 text-xs font-mono hover:text-violet-300 transition-colors cursor-pointer"
-                    >
-                      More support →
-                    </button>
-                  )}
-                </div>
-              )}
+              {/* Step-by-step scaffold — question-specific progressive teaching, no hints */}
+              {supportStrategy === "step_by_step_scaffold" && feedback === null && !showWorkedExample && (() => {
+                const guides = getScaffoldGuide(currentStep);
+                const guideText = guides?.[stepScaffoldPhase];
+                if (!guideText) return null;
+                return (
+                  <div className="mt-3 pt-3 border-t border-[#30363d]">
+                    <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1.5">
+                      Guide {stepScaffoldPhase + 1} of 3
+                    </p>
+                    <p className="text-gray-300 text-xs leading-relaxed">{guideText}</p>
+                    {stepScaffoldPhase < 2 && (
+                      <button
+                        onClick={() => setStepScaffoldPhase((p) => p + 1)}
+                        className="mt-2 text-violet-400 text-xs font-mono hover:text-violet-300 transition-colors cursor-pointer"
+                      >
+                        More support →
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Hint — not shown in worked_example_first or step_by_step_scaffold mode */}
               {supportStrategy !== "worked_example_first" && supportStrategy !== "step_by_step_scaffold" && (hintVisible || shouldShowHintInitially) && !showWorkedExample && (
