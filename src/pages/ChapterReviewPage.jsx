@@ -16,7 +16,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import lessons from "../data/lessons";
-import { injectHeroIntoLevel } from "../data/lessonTemplates";
+import { reviewQuestions } from "../data/reviewQuestions";
 import { getHero } from "../data/hero";
 import { completeReview } from "../data/progress";
 import { supabase } from "../lib/supabase";
@@ -24,34 +24,20 @@ import { useAuth } from "../context/AuthContext";
 import { useAudio } from "../hooks/useAudio";
 import { AudioControl } from "../components/AudioControl";
 
-// Pick the representative question from each level:
-// last step (most complex) of each level's steps array.
-function buildReviewQuestions(concept) {
-  return concept.levels.map((lvl) => {
-    const step = lvl.steps[lvl.steps.length - 1];
-    return {
-      levelNum: lvl.level,
-      levelTitle: lvl.title,
-      ...step,
-    };
-  });
-}
-
 function ChapterReviewPage() {
   const { conceptId } = useParams();
   const navigate = useNavigate();
-  const { user, instructionMode } = useAuth();
+  const { user } = useAuth();
   const { startMusic, isMuted, toggleMute, musicVolume, setMusicVolume } = useAudio();
 
+  // Concept metadata (title, color) — still sourced from lessons.js
   const concept = lessons.find((l) => l.id === conceptId);
   const hero = getHero();
   const heroName = hero?.name || "Hero";
 
-  const rawQuestions = concept ? buildReviewQuestions(concept) : [];
-  // Inject hero name into question text
-  const questions = rawQuestions.map((q) => ({
+  // Dedicated review questions — never repeated from mini-levels, same for every user
+  const questions = (reviewQuestions[conceptId] || []).map((q) => ({
     ...q,
-    instruction: q.instruction?.replace(/\{heroName\}/g, heroName) ?? q.instruction,
     traceQuestion: q.traceQuestion?.replace(/\{heroName\}/g, heroName) ?? q.traceQuestion,
   }));
 
@@ -181,7 +167,7 @@ function ChapterReviewPage() {
           />
         </div>
         <p className="text-xs text-gray-600 font-mono mt-1">
-          Level {question.levelNum}: {question.levelTitle} — no hints available
+          Question {question.levelNum}: {question.levelTitle} — no hints available
         </p>
       </div>
 
