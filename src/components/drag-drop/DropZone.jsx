@@ -43,7 +43,7 @@ function DropZone({ placedBlocks, totalSlots, codeBlocks, onDrop, onRemove, isDi
             onDragLeave={handleDragLeave}
             onDrop={(e) => !isDisabled && handleDrop(e, slotIndex)}
             className={`
-              flex items-center gap-3 px-4 py-3 rounded-lg
+              flex items-start gap-3 px-4 py-3 rounded-lg
               border-2 border-dashed transition-all duration-200
               min-h-[48px]
               ${isDisabled
@@ -59,14 +59,14 @@ function DropZone({ placedBlocks, totalSlots, codeBlocks, onDrop, onRemove, isDi
             `}
           >
             {/* Line number */}
-            <span className="text-gray-600 font-mono text-xs w-6 text-right flex-shrink-0">
+            <span className="text-gray-600 font-mono text-xs w-6 text-right flex-shrink-0 pt-[1px]">
               {slotIndex + 1}
             </span>
 
             {/* Block content or empty slot */}
             {hasBlock ? (
-              <div className="flex items-center justify-between flex-1">
-                <span className="font-mono text-sm text-violet-300 whitespace-pre overflow-hidden text-ellipsis min-w-0" title={codeBlocks[blockIndex]}>
+              <div className="flex items-start justify-between flex-1">
+                <span className="font-mono text-sm text-violet-300 whitespace-pre-wrap break-all min-w-0">
                   {codeBlocks[blockIndex]}
                 </span>
                 {!isDisabled && (

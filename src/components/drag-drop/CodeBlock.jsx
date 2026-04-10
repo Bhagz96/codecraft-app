@@ -18,8 +18,8 @@ function CodeBlock({ text, index, isDragging, onDragStart, onDragEnd, isPlaced, 
       onDragEnd={() => onDragEnd && onDragEnd()}
       title={text}
       className={`
-        px-4 py-3 rounded-lg font-mono text-sm overflow-hidden
-        border transition-all duration-200 flex items-center gap-2
+        px-4 py-3 rounded-lg font-mono text-sm
+        border transition-all duration-200 flex items-start gap-2
         ${isDisabled
           ? "bg-[#0d1117] border-[#30363d] text-gray-600 cursor-default"
           : isPlaced
@@ -31,7 +31,7 @@ function CodeBlock({ text, index, isDragging, onDragStart, onDragEnd, isPlaced, 
       `}
     >
       <span className="text-gray-500 flex-shrink-0">{isDisabled ? "  " : "::"}</span>
-      <span className="whitespace-pre overflow-hidden text-ellipsis">{text}</span>
+      <span className="whitespace-pre-wrap break-all">{text}</span>
     </div>
   );
 }
