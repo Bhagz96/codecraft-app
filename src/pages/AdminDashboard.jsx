@@ -460,6 +460,18 @@ function AnalyticsTab() {
       avgCorrect, avgHints, avgTime, completionRate, avgReviewScore };
   });
 
+  // Per-concept review scores broken down by instruction mode
+  const conceptReviewStats = CONCEPTS.map((concept) => {
+    const modeScores = MODES.map((mode) => {
+      const userIds = profiles.filter((p) => p.instruction_mode === mode).map((p) => p.id);
+      const rows = reviewSessions.filter((s) => s.concept_id === concept && userIds.includes(s.user_id));
+      const avg = rows.length === 0 ? null
+        : Math.round(rows.reduce((sum, r) => sum + (r.total_steps > 0 ? r.correct_count / r.total_steps : 0), 0) / rows.length * 100);
+      return { mode, avg, count: rows.length };
+    });
+    return { concept, modeScores };
+  });
+
   // Modality breakdown
   const MODALITIES = ["codeSimulation", "dragDrop", "speedCoding"];
   const modalityStats = MODALITIES.map((m) => {
@@ -540,19 +552,51 @@ function AnalyticsTab() {
         </div>
       </div>
 
-      {/* Chapter Review Scores by Mode */}
+      {/* Chapter Review Scores — per concept × mode */}
       {totalReviews > 0 && (
         <div className="bg-[#161b22] border border-violet-500/20 rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-gray-100 mb-1">Chapter Review Scores by Mode</h2>
-          <p className="text-xs text-gray-500 mb-5">Post-concept assessment scores — how well each mode prepared users for the unscaffolded review.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <h2 className="text-lg font-bold text-gray-100 mb-1">Chapter Review Scores by Concept &amp; Mode</h2>
+          <p className="text-xs text-gray-500 mb-5">
+            Post-concept assessment scores broken down by concept — the key metric for which instruction mode works best.
+          </p>
+          {/* Column headers */}
+          <div className="grid grid-cols-4 gap-2 mb-2">
+            <div /> {/* empty corner */}
+            {MODES.map((mode) => (
+              <div key={mode} className="text-center">
+                <p className={`text-[10px] font-mono font-semibold uppercase tracking-wider ${MODE_COLORS[mode]}`}>
+                  {MODE_LABELS[mode]}
+                </p>
+              </div>
+            ))}
+          </div>
+          {/* Rows: one per concept */}
+          <div className="space-y-2">
+            {conceptReviewStats.map(({ concept, modeScores }) => (
+              <div key={concept} className="grid grid-cols-4 gap-2 items-center">
+                {/* Concept label */}
+                <div className="text-xs font-mono text-gray-400 capitalize font-semibold pl-1">{concept}</div>
+                {/* Score per mode */}
+                {modeScores.map(({ mode, avg, count }) => (
+                  <div key={mode} className="bg-[#0d1117] rounded-xl p-3 border border-[#30363d] text-center">
+                    <p className={`text-xl font-bold font-mono ${avg == null ? "text-gray-700" : avg >= 70 ? "text-green-400" : avg >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                      {avg == null ? "—" : `${avg}%`}
+                    </p>
+                    <p className="text-gray-600 text-[10px] mt-0.5">{count} review{count !== 1 ? "s" : ""}</p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          {/* Overall row */}
+          <div className="grid grid-cols-4 gap-2 items-center mt-3 pt-3 border-t border-[#30363d]">
+            <div className="text-[10px] font-mono text-gray-600 uppercase tracking-wider pl-1">Overall</div>
             {modeStats.map(({ mode, avgReviewScore, reviewCount }) => (
-              <div key={mode} className="bg-[#0d1117] rounded-xl p-4 border border-[#30363d] text-center">
-                <p className={`text-xs font-mono font-semibold mb-3 ${MODE_COLORS[mode]}`}>{MODE_LABELS[mode]}</p>
-                <p className={`text-3xl font-bold font-mono ${avgReviewScore == null ? "text-gray-700" : avgReviewScore >= 70 ? "text-green-400" : avgReviewScore >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+              <div key={mode} className="bg-[#0d1117] rounded-xl p-3 border border-[#30363d] text-center">
+                <p className={`text-xl font-bold font-mono ${avgReviewScore == null ? "text-gray-700" : avgReviewScore >= 70 ? "text-green-400" : avgReviewScore >= 40 ? "text-yellow-400" : "text-red-400"}`}>
                   {avgReviewScore == null ? "—" : `${avgReviewScore}%`}
                 </p>
-                <p className="text-gray-600 text-[10px] mt-1">{reviewCount} review{reviewCount !== 1 ? "s" : ""}</p>
+                <p className="text-gray-600 text-[10px] mt-0.5">{reviewCount} total</p>
               </div>
             ))}
           </div>
