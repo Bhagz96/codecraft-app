@@ -516,7 +516,7 @@ function LessonPage() {
                 return (
                   <div className="mt-3 pt-3 border-t border-[#30363d]">
                     <p className="text-violet-400 text-[10px] font-mono uppercase tracking-wider mb-1.5">
-                      Guide {stepScaffoldPhase + 1} of 3
+                      {stepScaffoldPhase === 0 ? "Concept" : `Support ${stepScaffoldPhase} of 2`}
                     </p>
                     <p className="text-gray-300 text-xs leading-relaxed">{guideText}</p>
                     {stepScaffoldPhase < 2 && (
