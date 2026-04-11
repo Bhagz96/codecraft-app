@@ -13,11 +13,12 @@
  * after completing their full concept journey.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import lessons from "../data/lessons";
 import { reviewQuestions } from "../data/reviewQuestions";
 import { getHero } from "../data/hero";
+import { shuffleOptions } from "../utils/shuffleOptions";
 import { completeReview } from "../data/progress";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -62,11 +63,18 @@ function ChapterReviewPage() {
   const totalQ = questions.length;
   const progressPct = Math.round((current / totalQ) * 100);
 
+  // Shuffle options once per question so the correct answer isn't always the same position
+  const shuffledQuestion = useMemo(() => {
+    if (!question) return question;
+    const { shuffledOptions, newCorrectIndex } = shuffleOptions(question.options, question.correctIndex);
+    return { ...question, options: shuffledOptions, correctIndex: newCorrectIndex };
+  }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleSelect(idx) {
     if (locked) return;
     setSelected(idx);
     setLocked(true);
-    const isCorrect = idx === question.correctIndex;
+    const isCorrect = idx === shuffledQuestion.correctIndex;
     setResults((prev) => [...prev, { correct: isCorrect, firstTry: true }]);
   }
 
@@ -81,7 +89,7 @@ function ChapterReviewPage() {
   }
 
   function finishReview() {
-    const correctCount = results.filter((r) => r.correct).length + (selected === question.correctIndex ? 1 : 0);
+    const correctCount = results.filter((r) => r.correct).length + (selected === shuffledQuestion.correctIndex ? 1 : 0);
     const totalSteps = totalQ;
     const timeSpent = Math.round((Date.now() - startTime) / 1000);
 
@@ -167,7 +175,7 @@ function ChapterReviewPage() {
           />
         </div>
         <p className="text-xs text-gray-600 font-mono mt-1">
-          Question {question.levelNum}: {question.levelTitle} — no hints available
+          Question {shuffledQuestion.levelNum}: {shuffledQuestion.levelTitle} — no hints available
         </p>
       </div>
 
@@ -176,12 +184,12 @@ function ChapterReviewPage() {
         {/* Instruction */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 mb-4">
           <p className="text-gray-200 font-mono text-sm leading-relaxed">
-            {question.traceQuestion || question.instruction}
+            {shuffledQuestion.traceQuestion || shuffledQuestion.instruction}
           </p>
         </div>
 
         {/* Code snippet (shown for all questions in review) */}
-        {question.codeSnippet && (
+        {shuffledQuestion.codeSnippet && (
           <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-4 mb-4 font-mono text-sm">
             <div className="flex gap-1.5 mb-3">
               <div className="w-3 h-3 rounded-full bg-red-500/70" />
@@ -190,17 +198,17 @@ function ChapterReviewPage() {
               <span className="text-gray-600 text-xs ml-2">review.py</span>
             </div>
             <pre className="text-gray-300 leading-relaxed whitespace-pre-wrap text-xs">
-              {question.codeSnippet.replace(/\{heroName\}/g, heroName)}
+              {shuffledQuestion.codeSnippet.replace(/\{heroName\}/g, heroName)}
             </pre>
           </div>
         )}
 
         {/* Answer options */}
         <div className="flex flex-col gap-3">
-          {question.options?.map((opt, idx) => {
+          {shuffledQuestion.options?.map((opt, idx) => {
             let style = "bg-[#161b22] border border-[#30363d] text-gray-200 hover:border-violet-500/50 cursor-pointer";
             if (locked) {
-              if (idx === question.correctIndex) style = "bg-green-500/15 border border-green-500 text-green-300";
+              if (idx === shuffledQuestion.correctIndex) style = "bg-green-500/15 border border-green-500 text-green-300";
               else if (idx === selected) style = "bg-red-500/15 border border-red-500 text-red-300";
               else style = "bg-[#161b22] border border-[#30363d] text-gray-600";
             }
