@@ -1043,7 +1043,7 @@ const lessons = [
             codeBlocks: ["hero_key = 42", "chest_code = 42", "print(hero_key == chest_code)", 'print(hero_key == "42")'],
             correctOrder: [0, 1, 2, 3],
             visualScene: "mountain",
-            codeTemplate: "hero_key = 42\nprint(hero_key ___ chest_code)",
+            codeTemplate: "hero_key = 42\nchest_code = 42\nprint(hero_key ___ chest_code)",
             blanks: [
               { position: 0, options: ["==", "=", "!="], correctIndex: 0 },
             ],
@@ -1129,7 +1129,7 @@ const lessons = [
             codeBlocks: ["rune_a = True", "rune_b = False", "print(rune_a and rune_b)", "print(rune_a and True)"],
             correctOrder: [0, 1, 2, 3],
             visualScene: "mountain",
-            codeTemplate: "print(True ___ False)",
+            codeTemplate: "print(rune_a ___ rune_b)",
             blanks: [
               { position: 0, options: ["and", "or", "not"], correctIndex: 0 },
             ],
@@ -1250,7 +1250,7 @@ const lessons = [
               "First: 5 >= 3? Yes. Second: has_key is False, so the inner else runs. Nested conditions check step by step — like a bouncer checking ID then checking the list.",
           },
           {
-            instruction: "Simplify: check level AND key in one line!",
+            instruction: "Simplify: combine both cave requirements into a single condition.",
             instructions: {
               codeSimulation: "Both conditions in one line — does {heroName} get in?",
               dragDrop: "Arrange the simplified one-line condition.",
