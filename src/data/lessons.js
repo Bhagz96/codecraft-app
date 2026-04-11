@@ -1058,7 +1058,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Is the obstacle dangerous? Trace the != check.",
               dragDrop: "Arrange the code to check if the obstacle isn't safe.",
-              speedCoding: "Complete the 'not equal' check for obstacle type.",
+              speedCoding: "Complete the operator to check whether the obstacle type differs.",
             },
             gameAction: "heroObstacle",
             sceneConfig: { varDisplay: 'obstacle = "rock"', conditionLabel: 'obstacle != "flower":', successAction: "→ danger detected!" },
@@ -1082,7 +1082,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Can {heroName} cross? Both conditions must be true.",
               dragDrop: "Arrange the code to check both requirements.",
-              speedCoding: "Complete the 'and' condition for the bridge crossing.",
+              speedCoding: "Complete the logical operator — both requirements must be true to cross.",
             },
             gameAction: "heroObstacle",
             sceneConfig: { varDisplay: "has_rope=True · stamina=80", conditionLabel: "if has_rope and stamina >= 50:", successAction: "→ crosses bridge!" },
@@ -1116,11 +1116,11 @@ const lessons = [
         },
         steps: [
           {
-            instruction: "The magic gate needs both runes to be active. Check with 'and'.",
+            instruction: "The magic gate needs both runes to be active. Complete the logic check.",
             instructions: {
               codeSimulation: "Are both runes active? Trace the 'and' logic.",
               dragDrop: "Arrange the code to check both rune conditions.",
-              speedCoding: "Complete the 'and' expression for the rune check.",
+              speedCoding: "Complete the logical operator — the gate needs both runes simultaneously.",
             },
             gameAction: "heroFinalGate",
             sceneConfig: { varDisplay: "rune_a=True · rune_b=False", conditionLabel: "if rune_a and rune_b:", successAction: "→ gate opens!" },
@@ -1140,11 +1140,11 @@ const lessons = [
               "'and' returns True ONLY when BOTH sides are True. True and False = False (gate stays locked). True and True = True (gate opens). Both runes must glow!",
           },
           {
-            instruction: "The hero can climb if it's sunny OR warm. Either works!",
+            instruction: "The hero can climb if at least one weather condition is true.",
             instructions: {
               codeSimulation: "Is it okay to climb? Only one condition needs to be true.",
               dragDrop: "Arrange the 'or' logic for the weather check.",
-              speedCoding: "Complete the 'or' condition for climbing weather.",
+              speedCoding: "Complete the logical operator — either weather condition is enough to climb.",
             },
             gameAction: "heroCheckWeather",
             sceneConfig: { varDisplay: "sunny=F · warm=T", conditionLabel: "can_climb = sunny or warm:", successAction: "→ can climb: True!" },
@@ -1164,11 +1164,11 @@ const lessons = [
               "'or' returns True when AT LEAST ONE side is True. Not sunny but warm? Still True! Only False or False would block the climb.",
           },
           {
-            instruction: "Check if the hero is NOT poisoned before allowing them to fight.",
+            instruction: "Check the hero's health status before allowing them to fight.",
             instructions: {
               codeSimulation: "Is {heroName} poisoned? What does 'not' do to the check?",
               dragDrop: "Arrange the 'not' check for poison status.",
-              speedCoding: "Complete the 'not' condition to check hero health.",
+              speedCoding: "Complete the logical operator to flip the poison check.",
             },
             gameAction: "heroObstacle",
             sceneConfig: { varDisplay: "is_poisoned = False", conditionLabel: "if not is_poisoned:", successAction: "→ ready to fight!" },
@@ -1206,7 +1206,7 @@ const lessons = [
             instructions: {
               codeSimulation: "With danger level 65, which action does the hero take?",
               dragDrop: "Arrange the elif chain for the danger level check.",
-              speedCoding: "Complete the elif keyword for the middle condition.",
+              speedCoding: "Complete the keyword that introduces a second conditional check.",
             },
             gameAction: "heroForkPath",
             sceneConfig: { varDisplay: "danger = 65", conditionLabel: "elif danger >= 50:", successAction: "→ proceed with caution", pathALabel: "≥80: retreat", pathBLabel: "≥50: caution" },
@@ -1230,7 +1230,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Does {heroName} meet BOTH requirements for the cave?",
               dragDrop: "Arrange the nested condition check for cave entry.",
-              speedCoding: "Complete the inner condition to check for the key.",
+              speedCoding: "Complete the inner condition — what must the hero possess to enter?",
             },
             gameAction: "heroObstacle",
             sceneConfig: { varDisplay: "level=5 · has_key=False", conditionLabel: "if level >= 3 and has_key:", successAction: "→ needs a key!" },
@@ -1254,7 +1254,7 @@ const lessons = [
             instructions: {
               codeSimulation: "Both conditions in one line — does {heroName} get in?",
               dragDrop: "Arrange the simplified one-line condition.",
-              speedCoding: "Complete the combined condition using 'and'.",
+              speedCoding: "Both requirements must be true to enter. Complete the combined condition.",
             },
             gameAction: "heroFinalGate",
             sceneConfig: { varDisplay: "level=5 · has_key=True", conditionLabel: "if level >= 3 and has_key:", successAction: "→ enters the cave!" },
@@ -1290,9 +1290,9 @@ const lessons = [
           {
             instruction: "Check if your hero has the required item to pass the summit gate!",
             instructions: {
-              codeSimulation: "Is the magic gem in {heroName}'s inventory? Trace the 'in' check.",
-              dragDrop: "Arrange the code to check inventory for the magic gem.",
-              speedCoding: "Complete the 'in' keyword to search the inventory.",
+              codeSimulation: "Trace both item checks against {heroName}'s inventory.",
+              dragDrop: "Arrange the code to test whether each item is in the inventory list.",
+              speedCoding: "Complete the operator that tests whether an item belongs to a collection.",
             },
             gameAction: "heroFinalGate",
             sceneConfig: { varDisplay: '"gem" in inventory', conditionLabel: '"gem" in inventory:', successAction: "→ gem found: True!" },
@@ -1346,16 +1346,16 @@ const lessons = [
             sceneConfig: { varDisplay: 'int("fire") → ValueError', conditionLabel: "try: → except ValueError:", successAction: "→ error caught!" },
             codeSnippet: 'try:\n    damage = int("fire")\n    print(f"{heroName} deals {damage} damage")\nexcept ValueError:\n    print("Invalid attack value! Using default.")',
             traceQuestion: "What gets printed?",
-            codeBlocks: ["try:", '    damage = int("fire")', '    print(f"Deals {damage} damage")', "except ValueError:", '    print("Invalid attack value!")'],
+            codeBlocks: ["try:", '    damage = int("fire")', '    print(f"Deals {damage} damage")', "except ValueError:", '    print("Invalid attack value! Using default.")'],
             correctOrder: [0, 1, 2, 3, 4],
             visualScene: "mountain",
-            codeTemplate: 'try:\n    damage = int("fire")\nexcept ___:\n    print("Invalid attack value!")',
+            codeTemplate: 'try:\n    damage = int("fire")\nexcept ___:\n    print("Invalid attack value! Using default.")',
             blanks: [
               { position: 0, options: ["ValueError", "TypeError", "Error"], correctIndex: 0 },
             ],
             options: ['"Invalid attack value! Using default."', "Game crashes", '"fire"'],
             correctIndex: 0,
-            hint: "int(\"fire\") will raise an error because \"fire\" is not a number. When the try block fails, which block catches it?",
+            hint: "When int() is given a string that cannot be converted to a number, Python raises a specific error type. Look at the options — which one matches that kind of error?",
             explanation:
               'int("fire") fails because "fire" isn\'t a number. The except block catches the ValueError and shows a friendly message. Games MUST handle errors — crashing is never acceptable!',
           },
