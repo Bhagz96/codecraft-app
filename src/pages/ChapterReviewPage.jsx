@@ -89,7 +89,7 @@ function ChapterReviewPage() {
   }
 
   function finishReview() {
-    const correctCount = results.filter((r) => r.correct).length + (selected === shuffledQuestion.correctIndex ? 1 : 0);
+    const correctCount = results.filter((r) => r.correct).length;
     const totalSteps = totalQ;
     const timeSpent = Math.round((Date.now() - startTime) / 1000);
 

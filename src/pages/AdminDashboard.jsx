@@ -644,6 +644,113 @@ function AnalyticsTab() {
   );
 }
 
+// ─── RAW DATA TAB ────────────────────────────────────────────────────────────
+
+function RawDataTab() {
+  const [sessions, setSessions] = useState([]);
+  const [userMap, setUserMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => { fetchData(); }, []);
+
+  async function fetchData() {
+    const client = supabaseAdmin || supabase;
+    if (!client) { setError("Supabase not configured."); setLoading(false); return; }
+    setLoading(true); setError(null);
+    try {
+      const [{ data, error: err }, { data: profiles }] = await Promise.all([
+        client.from("sessions").select(
+          "id, user_id, concept_id, level, modality, support_strategy, " +
+          "completed, time_spent, correct_count, total_steps, first_try_count, " +
+          "total_attempts, total_hints, scaffold_used, reward_score, timestamp"
+        ).order("timestamp", { ascending: false }),
+        client.from("profiles").select("id, first_name, last_name, nus_id, instruction_mode"),
+      ]);
+      if (err) throw err;
+      const map = {};
+      (profiles || []).forEach((p) => { map[p.id] = p; });
+      setUserMap(map);
+      setSessions(data || []);
+    } catch (err) { setError(err.message); }
+    setLoading(false);
+  }
+
+  if (loading) return <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading raw data...</div>;
+  if (error) return <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono">{error}</div>;
+
+  const isReview = (s) => s.level === 0 || s.support_strategy === "review";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-gray-500 text-xs font-mono">{sessions.length} total sessions (all time)</p>
+        <button onClick={fetchData} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh</button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-[#30363d]">
+        <table className="w-full text-xs font-mono border-collapse min-w-[1100px]">
+          <thead>
+            <tr className="bg-[#161b22] text-left">
+              {[
+                "Timestamp", "User", "NUS ID", "Mode",
+                "Concept", "Level", "Modality",
+                "Correct", "Total", "Score %",
+                "Time (s)", "Hints", "First Try", "Scaffold", "Completed",
+              ].map((h) => (
+                <th key={h} className="px-3 py-2.5 text-gray-500 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap border-b border-[#30363d]">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((s, i) => {
+              const p = userMap[s.user_id];
+              const name = p ? [p.first_name, p.last_name].filter(Boolean).join(" ") || "—" : "—";
+              const pct = s.total_steps > 0 ? Math.round((s.correct_count / s.total_steps) * 100) : 0;
+              const review = isReview(s);
+              return (
+                <tr key={s.id} className={`border-b border-[#21262d] ${i % 2 === 0 ? "bg-[#0d1117]" : "bg-[#0f1419]"} hover:bg-[#1c2333] transition-colors`}>
+                  <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{new Date(s.timestamp).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{name}</td>
+                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{p?.nus_id || "—"}</td>
+                  <td className={`px-3 py-2 whitespace-nowrap ${MODE_COLORS[p?.instruction_mode] || "text-gray-600"}`}>
+                    {MODE_LABELS[p?.instruction_mode] || "—"}
+                  </td>
+                  <td className="px-3 py-2 text-gray-300 capitalize whitespace-nowrap">{s.concept_id}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {review
+                      ? <span className="text-violet-400">review</span>
+                      : <span className="text-gray-400">L{s.level}</span>
+                    }
+                  </td>
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                    {{ codeSimulation: "Code Sim", dragDrop: "Drag & Drop", speedCoding: "Speed" }[s.modality] || s.modality || "—"}
+                  </td>
+                  <td className="px-3 py-2 text-center text-gray-300">{s.correct_count ?? "—"}</td>
+                  <td className="px-3 py-2 text-center text-gray-500">{s.total_steps ?? "—"}</td>
+                  <td className={`px-3 py-2 text-center font-semibold ${pct >= 70 ? "text-green-400" : pct >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                    {s.total_steps > 0 ? `${pct}%` : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-center text-gray-400">{s.time_spent ?? "—"}</td>
+                  <td className="px-3 py-2 text-center text-gray-400">{s.total_hints ?? "—"}</td>
+                  <td className="px-3 py-2 text-center text-gray-400">{s.first_try_count ?? "—"}</td>
+                  <td className="px-3 py-2 text-center">{s.scaffold_used ? <span className="text-violet-400">yes</span> : <span className="text-gray-600">no</span>}</td>
+                  <td className="px-3 py-2 text-center">{s.completed ? <span className="text-green-400">✓</span> : <span className="text-gray-600">—</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {sessions.length === 0 && (
+          <div className="text-center py-16 text-gray-600 font-mono text-sm">// no sessions recorded yet</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN DASHBOARD ──────────────────────────────────────────────────────────
 
 function AdminDashboard() {
@@ -693,6 +800,7 @@ function AdminDashboard() {
             { id: "users",     label: "👥 Users" },
             { id: "sessions",  label: "📋 Sessions" },
             { id: "analytics", label: "📊 Analytics" },
+            { id: "rawdata",   label: "🗃 Raw Data" },
           ].map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`px-5 py-2 rounded-lg text-sm font-mono font-semibold transition-all duration-200 cursor-pointer ${
@@ -705,6 +813,7 @@ function AdminDashboard() {
         {tab === "users"     && <UsersTab />}
         {tab === "sessions"  && <SessionsTab />}
         {tab === "analytics" && <AnalyticsTab />}
+        {tab === "rawdata"   && <RawDataTab />}
       </div>
     </div>
   );
