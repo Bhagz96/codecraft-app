@@ -96,46 +96,130 @@ export function buildSessionsSheet(sessions, profileMap) {
 }
 
 /**
- * Sheet 3 — aggregated performance per support strategy and per modality.
+ * Sheet 3 — Instruction Mode Comparison.
+ *
+ * Replaces the old MAB Summary sheet. Each user has a single fixed
+ * instruction mode assigned at sign-up (no dynamic MAB selection).
+ *
+ * Three sections:
+ *   A) Lesson performance per mode × concept
+ *   B) Chapter review scores per mode × concept
+ *   C) Modality performance (still randomly assigned per session)
  */
-export function buildMABSheet(sessions) {
+export function buildModeComparisonSheet(sessions, profiles) {
   const rows = [];
 
-  // Support strategies (MAB-controlled)
-  SUPPORT_STRATEGIES.forEach((strategy) => {
-    const r = sessions.filter((s) => s.support_strategy === strategy);
-    const avgReward = r.length === 0 ? 0
-      : r.reduce((sum, s) => sum + (s.reward_score ?? 0), 0) / r.length;
-    const correctPct = r.length === 0 ? 0
-      : Math.round(r.reduce((sum, s) => sum + (s.total_steps > 0 ? s.correct_count / s.total_steps : 0), 0) / r.length * 100);
-    const completionRate = r.length === 0 ? 0
-      : Math.round(r.filter((s) => s.completed).length / r.length * 100);
+  // Build a userId → instruction_mode lookup
+  const modeMap = {};
+  profiles.forEach((p) => { if (p.instruction_mode) modeMap[p.id] = p.instruction_mode; });
+
+  const lessonSessions = sessions.filter((s) => s.level > 0);
+  const reviewSessions = sessions.filter((s) => s.level === 0 || s.support_strategy === "review");
+
+  const avg = (arr, fn) => arr.length === 0 ? "" : +(arr.reduce((s, r) => s + fn(r), 0) / arr.length).toFixed(1);
+  const pct = (arr, fn) => arr.length === 0 ? "" : Math.round(arr.reduce((s, r) => s + fn(r), 0) / arr.length * 100);
+
+  // ── Section A: Lesson performance per mode × concept ──────────────────────
+  rows.push({
+    "Section": "── A: Lesson Performance by Instruction Mode ──",
+    "Instruction Mode": "", "Concept": "", "Sessions": "",
+    "Completion %": "", "Avg Correct %": "", "Avg Hints": "", "Avg Time (s)": "", "Avg Reward Score": "",
+  });
+
+  SUPPORT_STRATEGIES.forEach((mode) => {
+    const modeUsers = profiles.filter((p) => p.instruction_mode === mode).map((p) => p.id);
+
+    // Overall row for this mode
+    const allRows = lessonSessions.filter((s) => modeUsers.includes(s.user_id));
     rows.push({
-      "Type":            "Support Strategy (MAB)",
-      "Variation":       STRATEGY_LABELS[strategy] || strategy,
-      "Total Sessions":  r.length,
-      "Completion %":    completionRate,
-      "Avg Correct %":   correctPct,
-      "Avg Reward Score": +avgReward.toFixed(3),
+      "Section": "",
+      "Instruction Mode": STRATEGY_LABELS[mode] || mode,
+      "Concept": "All Concepts",
+      "Sessions": allRows.length,
+      "Completion %":    pct(allRows, (s) => s.completed ? 1 : 0),
+      "Avg Correct %":   pct(allRows, (s) => s.total_steps > 0 ? s.correct_count / s.total_steps : 0),
+      "Avg Hints":       avg(allRows, (s) => s.total_hints ?? 0),
+      "Avg Time (s)":    avg(allRows, (s) => s.time_spent ?? 0),
+      "Avg Reward Score": allRows.length === 0 ? "" : +(allRows.reduce((s, r) => s + (r.reward_score ?? 0), 0) / allRows.length).toFixed(3),
+    });
+
+    // Per-concept breakdown
+    CONCEPTS.forEach((concept) => {
+      const r = lessonSessions.filter((s) => modeUsers.includes(s.user_id) && s.concept_id === concept);
+      if (r.length === 0) return;
+      rows.push({
+        "Section": "",
+        "Instruction Mode": "",
+        "Concept": concept.charAt(0).toUpperCase() + concept.slice(1),
+        "Sessions": r.length,
+        "Completion %":    pct(r, (s) => s.completed ? 1 : 0),
+        "Avg Correct %":   pct(r, (s) => s.total_steps > 0 ? s.correct_count / s.total_steps : 0),
+        "Avg Hints":       avg(r, (s) => s.total_hints ?? 0),
+        "Avg Time (s)":    avg(r, (s) => s.time_spent ?? 0),
+        "Avg Reward Score": +(r.reduce((s, rv) => s + (rv.reward_score ?? 0), 0) / r.length).toFixed(3),
+      });
     });
   });
 
-  rows.push({}); // visual separator
+  rows.push({ "Section": "" }); // separator
 
-  // Modalities (randomly assigned)
-  MODALITIES.forEach((modality) => {
-    const r = sessions.filter((s) => s.modality === modality);
-    const correctPct = r.length === 0 ? 0
-      : Math.round(r.reduce((sum, s) => sum + (s.total_steps > 0 ? s.correct_count / s.total_steps : 0), 0) / r.length * 100);
-    const completionRate = r.length === 0 ? 0
-      : Math.round(r.filter((s) => s.completed).length / r.length * 100);
+  // ── Section B: Chapter review scores per mode × concept ───────────────────
+  rows.push({
+    "Section": "── B: Chapter Review Scores by Instruction Mode ──",
+    "Instruction Mode": "", "Concept": "", "Sessions": "",
+    "Completion %": "", "Avg Correct %": "", "Avg Hints": "", "Avg Time (s)": "", "Avg Reward Score": "",
+  });
+
+  SUPPORT_STRATEGIES.forEach((mode) => {
+    const modeUsers = profiles.filter((p) => p.instruction_mode === mode).map((p) => p.id);
+
+    const allReviews = reviewSessions.filter((s) => modeUsers.includes(s.user_id));
     rows.push({
-      "Type":            "Modality (random)",
-      "Variation":       MODALITY_LABELS[modality] || modality,
-      "Total Sessions":  r.length,
-      "Completion %":    completionRate,
-      "Avg Correct %":   correctPct,
-      "Avg Reward Score": "—",
+      "Section": "",
+      "Instruction Mode": STRATEGY_LABELS[mode] || mode,
+      "Concept": "All Concepts",
+      "Sessions": allReviews.length,
+      "Completion %": "",
+      "Avg Correct %": pct(allReviews, (s) => s.total_steps > 0 ? s.correct_count / s.total_steps : 0),
+      "Avg Hints": "", "Avg Time (s)": "", "Avg Reward Score": "",
+    });
+
+    CONCEPTS.forEach((concept) => {
+      const r = reviewSessions.filter((s) => modeUsers.includes(s.user_id) && s.concept_id === concept);
+      if (r.length === 0) return;
+      rows.push({
+        "Section": "",
+        "Instruction Mode": "",
+        "Concept": concept.charAt(0).toUpperCase() + concept.slice(1),
+        "Sessions": r.length,
+        "Completion %": "",
+        "Avg Correct %": pct(r, (s) => s.total_steps > 0 ? s.correct_count / s.total_steps : 0),
+        "Avg Hints": "", "Avg Time (s)": "", "Avg Reward Score": "",
+      });
+    });
+  });
+
+  rows.push({ "Section": "" }); // separator
+
+  // ── Section C: Modality performance (randomly assigned) ───────────────────
+  rows.push({
+    "Section": "── C: Teaching Format Performance (random assignment) ──",
+    "Instruction Mode": "", "Concept": "", "Sessions": "",
+    "Completion %": "", "Avg Correct %": "", "Avg Hints": "", "Avg Time (s)": "", "Avg Reward Score": "",
+  });
+
+  MODALITIES.forEach((modality) => {
+    const r = lessonSessions.filter((s) => s.modality === modality);
+    rows.push({
+      "Section": "",
+      "Instruction Mode": MODALITY_LABELS[modality] || modality,
+      "Concept": "All Concepts",
+      "Sessions": r.length,
+      "Completion %":    pct(r, (s) => s.completed ? 1 : 0),
+      "Avg Correct %":   pct(r, (s) => s.total_steps > 0 ? s.correct_count / s.total_steps : 0),
+      "Avg Hints":       avg(r, (s) => s.total_hints ?? 0),
+      "Avg Time (s)":    avg(r, (s) => s.time_spent ?? 0),
+      "Avg Reward Score": "",
     });
   });
 
@@ -219,7 +303,7 @@ export function buildAnalysisSheet(sessions, profiles) {
 const COL_WIDTHS = {
   Users: [14, 14, 14, 14, 14, 10, 10, 10, 10, 10, 16, 14, 16, 20],
   Sessions: [20, 14, 18, 14, 12, 8, 18, 24, 10, 10, 14, 12, 12, 10, 14, 14, 14, 22],
-  "MAB Summary": [28, 26, 14, 14, 14, 16],
+  "Mode Comparison": [44, 24, 16, 10, 14, 14, 12, 14, 16],
   Analysis: [32, 14, 10, 14, 14, 12, 14, 12],
 };
 
@@ -245,7 +329,7 @@ export async function exportToExcel(client) {
     { data: progressData },
     { data: sessionsData },
   ] = await Promise.all([
-    client.from("profiles").select("id, nus_id, first_name, last_name, skill_level, role"),
+    client.from("profiles").select("id, nus_id, first_name, last_name, skill_level, role, instruction_mode"),
     client.from("heroes").select("user_id, name, level, xp, health, attack, defense, gold"),
     client.from("user_progress").select("user_id, concept_id, highest_level"),
     client.from("sessions").select(
@@ -276,10 +360,10 @@ export async function exportToExcel(client) {
 
   // Build sheets
   const wb = XLSX.utils.book_new();
-  applySheet(wb, buildUsersSheet(profiles, heroMap, progressMap),   "Users");
-  applySheet(wb, buildSessionsSheet(sessions, profileMap),           "Sessions");
-  applySheet(wb, buildMABSheet(sessions),                            "MAB Summary");
-  applySheet(wb, buildAnalysisSheet(sessions, profiles),             "Analysis");
+  applySheet(wb, buildUsersSheet(profiles, heroMap, progressMap),         "Users");
+  applySheet(wb, buildSessionsSheet(sessions, profileMap),                "Sessions");
+  applySheet(wb, buildModeComparisonSheet(sessions, profiles),            "Mode Comparison");
+  applySheet(wb, buildAnalysisSheet(sessions, profiles),                  "Analysis");
 
   // Trigger download
   const date = new Date().toISOString().split("T")[0];
