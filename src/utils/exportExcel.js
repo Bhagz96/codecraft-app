@@ -70,7 +70,7 @@ export function buildSessionsSheet(sessions, profileMap) {
   return sessions.map((s) => {
     const p = profileMap[s.user_id];
     const correctPct = s.total_steps > 0
-      ? Math.round((s.correct_count / s.total_steps) * 100)
+      ? Math.min(100, Math.round((s.correct_count / s.total_steps) * 100))
       : 0;
     return {
       "Session ID":       s.session_id || s.id || "",
@@ -82,9 +82,10 @@ export function buildSessionsSheet(sessions, profileMap) {
       "Modality":         MODALITY_LABELS[s.modality]          || s.modality          || "",
       "Support Strategy": STRATEGY_LABELS[s.support_strategy]  || s.support_strategy  || "",
       "Completed":        s.completed ? "Yes" : "No",
+      "Correct Count":    s.correct_count    ?? "",
+      "Total Steps":      s.total_steps      ?? "",
       "Correct %":        correctPct,
       "First-Try Count":  s.first_try_count  ?? "",
-      "Total Steps":      s.total_steps      ?? "",
       "Total Hints":      s.total_hints      ?? "",
       "Attempts":         s.total_attempts   ?? "",
       "Scaffold Used":    s.scaffold_used ? "Yes" : "No",
@@ -302,7 +303,7 @@ export function buildAnalysisSheet(sessions, profiles) {
 
 const COL_WIDTHS = {
   Users: [14, 14, 14, 14, 14, 10, 10, 10, 10, 10, 16, 14, 16, 20],
-  Sessions: [20, 14, 18, 14, 12, 8, 18, 24, 10, 10, 14, 12, 12, 10, 14, 14, 14, 22],
+  Sessions: [20, 14, 18, 14, 12, 8, 18, 24, 10, 12, 10, 10, 14, 12, 12, 10, 14, 14, 14, 22],
   "Mode Comparison": [44, 24, 16, 10, 14, 14, 12, 14, 16],
   Analysis: [32, 14, 10, 14, 14, 12, 14, 12],
 };
