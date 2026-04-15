@@ -294,23 +294,36 @@ function SessionsTab() {
 
   async function fixReviewScores() {
     if (!window.confirm(
-      "This will correct all review sessions where correct_count > total_steps (the double-count bug).\n\n" +
-      "Affected rows will be set to correct_count = 5, first_try_count = 5, reward_score = 1.0.\n\n" +
+      "This corrects two confirmed cases of the double-count bug in review sessions:\n\n" +
+      "• stored 6/5 → corrected to 5/5 (true perfect score)\n" +
+      "• stored 5/5 → corrected to 4/5 (Q5 bonus inflated a 4-correct session)\n\n" +
+      "Scores of 4/5 or below are ambiguous and will not be changed.\n\n" +
       "This cannot be undone. Proceed?"
     )) return;
     const client = supabaseAdmin || supabase;
     setFixing(true);
     setFixResult(null);
     try {
-      const { error, count } = await client
+      // Fix 1: stored 6/5 → true 5/5
+      const { error: err1 } = await client
         .from("sessions")
         .update({ correct_count: 5, first_try_count: 5, reward_score: 1.0 })
         .eq("support_strategy", "review")
-        .gt("correct_count", 5)
-        .select("id", { count: "exact", head: true });
-      if (error) throw error;
-      setFixResult({ ok: true, count: count ?? "?" });
-      fetchSessions(); // reload to reflect changes
+        .eq("total_steps", 5)
+        .eq("correct_count", 6);
+      if (err1) throw err1;
+
+      // Fix 2: stored 5/5 → true 4/5
+      const { error: err2 } = await client
+        .from("sessions")
+        .update({ correct_count: 4, first_try_count: 4, reward_score: 0.8 })
+        .eq("support_strategy", "review")
+        .eq("total_steps", 5)
+        .eq("correct_count", 5);
+      if (err2) throw err2;
+
+      setFixResult({ ok: true });
+      fetchSessions();
     } catch (err) {
       setFixResult({ ok: false, message: err.message });
     }
