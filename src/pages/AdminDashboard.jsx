@@ -255,6 +255,8 @@ function SessionsTab() {
   const [expanded, setExpanded] = useState(null);
   const [filter, setFilter] = useState("all"); // all | lessons | reviews
   const [deletingId, setDeletingId] = useState(null);
+  const [fixing, setFixing] = useState(false);
+  const [fixResult, setFixResult] = useState(null);
 
   useEffect(() => { fetchSessions(); }, []);
 
@@ -290,6 +292,31 @@ function SessionsTab() {
     setDeletingId(null);
   }
 
+  async function fixReviewScores() {
+    if (!window.confirm(
+      "This will correct all review sessions where correct_count > total_steps (the double-count bug).\n\n" +
+      "Affected rows will be set to correct_count = 5, first_try_count = 5, reward_score = 1.0.\n\n" +
+      "This cannot be undone. Proceed?"
+    )) return;
+    const client = supabaseAdmin || supabase;
+    setFixing(true);
+    setFixResult(null);
+    try {
+      const { error, count } = await client
+        .from("sessions")
+        .update({ correct_count: 5, first_try_count: 5, reward_score: 1.0 })
+        .eq("support_strategy", "review")
+        .gt("correct_count", 5)
+        .select("id", { count: "exact", head: true });
+      if (error) throw error;
+      setFixResult({ ok: true, count: count ?? "?" });
+      fetchSessions(); // reload to reflect changes
+    } catch (err) {
+      setFixResult({ ok: false, message: err.message });
+    }
+    setFixing(false);
+  }
+
   if (loading) return <div className="text-center py-16 text-cyan-400 font-mono animate-pulse text-sm">Loading sessions...</div>;
   if (error) return <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm font-mono"><p className="font-semibold mb-1">Error</p><p className="text-xs">{error}</p></div>;
 
@@ -311,14 +338,31 @@ function SessionsTab() {
             >{label}</button>
           ))}
         </div>
-        <button onClick={fetchSessions} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh</button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fixReviewScores}
+            disabled={fixing}
+            className="text-xs font-mono px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {fixing ? "Fixing…" : "🔧 Fix Review Scores"}
+          </button>
+          <button onClick={fetchSessions} className="text-xs font-mono text-gray-500 hover:text-gray-300 transition-colors cursor-pointer">↺ Refresh</button>
+        </div>
       </div>
+
+      {fixResult && (
+        <div className={`text-xs font-mono px-4 py-2.5 rounded-lg border ${fixResult.ok ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+          {fixResult.ok
+            ? `✓ Done — corrected review sessions with inflated scores. Data reloaded.`
+            : `✗ Fix failed: ${fixResult.message}`}
+        </div>
+      )}
 
       {filtered.length === 0 && <div className="text-center py-16 text-gray-600 font-mono text-sm">// no sessions recorded yet</div>}
 
       {filtered.map((s) => {
         const isOpen = expanded === s.id;
-        const pct = s.total_steps > 0 ? Math.round((s.correct_count / s.total_steps) * 100) : 0;
+        const pct = s.total_steps > 0 ? Math.min(100, Math.round((s.correct_count / s.total_steps) * 100)) : 0;
         const date = new Date(s.timestamp).toLocaleString();
         const profile = userMap[s.user_id];
         const userName = profile
@@ -708,7 +752,7 @@ function RawDataTab() {
             {sessions.map((s, i) => {
               const p = userMap[s.user_id];
               const name = p ? [p.first_name, p.last_name].filter(Boolean).join(" ") || "—" : "—";
-              const pct = s.total_steps > 0 ? Math.round((s.correct_count / s.total_steps) * 100) : 0;
+              const pct = s.total_steps > 0 ? Math.min(100, Math.round((s.correct_count / s.total_steps) * 100)) : 0;
               const review = isReview(s);
               return (
                 <tr key={s.id} className={`border-b border-[#21262d] ${i % 2 === 0 ? "bg-[#0d1117]" : "bg-[#0f1419]"} hover:bg-[#1c2333] transition-colors`}>
